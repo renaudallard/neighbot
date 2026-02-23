@@ -16,6 +16,7 @@
 
 #include <arpa/inet.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -152,12 +153,23 @@ db_save(const char *path)
 {
 	char tmp[PATH_MAX];
 	FILE *fp;
-	int count = 0;
+	int fd, count = 0;
 
 	snprintf(tmp, sizeof(tmp), "%s.tmp", path);
-	fp = fopen(tmp, "w");
-	if (!fp) {
+
+	/* remove stale temp file, then create exclusively to prevent
+	 * symlink attacks (O_NOFOLLOW + O_EXCL) with fixed permissions */
+	(void)unlink(tmp);
+	fd = open(tmp, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0644);
+	if (fd < 0) {
 		log_err("db_save: %s: %s", tmp, strerror(errno));
+		return -1;
+	}
+	fp = fdopen(fd, "w");
+	if (!fp) {
+		log_err("db_save: fdopen: %s", strerror(errno));
+		close(fd);
+		unlink(tmp);
 		return -1;
 	}
 

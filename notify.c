@@ -28,6 +28,7 @@
 #include <unistd.h>
 
 #include "neighbot.h"
+#include "db.h"
 #include "log.h"
 #include "notify.h"
 #include "oui.h"
@@ -147,12 +148,14 @@ notify_new(int af, const uint8_t *ip, const uint8_t *mac,
            const char *iface)
 {
 	char subject[256];
-	char body[1024];
+	char body[2048];
 	char ipstr[INET6_ADDRSTRLEN];
 	char macstr[18];
 	char host[256];
 	char timebuf[128];
+	char other_ips[512];
 	const char *vendor;
+	size_t off;
 
 	inet_ntop(af, ip, ipstr, sizeof(ipstr));
 	format_mac(mac, macstr, sizeof(macstr));
@@ -162,7 +165,7 @@ notify_new(int af, const uint8_t *ip, const uint8_t *mac,
 
 	snprintf(subject, sizeof(subject),
 	         "neighbot: new station %s on %s", ipstr, iface);
-	snprintf(body, sizeof(body),
+	off = snprintf(body, sizeof(body),
 	         "          hostname: %s\n"
 	         "        ip address: %s\n"
 	         "  ethernet address: %s\n"
@@ -171,6 +174,10 @@ notify_new(int af, const uint8_t *ip, const uint8_t *mac,
 	         host, ipstr, macstr,
 	         vendor ? vendor : "<unknown>",
 	         timebuf);
+
+	if (db_other_ips(mac, af, ip, other_ips, sizeof(other_ips)) > 0)
+		snprintf(body + off, sizeof(body) - off,
+		         "     also known as: %s\n", other_ips);
 
 	send_mail(subject, body);
 }
@@ -181,13 +188,15 @@ notify_changed(int af, const uint8_t *ip, const uint8_t *mac,
                time_t prev_seen)
 {
 	char subject[256];
-	char body[1024];
+	char body[2048];
 	char ipstr[INET6_ADDRSTRLEN];
 	char macstr[18], oldmacstr[18];
 	char host[256];
 	char timebuf[128], prevbuf[128], deltabuf[64];
+	char other_ips[512];
 	const char *vendor, *old_vendor;
 	time_t now = time(NULL);
+	size_t off;
 
 	inet_ntop(af, ip, ipstr, sizeof(ipstr));
 	format_mac(mac, macstr, sizeof(macstr));
@@ -201,7 +210,7 @@ notify_changed(int af, const uint8_t *ip, const uint8_t *mac,
 
 	snprintf(subject, sizeof(subject),
 	         "neighbot: changed station %s on %s", ipstr, iface);
-	snprintf(body, sizeof(body),
+	off = snprintf(body, sizeof(body),
 	         "             hostname: %s\n"
 	         "           ip address: %s\n"
 	         "    ethernet address: %s\n"
@@ -216,6 +225,10 @@ notify_changed(int af, const uint8_t *ip, const uint8_t *mac,
 	         oldmacstr,
 	         old_vendor ? old_vendor : "<unknown>",
 	         timebuf, prevbuf, deltabuf);
+
+	if (db_other_ips(mac, af, ip, other_ips, sizeof(other_ips)) > 0)
+		snprintf(body + off, sizeof(body) - off,
+		         "       also known as: %s\n", other_ips);
 
 	send_mail(subject, body);
 }

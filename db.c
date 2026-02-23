@@ -270,6 +270,41 @@ db_update(int af, const uint8_t *ip, const uint8_t *mac,
 	return EVENT_NEW;
 }
 
+/* Build a comma-separated string of other IPs associated with this MAC,
+ * excluding the given af+ip.  Returns the number of other IPs found. */
+int
+db_other_ips(const uint8_t *mac, int exclude_af, const uint8_t *exclude_ip,
+             char *buf, size_t len)
+{
+	int count = 0;
+	size_t off = 0;
+
+	buf[0] = '\0';
+
+	for (unsigned i = 0; i < HT_BUCKETS; i++) {
+		for (struct entry *e = buckets[i]; e; e = e->next) {
+			if (memcmp(e->mac, mac, 6) != 0)
+				continue;
+			if (e->af == exclude_af &&
+			    memcmp(e->ip, exclude_ip, ip_len(exclude_af)) == 0)
+				continue;
+
+			char ipstr[INET6_ADDRSTRLEN];
+			inet_ntop(e->af, e->ip, ipstr, sizeof(ipstr));
+
+			int n;
+			if (count == 0)
+				n = snprintf(buf + off, len - off, "%s", ipstr);
+			else
+				n = snprintf(buf + off, len - off, ", %s", ipstr);
+			if (n > 0 && (size_t)n < len - off)
+				off += n;
+			count++;
+		}
+	}
+	return count;
+}
+
 void
 db_free(void)
 {

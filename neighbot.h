@@ -29,6 +29,7 @@
 #define DEFAULT_MAILTO  "root"
 
 #define HT_BUCKETS      1024
+#define MAX_ENTRIES      100000
 #define MAX_IFACES       64
 #define SNAP_LEN         128
 #define POLL_TIMEOUT_MS  1000

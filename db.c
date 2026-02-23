@@ -28,6 +28,8 @@
 #include "log.h"
 
 static struct entry *buckets[HT_BUCKETS];
+static unsigned     entry_count;
+static int          limit_warned;
 
 static uint32_t
 fnv1a(const void *data, size_t len)
@@ -140,6 +142,7 @@ db_load(const char *path)
 		idx = hash_key(e->af, e->ip);
 		e->next = buckets[idx];
 		buckets[idx] = e;
+		entry_count++;
 		count++;
 	}
 
@@ -238,6 +241,15 @@ db_update(int af, const uint8_t *ip, const uint8_t *mac,
 	}
 
 	/* new entry */
+	if (entry_count >= MAX_ENTRIES) {
+		if (!limit_warned) {
+			log_err("db_update: entry limit reached (%u)",
+			    MAX_ENTRIES);
+			limit_warned = 1;
+		}
+		return 0;
+	}
+
 	struct entry *e = calloc(1, sizeof(*e));
 	if (!e) {
 		log_err("db_update: out of memory");
@@ -252,6 +264,7 @@ db_update(int af, const uint8_t *ip, const uint8_t *mac,
 	e->last_seen = now;
 	e->next = buckets[idx];
 	buckets[idx] = e;
+	entry_count++;
 	return EVENT_NEW;
 }
 
@@ -267,4 +280,6 @@ db_free(void)
 		}
 		buckets[i] = NULL;
 	}
+	entry_count = 0;
+	limit_warned = 0;
 }

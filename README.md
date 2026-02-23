@@ -124,7 +124,8 @@ fe80::1,11:22:33:44:55:66,eth0,2026-02-23T14:30:05,2026-02-23T15:12:05
 
 Fields: `ip, mac, interface, first_seen, last_seen` (ISO 8601, local time).
 
-Saves are atomic (write to temp file + rename).
+Saves are atomic (write to temp file + rename). The maximum number of entries
+is limited to 100,000 to prevent memory exhaustion from spoofed traffic.
 
 ## Signals
 

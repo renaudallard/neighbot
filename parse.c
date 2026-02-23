@@ -102,6 +102,9 @@ handle_event(int event, int af, const uint8_t *ip, const uint8_t *mac,
 			notify_changed(af, ip, mac, old_mac, iface,
 			               old_last_seen);
 	}
+
+	/* trigger save in main loop */
+	save = 1;
 }
 
 static void

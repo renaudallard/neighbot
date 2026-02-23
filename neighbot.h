@@ -28,7 +28,7 @@
 #define DEFAULT_DBFILE  "/var/neighbot/neighbot.csv"
 #define DEFAULT_MAILTO  "root"
 #define DEFAULT_USER    "nobody"
-#define DEFAULT_OUIFILE "/usr/local/share/neighbot/oui.txt"
+#define DEFAULT_OUIFILE "/var/neighbot/oui.txt"
 
 #define HT_BUCKETS      1024
 #define MAX_ENTRIES      100000

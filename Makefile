@@ -44,8 +44,7 @@ install: $(BIN) oui.txt
 	install -d $(DESTDIR)$(MANDIR)/man8
 	install -m 644 neighbot.8 $(DESTDIR)$(MANDIR)/man8/neighbot.8
 	install -d $(DESTDIR)$(DBDIR)
-	install -d $(DESTDIR)$(PREFIX)/share/neighbot
-	install -m 644 oui.txt $(DESTDIR)$(PREFIX)/share/neighbot/oui.txt
+	install -m 644 oui.txt $(DESTDIR)$(DBDIR)/oui.txt
 
 install-systemd: install
 	install -d $(DESTDIR)/etc/systemd/system
@@ -57,8 +56,7 @@ install-rcd: install
 uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/$(BIN)
 	rm -f $(DESTDIR)$(MANDIR)/man8/neighbot.8
-	rm -f $(DESTDIR)$(PREFIX)/share/neighbot/oui.txt
-	rmdir $(DESTDIR)$(PREFIX)/share/neighbot 2>/dev/null || true
+	rm -f $(DESTDIR)$(DBDIR)/oui.txt
 	rm -f $(DESTDIR)/etc/systemd/system/neighbot.service
 	rm -f $(DESTDIR)/etc/rc.d/neighbot
 

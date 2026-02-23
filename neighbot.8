@@ -41,7 +41,8 @@ Drop privileges to
 after opening packet capture handles.
 The database directory and file are chowned to this user before
 dropping.
-Requires starting as root.
+Default:
+.Ql nobody .
 .El
 .Sh DATABASE FORMAT
 The database is a CSV file with the following fields:
@@ -72,11 +73,10 @@ Systemd unit file (Linux).
 rc.d script (OpenBSD).
 .El
 .Sh SECURITY
-When started with
-.Fl u ,
 .Nm
-drops to the specified unprivileged user after opening packet capture
-handles.
+drops to an unprivileged user
+.Pq default: nobody
+after opening packet capture handles.
 All supplementary groups are dropped.
 .Pp
 On

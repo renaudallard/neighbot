@@ -68,6 +68,7 @@ main(int argc, char *argv[])
 
 	cfg.dbfile = DEFAULT_DBFILE;
 	cfg.mailto = DEFAULT_MAILTO;
+	cfg.user   = DEFAULT_USER;
 
 	while ((ch = getopt(argc, argv, "df:m:qu:")) != -1) {
 		switch (ch) {
@@ -127,8 +128,8 @@ main(int argc, char *argv[])
 		log_init("neighbot", 1);
 	}
 
-	/* drop privileges if requested */
-	if (cfg.user) {
+	/* drop privileges */
+	{
 		struct passwd *pw = getpwnam(cfg.user);
 		if (!pw) {
 			log_err("unknown user: %s", cfg.user);

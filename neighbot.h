@@ -27,6 +27,7 @@
 
 #define DEFAULT_DBFILE  "/var/neighbot/neighbot.csv"
 #define DEFAULT_MAILTO  "root"
+#define DEFAULT_USER    "nobody"
 
 #define HT_BUCKETS      1024
 #define MAX_ENTRIES      100000

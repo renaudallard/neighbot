@@ -69,7 +69,7 @@ neighbot [-d] [-f dbfile] [-m mailto] [-q] [-u user]
 | `-f path` | Database file (default: `/var/neighbot/neighbot.csv`) |
 | `-m addr` | Email recipient (default: `root`) |
 | `-q` | Quiet mode -- no email, still logs |
-| `-u user` | Drop privileges to `user` after opening pcap handles |
+| `-u user` | Drop privileges to `user` after opening pcap handles (default: `nobody`) |
 
 ### Examples
 
@@ -138,8 +138,8 @@ is limited to 100,000 to prevent memory exhaustion from spoofed traffic.
 
 ## Security
 
-With `-u user`, neighbot drops to an unprivileged user after opening
-pcap handles. All supplementary groups are dropped. The database
+neighbot always drops to an unprivileged user (default: `nobody`) after
+opening pcap handles. All supplementary groups are dropped. The database
 directory and file are chowned to the target user before switching.
 
 On OpenBSD, neighbot additionally drops privileges after initialization

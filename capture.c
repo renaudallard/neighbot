@@ -42,10 +42,24 @@ capture_open_all(struct iface *ifaces, int max)
 		if (dev->flags & PCAP_IF_LOOPBACK)
 			continue;
 
-		p = pcap_open_live(dev->name, SNAP_LEN, 0, POLL_TIMEOUT_MS,
-		                   errbuf);
+		p = pcap_create(dev->name, errbuf);
 		if (!p) {
-			log_err("pcap_open_live(%s): %s", dev->name, errbuf);
+			log_err("pcap_create(%s): %s", dev->name, errbuf);
+			continue;
+		}
+
+		pcap_set_snaplen(p, SNAP_LEN);
+		pcap_set_promisc(p, 0);
+		pcap_set_timeout(p, POLL_TIMEOUT_MS);
+
+		/* immediate mode: deliver packets to poll() without
+		 * waiting for BPF buffer timeout (needed on BSDs) */
+		pcap_set_immediate_mode(p, 1);
+
+		if (pcap_activate(p) < 0) {
+			log_err("pcap_activate(%s): %s", dev->name,
+			        pcap_geterr(p));
+			pcap_close(p);
 			continue;
 		}
 

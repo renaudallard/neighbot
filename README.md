@@ -60,7 +60,7 @@ sudo make PREFIX=/usr install
 ## Usage
 
 ```
-neighbot [-d] [-f dbfile] [-m mailto] [-q]
+neighbot [-d] [-f dbfile] [-m mailto] [-q] [-u user]
 ```
 
 | Flag | Description |
@@ -69,6 +69,7 @@ neighbot [-d] [-f dbfile] [-m mailto] [-q]
 | `-f path` | Database file (default: `/var/neighbot/neighbot.csv`) |
 | `-m addr` | Email recipient (default: `root`) |
 | `-q` | Quiet mode -- no email, still logs |
+| `-u user` | Drop privileges to `user` after opening pcap handles |
 
 ### Examples
 
@@ -76,8 +77,8 @@ neighbot [-d] [-f dbfile] [-m mailto] [-q]
 # foreground, quiet, custom DB
 sudo neighbot -q -f /tmp/neighbot.csv
 
-# daemon with email alerts
-sudo neighbot -d -m admin@example.com
+# daemon with email alerts, drop privileges
+sudo neighbot -d -u neighbot -m admin@example.com
 ```
 
 ## Service setup
@@ -137,8 +138,12 @@ is limited to 100,000 to prevent memory exhaustion from spoofed traffic.
 
 ## Security
 
-On OpenBSD, neighbot drops privileges after initialization using
-`pledge(2)` and `unveil(2)`:
+With `-u user`, neighbot drops to an unprivileged user after opening
+pcap handles. All supplementary groups are dropped. The database
+directory and file are chowned to the target user before switching.
+
+On OpenBSD, neighbot additionally drops privileges after initialization
+using `pledge(2)` and `unveil(2)`:
 
 | Mode | pledge | unveil |
 |------|--------|--------|

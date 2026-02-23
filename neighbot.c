@@ -15,8 +15,10 @@
  */
 
 #include <errno.h>
+#include <grp.h>
 #include <limits.h>
 #include <poll.h>
+#include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,6 +36,7 @@ struct config cfg = {
 	.quiet     = 0,
 	.dbfile    = NULL,
 	.mailto    = NULL,
+	.user      = NULL,
 };
 
 volatile sig_atomic_t quit;
@@ -52,7 +55,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: neighbot [-d] [-f dbfile] [-m mailto] [-q]\n");
+	    "usage: neighbot [-d] [-f dbfile] [-m mailto] [-q] [-u user]\n");
 	exit(1);
 }
 
@@ -66,7 +69,7 @@ main(int argc, char *argv[])
 	cfg.dbfile = DEFAULT_DBFILE;
 	cfg.mailto = DEFAULT_MAILTO;
 
-	while ((ch = getopt(argc, argv, "df:m:q")) != -1) {
+	while ((ch = getopt(argc, argv, "df:m:qu:")) != -1) {
 		switch (ch) {
 		case 'd':
 			cfg.daemonize = 1;
@@ -79,6 +82,9 @@ main(int argc, char *argv[])
 			break;
 		case 'q':
 			cfg.quiet = 1;
+			break;
+		case 'u':
+			cfg.user = optarg;
 			break;
 		default:
 			usage();
@@ -119,6 +125,53 @@ main(int argc, char *argv[])
 		}
 		/* re-init logging after daemon() closes stderr */
 		log_init("neighbot", 1);
+	}
+
+	/* drop privileges if requested */
+	if (cfg.user) {
+		struct passwd *pw = getpwnam(cfg.user);
+		if (!pw) {
+			log_err("unknown user: %s", cfg.user);
+			capture_close_all(ifaces, nifaces);
+			db_free();
+			return 1;
+		}
+
+		/* chown DB directory and file so the target user can write */
+		const char *sl = strrchr(cfg.dbfile, '/');
+		char dbdir[PATH_MAX];
+		if (sl && sl != cfg.dbfile)
+			snprintf(dbdir, sizeof(dbdir), "%.*s",
+			    (int)(sl - cfg.dbfile), cfg.dbfile);
+		else if (sl)
+			snprintf(dbdir, sizeof(dbdir), "/");
+		else
+			snprintf(dbdir, sizeof(dbdir), ".");
+
+		if (chown(dbdir, pw->pw_uid, pw->pw_gid) < 0)
+			log_err("chown %s: %s", dbdir, strerror(errno));
+		(void)chown(cfg.dbfile, pw->pw_uid, pw->pw_gid);
+
+		if (setgroups(1, &pw->pw_gid) < 0) {
+			log_err("setgroups: %s", strerror(errno));
+			capture_close_all(ifaces, nifaces);
+			db_free();
+			return 1;
+		}
+		if (setgid(pw->pw_gid) < 0) {
+			log_err("setgid: %s", strerror(errno));
+			capture_close_all(ifaces, nifaces);
+			db_free();
+			return 1;
+		}
+		if (setuid(pw->pw_uid) < 0) {
+			log_err("setuid: %s", strerror(errno));
+			capture_close_all(ifaces, nifaces);
+			db_free();
+			return 1;
+		}
+
+		log_msg("dropped privileges to %s", cfg.user);
 	}
 
 	log_msg("neighbot %s started, monitoring %d interface(s)",

@@ -10,6 +10,7 @@
 .Op Fl f Ar dbfile
 .Op Fl m Ar mailto
 .Op Fl q
+.Op Fl u Ar user
 .Sh DESCRIPTION
 .Nm
 passively monitors ARP (IPv4) and NDP (IPv6) traffic on all Ethernet
@@ -34,6 +35,13 @@ Default:
 Quiet mode.
 Suppress email notifications.
 Events are still logged.
+.It Fl u Ar user
+Drop privileges to
+.Ar user
+after opening packet capture handles.
+The database directory and file are chowned to this user before
+dropping.
+Requires starting as root.
 .El
 .Sh DATABASE FORMAT
 The database is a CSV file with the following fields:
@@ -64,10 +72,17 @@ Systemd unit file (Linux).
 rc.d script (OpenBSD).
 .El
 .Sh SECURITY
+When started with
+.Fl u ,
+.Nm
+drops to the specified unprivileged user after opening packet capture
+handles.
+All supplementary groups are dropped.
+.Pp
 On
 .Ox ,
 .Nm
-uses
+additionally uses
 .Xr pledge 2
 and
 .Xr unveil 2

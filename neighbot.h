@@ -41,6 +41,7 @@ struct config {
 	int    quiet;
 	char  *dbfile;
 	char  *mailto;
+	char  *user;
 };
 
 extern struct config cfg;

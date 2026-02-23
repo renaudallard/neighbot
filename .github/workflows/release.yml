@@ -31,11 +31,19 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Create source tarball
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          prefix="neighbot-${{ steps.version.outputs.version }}"
+          git archive --format=tar.gz --prefix="${prefix}/" \
+            -o "${prefix}.tar.gz" HEAD
+
       - name: Create release
         if: steps.check.outputs.exists == 'false'
         run: |
           gh release create "${{ steps.version.outputs.tag }}" \
             --title "neighbot ${{ steps.version.outputs.version }}" \
-            --generate-notes
+            --generate-notes \
+            "neighbot-${{ steps.version.outputs.version }}.tar.gz"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

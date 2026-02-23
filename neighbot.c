@@ -14,6 +14,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <sys/stat.h>
+
 #include <errno.h>
 #include <grp.h>
 #include <limits.h>
@@ -140,7 +142,7 @@ main(int argc, char *argv[])
 			return 1;
 		}
 
-		/* chown DB directory and file so the target user can write */
+		/* fix ownership and permissions on DB directory and file */
 		const char *sl = strrchr(cfg.dbfile, '/');
 		char dbdir[PATH_MAX];
 		if (sl && sl != cfg.dbfile)
@@ -153,7 +155,10 @@ main(int argc, char *argv[])
 
 		if (chown(dbdir, pw->pw_uid, pw->pw_gid) < 0)
 			log_err("chown %s: %s", dbdir, strerror(errno));
+		if (chmod(dbdir, 0750) < 0)
+			log_err("chmod %s: %s", dbdir, strerror(errno));
 		(void)chown(cfg.dbfile, pw->pw_uid, pw->pw_gid);
+		(void)chmod(cfg.dbfile, 0640);
 
 		if (setgroups(1, &pw->pw_gid) < 0) {
 			log_err("setgroups: %s", strerror(errno));

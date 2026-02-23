@@ -175,7 +175,8 @@ notify_new(int af, const uint8_t *ip, const uint8_t *mac,
 	         vendor ? vendor : "<unknown>",
 	         timebuf);
 
-	if (db_other_ips(mac, af, ip, other_ips, sizeof(other_ips)) > 0)
+	if (off < sizeof(body) &&
+	    db_other_ips(mac, af, ip, other_ips, sizeof(other_ips)) > 0)
 		snprintf(body + off, sizeof(body) - off,
 		         "     also known as: %s\n", other_ips);
 
@@ -226,7 +227,8 @@ notify_changed(int af, const uint8_t *ip, const uint8_t *mac,
 	         old_vendor ? old_vendor : "<unknown>",
 	         timebuf, prevbuf, deltabuf);
 
-	if (db_other_ips(mac, af, ip, other_ips, sizeof(other_ips)) > 0)
+	if (off < sizeof(body) &&
+	    db_other_ips(mac, af, ip, other_ips, sizeof(other_ips)) > 0)
 		snprintf(body + off, sizeof(body) - off,
 		         "       also known as: %s\n", other_ips);
 

@@ -228,12 +228,13 @@ db_update(int af, const uint8_t *ip, const uint8_t *mac,
 
 	for (struct entry *e = buckets[idx]; e; e = e->next) {
 		if (e->af == af && memcmp(e->ip, ip, ilen) == 0) {
+			time_t prev = e->last_seen;
 			e->last_seen = now;
 			if (memcmp(e->mac, mac, 6) != 0) {
 				if (old_mac)
 					memcpy(old_mac, e->mac, 6);
 				if (old_last_seen)
-					*old_last_seen = e->last_seen;
+					*old_last_seen = prev;
 				memcpy(e->mac, mac, 6);
 				snprintf(e->iface, sizeof(e->iface), "%s", iface);
 				return EVENT_CHANGED;
@@ -277,12 +278,13 @@ db_other_ips(const uint8_t *mac, int exclude_af, const uint8_t *exclude_ip,
              char *buf, size_t len)
 {
 	int count = 0;
+	int full = 0;
 	size_t off = 0;
 
 	buf[0] = '\0';
 
-	for (unsigned i = 0; i < HT_BUCKETS; i++) {
-		for (struct entry *e = buckets[i]; e; e = e->next) {
+	for (unsigned i = 0; i < HT_BUCKETS && !full; i++) {
+		for (struct entry *e = buckets[i]; e && !full; e = e->next) {
 			if (memcmp(e->mac, mac, 6) != 0)
 				continue;
 			if (e->af == exclude_af &&
@@ -297,8 +299,12 @@ db_other_ips(const uint8_t *mac, int exclude_af, const uint8_t *exclude_ip,
 				n = snprintf(buf + off, len - off, "%s", ipstr);
 			else
 				n = snprintf(buf + off, len - off, ", %s", ipstr);
-			if (n > 0 && (size_t)n < len - off)
+			if (n < 0 || (size_t)n >= len - off) {
+				buf[off] = '\0';
+				full = 1;
+			} else {
 				off += n;
+			}
 			count++;
 		}
 	}

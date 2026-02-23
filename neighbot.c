@@ -207,8 +207,8 @@ main(int argc, char *argv[])
 			log_err("unveil: %s", strerror(errno));
 	}
 
-	if (pledge(cfg.quiet ? "stdio wpath cpath" :
-	    "stdio wpath cpath proc exec", NULL) == -1) {
+	if (pledge(cfg.quiet ? "stdio rpath wpath cpath" :
+	    "stdio rpath wpath cpath proc exec", NULL) == -1) {
 		log_err("pledge: %s", strerror(errno));
 		capture_close_all(ifaces, nifaces);
 		db_free();

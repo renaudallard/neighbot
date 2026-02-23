@@ -92,13 +92,13 @@ In quiet mode
 .Pq Fl q ,
 .Nm
 pledges
-.Cm stdio wpath cpath
+.Cm stdio rpath wpath cpath
 and unveils only the database directory.
 .Pp
 When email notifications are enabled,
 .Nm
 pledges
-.Cm stdio wpath cpath proc exec
+.Cm stdio rpath wpath cpath proc exec
 and does not use
 .Xr unveil 2
 so that

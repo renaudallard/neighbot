@@ -147,8 +147,8 @@ using `pledge(2)` and `unveil(2)`:
 
 | Mode | pledge | unveil |
 |------|--------|--------|
-| Quiet (`-q`) | `stdio wpath cpath` | DB directory only |
-| With email | `stdio wpath cpath proc exec` | disabled (sendmail needs filesystem access) |
+| Quiet (`-q`) | `stdio rpath wpath cpath` | DB directory only |
+| With email | `stdio rpath wpath cpath proc exec` | disabled (sendmail needs filesystem access) |
 
 All pcap/BPF handles are opened before pledge, so no `bpf` promise is needed.
 

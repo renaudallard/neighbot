@@ -116,6 +116,17 @@ neighbot_flags=-d -m admin@example.com
 
 </details>
 
+## OUI updates
+
+The OUI vendor database is installed by `make install` and loaded once at
+startup. To keep it current, add a daily cron job:
+
+```
+0 3 * * * curl -sL https://standards-oui.ieee.org/oui/oui.txt | awk '/\(hex\)/ { gsub(/-/, ":", $1); v=""; for (i=3; i<=NF; i++) v = v (i>3?" ":"") $i; print tolower($1) " " v }' > /var/neighbot/oui.txt
+```
+
+neighbot will pick up the new data on its next restart.
+
 ## Database format
 
 Plain CSV stored at `/var/neighbot/neighbot.csv` by default:

@@ -74,8 +74,10 @@ OUI vendor database, installed automatically by
 .Sq make install .
 If present, email notifications include the hardware vendor name
 resolved from the MAC address prefix.
-Update with
-.Sq make oui-update .
+The file is loaded once at startup.
+Use
+.Sq make oui-update
+to re-download, or add a daily cron job to keep it current.
 .It Pa /etc/systemd/system/neighbot.service
 Systemd unit file (Linux).
 .It Pa /etc/rc.d/neighbot

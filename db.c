@@ -90,14 +90,48 @@ db_load(const char *path)
 		char first_str[32], last_str[32];
 		struct entry *e;
 		unsigned idx;
+		int af, ilen;
+		uint8_t ip[16];
 
 		/* strip newline */
 		line[strcspn(line, "\n")] = '\0';
 		if (line[0] == '\0' || line[0] == '#')
 			continue;
 
+		if (entry_count >= MAX_ENTRIES) {
+			log_err("db_load: entry limit reached (%u), "
+			    "truncating", MAX_ENTRIES);
+			break;
+		}
+
 		if (sscanf(line, "%45[^,],%17[^,],%31[^,],%31[^,],%31s",
 		           ipstr, macstr, iface, first_str, last_str) != 5)
+			continue;
+
+		if (inet_pton(AF_INET, ipstr, ip) == 1)
+			af = AF_INET;
+		else if (inet_pton(AF_INET6, ipstr, ip) == 1)
+			af = AF_INET6;
+		else
+			continue;
+
+		/* skip duplicates */
+		ilen = ip_len(af);
+		idx = hash_key(af, ip);
+		int dup = 0;
+		for (struct entry *d = buckets[idx]; d; d = d->next) {
+			if (d->af == af && memcmp(d->ip, ip, ilen) == 0) {
+				dup = 1;
+				break;
+			}
+		}
+		if (dup)
+			continue;
+
+		/* parse MAC */
+		unsigned m[6];
+		if (sscanf(macstr, "%x:%x:%x:%x:%x:%x",
+		           &m[0], &m[1], &m[2], &m[3], &m[4], &m[5]) != 6)
 			continue;
 
 		e = calloc(1, sizeof(*e));
@@ -107,22 +141,8 @@ db_load(const char *path)
 			return -1;
 		}
 
-		if (inet_pton(AF_INET, ipstr, e->ip) == 1) {
-			e->af = AF_INET;
-		} else if (inet_pton(AF_INET6, ipstr, e->ip) == 1) {
-			e->af = AF_INET6;
-		} else {
-			free(e);
-			continue;
-		}
-
-		/* parse MAC */
-		unsigned m[6];
-		if (sscanf(macstr, "%x:%x:%x:%x:%x:%x",
-		           &m[0], &m[1], &m[2], &m[3], &m[4], &m[5]) != 6) {
-			free(e);
-			continue;
-		}
+		e->af = af;
+		memcpy(e->ip, ip, ilen);
 		for (int i = 0; i < 6; i++)
 			e->mac[i] = (uint8_t)m[i];
 
@@ -139,7 +159,6 @@ db_load(const char *path)
 		if (strptime(last_str, "%Y-%m-%dT%H:%M:%S", &tm))
 			e->last_seen = mktime(&tm);
 
-		idx = hash_key(e->af, e->ip);
 		e->next = buckets[idx];
 		buckets[idx] = e;
 		entry_count++;

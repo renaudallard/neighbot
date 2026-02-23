@@ -212,8 +212,8 @@ notify_changed(int af, const uint8_t *ip, const uint8_t *mac,
 	snprintf(subject, sizeof(subject),
 	         "neighbot: changed station %s on %s", ipstr, iface);
 	off = snprintf(body, sizeof(body),
-	         "             hostname: %s\n"
-	         "           ip address: %s\n"
+	         "            hostname: %s\n"
+	         "          ip address: %s\n"
 	         "    ethernet address: %s\n"
 	         "     ethernet vendor: %s\n"
 	         "old ethernet address: %s\n"

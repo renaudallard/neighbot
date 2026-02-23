@@ -51,6 +51,7 @@
 struct config {
 	int    daemonize;
 	int    quiet;
+	int    probe;
 	char  *dbfile;
 	char  *mailto;
 	char  *user;

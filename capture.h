@@ -28,11 +28,13 @@
 #define CAPTURE_H
 
 #include <pcap.h>
+#include <stdint.h>
 
 struct iface {
 	char        name[32];
 	pcap_t     *handle;
 	int         fd;
+	uint8_t     local_mac[6];
 };
 
 int  capture_open_all(struct iface *ifaces, int max);

@@ -43,6 +43,7 @@
 #include "log.h"
 #include "oui.h"
 #include "parse.h"
+#include "probe.h"
 
 struct config cfg = {
 	.daemonize = 0,
@@ -68,7 +69,8 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: neighbot [-d] [-f dbfile] [-m mailto] [-q] [-u user]\n");
+	    "usage: neighbot [-d] [-f dbfile] [-m mailto] [-p] [-q] "
+	    "[-u user]\n");
 	exit(1);
 }
 
@@ -82,8 +84,9 @@ main(int argc, char *argv[])
 	cfg.dbfile = DEFAULT_DBFILE;
 	cfg.mailto = DEFAULT_MAILTO;
 	cfg.user   = DEFAULT_USER;
+	cfg.probe  = 1;
 
-	while ((ch = getopt(argc, argv, "df:m:qu:")) != -1) {
+	while ((ch = getopt(argc, argv, "df:m:pqu:")) != -1) {
 		switch (ch) {
 		case 'd':
 			cfg.daemonize = 1;
@@ -93,6 +96,9 @@ main(int argc, char *argv[])
 			break;
 		case 'm':
 			cfg.mailto = optarg;
+			break;
+		case 'p':
+			cfg.probe = 0;
 			break;
 		case 'q':
 			cfg.quiet = 1;
@@ -263,6 +269,9 @@ main(int argc, char *argv[])
 				              (u_char *)ifaces[i].name);
 			}
 		}
+
+		if (cfg.probe)
+			probe_tick(ifaces, nifaces);
 
 check_signals:
 		if (save) {

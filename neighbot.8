@@ -9,6 +9,7 @@
 .Op Fl d
 .Op Fl f Ar dbfile
 .Op Fl m Ar mailto
+.Op Fl p
 .Op Fl q
 .Op Fl u Ar user
 .Sh DESCRIPTION
@@ -33,6 +34,17 @@ Default:
 Email recipient for notifications.
 Default:
 .Ql root .
+.It Fl p
+Disable active probing.
+By default, when a known MAC address appears at a new IP,
+.Nm
+sends ARP requests or NDP Neighbor Solicitations to the old IP
+to determine whether the device moved (old IP dead) or has
+multiple addresses (both active).
+Probes use a zero source address to avoid polluting ARP/NDP caches.
+This flag makes
+.Nm
+purely passive.
 .It Fl q
 Quiet mode.
 Suppress email notifications.

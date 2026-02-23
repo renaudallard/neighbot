@@ -244,3 +244,46 @@ notify_changed(int af, const uint8_t *ip, const uint8_t *mac,
 
 	send_mail(subject, body);
 }
+
+void
+notify_moved(int new_af, const uint8_t *new_ip, const uint8_t *mac,
+             int old_af, const uint8_t *old_ip, const char *iface)
+{
+	char subject[256];
+	char body[2048];
+	char newstr[INET6_ADDRSTRLEN];
+	char oldstr[INET6_ADDRSTRLEN];
+	char macstr[18];
+	char newhost[256], oldhost[256];
+	char timebuf[128];
+	const char *vendor;
+
+	inet_ntop(new_af, new_ip, newstr, sizeof(newstr));
+	inet_ntop(old_af, old_ip, oldstr, sizeof(oldstr));
+	format_mac(mac, macstr, sizeof(macstr));
+	resolve_hostname(new_af, new_ip, newhost, sizeof(newhost));
+	resolve_hostname(old_af, old_ip, oldhost, sizeof(oldhost));
+	format_timestamp(time(NULL), timebuf, sizeof(timebuf));
+	vendor = oui_lookup(mac);
+
+	snprintf(subject, sizeof(subject),
+	    "neighbot: station moved %s -> %s on %s",
+	    oldstr, newstr, iface);
+
+	snprintf(body, sizeof(body),
+	    "  ethernet address: %s\n"
+	    "   ethernet vendor: %s\n"
+	    "    old ip address: %s\n"
+	    "      old hostname: %s\n"
+	    "    new ip address: %s\n"
+	    "      new hostname: %s\n"
+	    "         interface: %s\n"
+	    "         timestamp: %s\n",
+	    macstr,
+	    vendor ? vendor : "<unknown>",
+	    oldstr, oldhost,
+	    newstr, newhost,
+	    iface, timebuf);
+
+	send_mail(subject, body);
+}

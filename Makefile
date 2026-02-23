@@ -13,7 +13,7 @@ LDFLAGS += -lpcap
 _GNU_SOURCE != [ "$$(uname -s)" = Linux ] && echo -D_GNU_SOURCE || true
 CFLAGS  += $(_GNU_SOURCE)
 
-SRCS = neighbot.c log.c db.c parse.c notify.c capture.c oui.c
+SRCS = neighbot.c log.c db.c parse.c notify.c capture.c oui.c probe.c
 OBJS = $(SRCS:.c=.o)
 BIN  = neighbot
 

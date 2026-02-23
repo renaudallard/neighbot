@@ -62,7 +62,7 @@ sudo make PREFIX=/usr install
 ## Usage
 
 ```
-neighbot [-d] [-f dbfile] [-m mailto] [-q] [-u user]
+neighbot [-d] [-f dbfile] [-m mailto] [-p] [-q] [-u user]
 ```
 
 | Flag | Description |
@@ -70,6 +70,7 @@ neighbot [-d] [-f dbfile] [-m mailto] [-q] [-u user]
 | `-d` | Daemonize (log to syslog instead of stderr) |
 | `-f path` | Database file (default: `/var/neighbot/neighbot.csv`) |
 | `-m addr` | Email recipient (default: `root`) |
+| `-p` | Disable active probing (passive only) |
 | `-q` | Quiet mode -- no email, still logs |
 | `-u user` | Drop privileges to `user` after opening pcap handles (default: `nobody`) |
 
@@ -164,6 +165,22 @@ using `pledge(2)` and `unveil(2)`:
 | With email | `stdio rpath wpath cpath proc exec dns` | disabled (sendmail needs filesystem access) |
 
 All pcap/BPF handles are opened before pledge, so no `bpf` promise is needed.
+
+## Active probing
+
+By default, neighbot actively probes old IP addresses to distinguish between
+a device that **moved** (old IP no longer responds) and a device with
+**multiple IPs** (both still active).
+
+When a known MAC appears at a new IP, neighbot sends up to 3 probes (ARP
+requests for IPv4, NDP Neighbor Solicitations for IPv6) to each old IP with a
+5-second timeout per attempt. Probes use a zero source address (RFC 5227 for
+ARP, `::` for NDP) to avoid polluting the target's neighbor cache.
+
+- **Probe answered**: device has multiple IPs (log only, no email)
+- **Probe timed out**: device moved (log + email notification)
+
+Use `-p` to disable probing and make neighbot purely passive.
 
 ## How it works
 

@@ -340,6 +340,32 @@ db_other_ips(const uint8_t *mac, int exclude_af, const uint8_t *exclude_ip,
 	return count;
 }
 
+int
+db_find_other_entries(const uint8_t *mac, int exclude_af,
+                      const uint8_t *exclude_ip,
+                      struct db_entry_info *out, int max)
+{
+	int count = 0;
+
+	for (unsigned i = 0; i < HT_BUCKETS && count < max; i++) {
+		for (struct entry *e = buckets[i]; e && count < max;
+		     e = e->next) {
+			if (memcmp(e->mac, mac, 6) != 0)
+				continue;
+			if (e->af == exclude_af &&
+			    memcmp(e->ip, exclude_ip, ip_len(exclude_af)) == 0)
+				continue;
+
+			out[count].af = e->af;
+			memcpy(out[count].ip, e->ip, 16);
+			snprintf(out[count].iface, sizeof(out[count].iface),
+			    "%s", e->iface);
+			count++;
+		}
+	}
+	return count;
+}
+
 void
 db_free(void)
 {

@@ -47,6 +47,7 @@
 #include "log.h"
 #include "notify.h"
 #include "parse.h"
+#include "probe.h"
 
 /* ARP header */
 struct arp_pkt {
@@ -104,6 +105,16 @@ handle_event(int event, int af, const uint8_t *ip, const uint8_t *mac,
 		log_msg("new station %s %s on %s", ipstr, macstr, iface);
 		if (!cfg.quiet)
 			notify_new(af, ip, mac, iface);
+
+		/* schedule probes for other IPs of this MAC */
+		if (cfg.probe) {
+			struct db_entry_info others[PROBE_MAX_SLOTS];
+			int n = db_find_other_entries(mac, af, ip,
+			    others, PROBE_MAX_SLOTS);
+			for (int i = 0; i < n; i++)
+				probe_schedule(others[i].af, others[i].ip,
+				    mac, af, ip, others[i].iface);
+		}
 	} else if (event == EVENT_CHANGED) {
 		format_mac(old_mac, oldmacstr, sizeof(oldmacstr));
 		log_msg("changed station %s %s -> %s on %s",
@@ -144,6 +155,8 @@ parse_arp(const u_char *pkt, size_t len, const char *iface)
 
 	event = db_update(AF_INET, arp->spa, arp->sha, iface, old_mac,
 	                  &old_last_seen);
+	if (cfg.probe)
+		probe_mark_seen(AF_INET, arp->spa, arp->sha);
 	if (event)
 		handle_event(event, AF_INET, arp->spa, arp->sha,
 		             old_mac, iface, old_last_seen);
@@ -245,6 +258,8 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface)
 	/* for NA, use the target address; for NS, use source IP */
 	event = db_update(AF_INET6, ip_addr, mac, iface, old_mac,
 	                  &old_last_seen);
+	if (cfg.probe)
+		probe_mark_seen(AF_INET6, ip_addr, mac);
 	if (event)
 		handle_event(event, AF_INET6, ip_addr, mac, old_mac, iface,
 		             old_last_seen);

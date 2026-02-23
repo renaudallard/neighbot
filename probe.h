@@ -24,19 +24,21 @@
  * SUCH DAMAGE.
  */
 
-#ifndef NOTIFY_H
-#define NOTIFY_H
+#ifndef PROBE_H
+#define PROBE_H
 
 #include <stdint.h>
-#include <time.h>
 
-void notify_new(int af, const uint8_t *ip, const uint8_t *mac,
-                const char *iface);
-void notify_changed(int af, const uint8_t *ip, const uint8_t *mac,
-                    const uint8_t *old_mac, const char *iface,
-                    time_t prev_seen);
-void notify_moved(int new_af, const uint8_t *new_ip,
-                  const uint8_t *mac, int old_af,
-                  const uint8_t *old_ip, const char *iface);
+#include "capture.h"
+
+#define PROBE_MAX_SLOTS   32
+#define PROBE_MAX_TRIES   3
+#define PROBE_TIMEOUT     5   /* seconds per attempt */
+
+void probe_schedule(int af, const uint8_t *ip, const uint8_t *mac,
+                    int new_af, const uint8_t *new_ip,
+                    const char *iface);
+void probe_mark_seen(int af, const uint8_t *ip, const uint8_t *mac);
+void probe_tick(struct iface *ifaces, int nifaces);
 
 #endif

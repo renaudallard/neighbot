@@ -45,6 +45,12 @@ struct entry {
 	struct entry  *next;
 };
 
+struct db_entry_info {
+	int      af;
+	uint8_t  ip[16];
+	char     iface[32];
+};
+
 void  db_init(void);
 int   db_load(const char *path);
 int   db_save(const char *path);
@@ -54,5 +60,8 @@ int   db_update(int af, const uint8_t *ip, const uint8_t *mac,
 void  db_free(void);
 int   db_other_ips(const uint8_t *mac, int exclude_af,
                    const uint8_t *exclude_ip, char *buf, size_t len);
+int   db_find_other_entries(const uint8_t *mac, int exclude_af,
+                            const uint8_t *exclude_ip,
+                            struct db_entry_info *out, int max);
 
 #endif

@@ -24,12 +24,68 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/types.h>
+#include <sys/socket.h>
+
+#include <ifaddrs.h>
 #include <pcap.h>
 #include <string.h>
+
+#if defined(__linux__)
+#include <linux/if_packet.h>
+#else
+#include <net/if_dl.h>
+#endif
 
 #include "neighbot.h"
 #include "capture.h"
 #include "log.h"
+
+static void
+fill_local_macs(struct iface *ifaces, int count)
+{
+	struct ifaddrs *ifap, *ifa;
+
+	if (getifaddrs(&ifap) < 0)
+		return;
+
+	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+		if (!ifa->ifa_addr)
+			continue;
+
+#if defined(__linux__)
+		if (ifa->ifa_addr->sa_family != AF_PACKET)
+			continue;
+		struct sockaddr_ll *sll =
+		    (struct sockaddr_ll *)ifa->ifa_addr;
+		if (sll->sll_halen != 6)
+			continue;
+		for (int i = 0; i < count; i++) {
+			if (strcmp(ifaces[i].name, ifa->ifa_name) == 0) {
+				memcpy(ifaces[i].local_mac,
+				    sll->sll_addr, 6);
+				break;
+			}
+		}
+#else
+		if (ifa->ifa_addr->sa_family != AF_LINK)
+			continue;
+		struct sockaddr_dl *sdl =
+		    (struct sockaddr_dl *)ifa->ifa_addr;
+		if (sdl->sdl_alen != 6)
+			continue;
+		for (int i = 0; i < count; i++) {
+			if (strcmp(ifaces[i].name, ifa->ifa_name) == 0) {
+				memcpy(ifaces[i].local_mac,
+				    LLADDR(sdl), 6);
+				break;
+			}
+		}
+#endif
+	}
+
+	freeifaddrs(ifap);
+}
 
 int
 capture_open_all(struct iface *ifaces, int max)
@@ -108,6 +164,8 @@ capture_open_all(struct iface *ifaces, int max)
 		         "%s", dev->name);
 		ifaces[count].handle = p;
 		ifaces[count].fd = pcap_get_selectable_fd(p);
+		memset(ifaces[count].local_mac, 0,
+		    sizeof(ifaces[count].local_mac));
 
 		if (ifaces[count].fd < 0) {
 			log_err("pcap_get_selectable_fd(%s): not supported",
@@ -121,6 +179,7 @@ capture_open_all(struct iface *ifaces, int max)
 	}
 
 	pcap_freealldevs(alldevs);
+	fill_local_macs(ifaces, count);
 	return count;
 }
 

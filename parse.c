@@ -81,7 +81,8 @@ format_mac(const uint8_t *mac, char *buf, size_t len)
 
 static void
 handle_event(int event, int af, const uint8_t *ip, const uint8_t *mac,
-             const uint8_t *old_mac, const char *iface)
+             const uint8_t *old_mac, const char *iface,
+             time_t old_last_seen)
 {
 	char ipstr[INET6_ADDRSTRLEN];
 	char macstr[18], oldmacstr[18];
@@ -92,13 +93,14 @@ handle_event(int event, int af, const uint8_t *ip, const uint8_t *mac,
 	if (event == EVENT_NEW) {
 		log_msg("new station %s %s on %s", ipstr, macstr, iface);
 		if (!cfg.quiet)
-			notify_new(ipstr, macstr, iface);
+			notify_new(af, ip, mac, iface);
 	} else if (event == EVENT_CHANGED) {
 		format_mac(old_mac, oldmacstr, sizeof(oldmacstr));
 		log_msg("changed station %s %s -> %s on %s",
 		        ipstr, oldmacstr, macstr, iface);
 		if (!cfg.quiet)
-			notify_changed(ipstr, oldmacstr, macstr, iface);
+			notify_changed(af, ip, mac, old_mac, iface,
+			               old_last_seen);
 	}
 }
 
@@ -107,6 +109,7 @@ parse_arp(const u_char *pkt, size_t len, const char *iface)
 {
 	const struct arp_pkt *arp;
 	uint8_t old_mac[6];
+	time_t old_last_seen;
 	int event;
 
 	if (len < sizeof(struct arp_pkt))
@@ -126,10 +129,11 @@ parse_arp(const u_char *pkt, size_t len, const char *iface)
 	if (is_zero_ip4(arp->spa))
 		return;
 
-	event = db_update(AF_INET, arp->spa, arp->sha, iface, old_mac);
+	event = db_update(AF_INET, arp->spa, arp->sha, iface, old_mac,
+	                  &old_last_seen);
 	if (event)
 		handle_event(event, AF_INET, arp->spa, arp->sha,
-		             old_mac, iface);
+		             old_mac, iface, old_last_seen);
 }
 
 /* NDP option header */
@@ -171,6 +175,7 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface)
 	const u_char *opts;
 	size_t opts_len;
 	uint8_t old_mac[6];
+	time_t old_last_seen;
 	int event;
 
 	if (len < sizeof(struct ip6_hdr))
@@ -225,9 +230,11 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface)
 		return;
 
 	/* for NA, use the target address; for NS, use source IP */
-	event = db_update(AF_INET6, ip_addr, mac, iface, old_mac);
+	event = db_update(AF_INET6, ip_addr, mac, iface, old_mac,
+	                  &old_last_seen);
 	if (event)
-		handle_event(event, AF_INET6, ip_addr, mac, old_mac, iface);
+		handle_event(event, AF_INET6, ip_addr, mac, old_mac, iface,
+		             old_last_seen);
 }
 
 void

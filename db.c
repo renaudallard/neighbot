@@ -220,7 +220,7 @@ db_save(const char *path)
  * If EVENT_CHANGED, old_mac is filled with the previous MAC. */
 int
 db_update(int af, const uint8_t *ip, const uint8_t *mac,
-          const char *iface, uint8_t *old_mac)
+          const char *iface, uint8_t *old_mac, time_t *old_last_seen)
 {
 	unsigned idx = hash_key(af, ip);
 	int ilen = ip_len(af);
@@ -232,6 +232,8 @@ db_update(int af, const uint8_t *ip, const uint8_t *mac,
 			if (memcmp(e->mac, mac, 6) != 0) {
 				if (old_mac)
 					memcpy(old_mac, e->mac, 6);
+				if (old_last_seen)
+					*old_last_seen = e->last_seen;
 				memcpy(e->mac, mac, 6);
 				snprintf(e->iface, sizeof(e->iface), "%s", iface);
 				return EVENT_CHANGED;

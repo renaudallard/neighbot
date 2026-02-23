@@ -12,7 +12,8 @@ Like [arpwatch](https://ee.lbl.gov/), but also handles IPv6 and runs on Linux an
 
 - Monitors **ARP** (IPv4) and **NDP** (IPv6) on all Ethernet interfaces
 - Detects **new stations** and **MAC address changes** (flip-flop, spoofing)
-- Email alerts via sendmail, or quiet mode for logging only
+- Email alerts via sendmail with hostname, vendor, and timestamps
+- Optional OUI database for hardware vendor identification
 - Simple CSV database with atomic saves
 - Single-threaded, single binary, no dependencies beyond libpcap
 - Runs as a foreground process or daemon (syslog)
@@ -49,6 +50,8 @@ make
 sudo make install          # binary + man page
 sudo make install-systemd  # + systemd unit (Linux)
 sudo make install-rcd      # + rc.d script (OpenBSD)
+make oui-update            # download IEEE OUI database
+sudo make install-oui      # install OUI database (optional)
 ```
 
 Installs to `/usr/local/sbin` by default. Override with `PREFIX`:
@@ -148,7 +151,7 @@ using `pledge(2)` and `unveil(2)`:
 | Mode | pledge | unveil |
 |------|--------|--------|
 | Quiet (`-q`) | `stdio rpath wpath cpath` | DB directory only |
-| With email | `stdio rpath wpath cpath proc exec` | disabled (sendmail needs filesystem access) |
+| With email | `stdio rpath wpath cpath proc exec dns` | disabled (sendmail needs filesystem access) |
 
 All pcap/BPF handles are opened before pledge, so no `bpf` promise is needed.
 

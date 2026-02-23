@@ -29,6 +29,7 @@
 #include "capture.h"
 #include "db.h"
 #include "log.h"
+#include "oui.h"
 #include "parse.h"
 
 struct config cfg = {
@@ -109,6 +110,7 @@ main(int argc, char *argv[])
 
 	db_init();
 	db_load(cfg.dbfile);
+	oui_load(DEFAULT_OUIFILE);
 
 	nifaces = capture_open_all(ifaces, MAX_IFACES);
 	if (nifaces <= 0) {
@@ -208,7 +210,7 @@ main(int argc, char *argv[])
 	}
 
 	if (pledge(cfg.quiet ? "stdio rpath wpath cpath" :
-	    "stdio rpath wpath cpath proc exec", NULL) == -1) {
+	    "stdio rpath wpath cpath proc exec dns", NULL) == -1) {
 		log_err("pledge: %s", strerror(errno));
 		capture_close_all(ifaces, nifaces);
 		db_free();
@@ -258,6 +260,7 @@ check_signals:
 	db_save(cfg.dbfile);
 	capture_close_all(ifaces, nifaces);
 	db_free();
+	oui_free();
 
 	return 0;
 }

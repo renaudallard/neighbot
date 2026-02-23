@@ -17,6 +17,8 @@ passively monitors ARP (IPv4) and NDP (IPv6) traffic on all Ethernet
 interfaces.
 It maintains a database of IP-to-MAC address mappings and sends email
 alerts when new stations appear or existing mappings change.
+Notifications include reverse DNS hostname, hardware vendor
+(from the OUI database, if available), and timestamps.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
@@ -64,9 +66,17 @@ Save the database and exit.
 Ignored.
 .El
 .Sh FILES
-.Bl -tag -width "/var/neighbot/neighbot.csv"
+.Bl -tag -width "/usr/local/share/neighbot/oui.txt"
 .It Pa /var/neighbot/neighbot.csv
 Default database file.
+.It Pa /usr/local/share/neighbot/oui.txt
+OUI vendor database (optional).
+If present, email notifications include the hardware vendor name
+resolved from the MAC address prefix.
+Generate with
+.Sq make oui-update
+and install with
+.Sq make install-oui .
 .It Pa /etc/systemd/system/neighbot.service
 Systemd unit file (Linux).
 .It Pa /etc/rc.d/neighbot
@@ -98,7 +108,7 @@ and unveils only the database directory.
 When email notifications are enabled,
 .Nm
 pledges
-.Cm stdio rpath wpath cpath proc exec
+.Cm stdio rpath wpath cpath proc exec dns
 and does not use
 .Xr unveil 2
 so that

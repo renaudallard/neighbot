@@ -39,7 +39,8 @@ void  db_init(void);
 int   db_load(const char *path);
 int   db_save(const char *path);
 int   db_update(int af, const uint8_t *ip, const uint8_t *mac,
-                const char *iface, uint8_t *old_mac);
+                const char *iface, uint8_t *old_mac,
+                time_t *old_last_seen);
 void  db_free(void);
 
 #endif

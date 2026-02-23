@@ -17,8 +17,13 @@
 #ifndef NOTIFY_H
 #define NOTIFY_H
 
-void notify_new(const char *ip, const char *mac, const char *iface);
-void notify_changed(const char *ip, const char *old_mac,
-                    const char *new_mac, const char *iface);
+#include <stdint.h>
+#include <time.h>
+
+void notify_new(int af, const uint8_t *ip, const uint8_t *mac,
+                const char *iface);
+void notify_changed(int af, const uint8_t *ip, const uint8_t *mac,
+                    const uint8_t *old_mac, const char *iface,
+                    time_t prev_seen);
 
 #endif

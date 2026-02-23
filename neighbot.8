@@ -70,13 +70,12 @@ Ignored.
 .It Pa /var/neighbot/neighbot.csv
 Default database file.
 .It Pa /usr/local/share/neighbot/oui.txt
-OUI vendor database (optional).
+OUI vendor database, installed automatically by
+.Sq make install .
 If present, email notifications include the hardware vendor name
 resolved from the MAC address prefix.
-Generate with
-.Sq make oui-update
-and install with
-.Sq make install-oui .
+Update with
+.Sq make oui-update .
 .It Pa /etc/systemd/system/neighbot.service
 Systemd unit file (Linux).
 .It Pa /etc/rc.d/neighbot

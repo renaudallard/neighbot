@@ -47,11 +47,10 @@ make
 ## Install
 
 ```sh
-sudo make install          # binary + man page
+sudo make install          # binary + man page + OUI database
 sudo make install-systemd  # + systemd unit (Linux)
 sudo make install-rcd      # + rc.d script (OpenBSD)
-make oui-update            # download IEEE OUI database
-sudo make install-oui      # install OUI database (optional)
+make oui-update            # re-download IEEE OUI database
 ```
 
 Installs to `/usr/local/sbin` by default. Override with `PREFIX`:

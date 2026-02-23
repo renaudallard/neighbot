@@ -28,12 +28,24 @@ $(BIN): $(OBJS)
 clean:
 	rm -f $(BIN) $(OBJS)
 
-install: $(BIN)
+oui.txt:
+	curl -sL https://standards-oui.ieee.org/oui/oui.txt | \
+	awk '/\(hex\)/ { gsub(/-/, ":", $$1); v=""; \
+	for (i=3; i<=NF; i++) v = v (i>3?" ":"") $$i; \
+	print tolower($$1) " " v }' > oui.txt
+
+oui-update:
+	rm -f oui.txt
+	$(MAKE) oui.txt
+
+install: $(BIN) oui.txt
 	install -d $(DESTDIR)$(BINDIR)
 	install -m 755 $(BIN) $(DESTDIR)$(BINDIR)/$(BIN)
 	install -d $(DESTDIR)$(MANDIR)/man8
 	install -m 644 neighbot.8 $(DESTDIR)$(MANDIR)/man8/neighbot.8
 	install -d $(DESTDIR)$(DBDIR)
+	install -d $(DESTDIR)$(PREFIX)/share/neighbot
+	install -m 644 oui.txt $(DESTDIR)$(PREFIX)/share/neighbot/oui.txt
 
 install-systemd: install
 	install -d $(DESTDIR)/etc/systemd/system
@@ -45,17 +57,9 @@ install-rcd: install
 uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/$(BIN)
 	rm -f $(DESTDIR)$(MANDIR)/man8/neighbot.8
+	rm -f $(DESTDIR)$(PREFIX)/share/neighbot/oui.txt
+	rmdir $(DESTDIR)$(PREFIX)/share/neighbot 2>/dev/null || true
 	rm -f $(DESTDIR)/etc/systemd/system/neighbot.service
 	rm -f $(DESTDIR)/etc/rc.d/neighbot
 
-oui-update:
-	curl -sL https://standards-oui.ieee.org/oui/oui.txt | \
-	awk '/\(hex\)/ { gsub(/-/, ":", $$1); v=""; \
-	for (i=3; i<=NF; i++) v = v (i>3?" ":"") $$i; \
-	print tolower($$1) " " v }' > oui.txt
-
-install-oui: oui.txt
-	install -d $(DESTDIR)$(PREFIX)/share/neighbot
-	install -m 644 oui.txt $(DESTDIR)$(PREFIX)/share/neighbot/oui.txt
-
-.PHONY: all clean install install-systemd install-rcd install-oui oui-update uninstall
+.PHONY: all clean install install-systemd install-rcd oui-update uninstall

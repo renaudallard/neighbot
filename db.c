@@ -163,7 +163,7 @@ db_save(const char *path)
 	/* remove stale temp file, then create exclusively to prevent
 	 * symlink attacks (O_NOFOLLOW + O_EXCL) with fixed permissions */
 	(void)unlink(tmp);
-	fd = open(tmp, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0644);
+	fd = open(tmp, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0640);
 	if (fd < 0) {
 		log_err("db_save: %s: %s", tmp, strerror(errno));
 		return -1;

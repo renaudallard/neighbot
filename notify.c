@@ -50,6 +50,14 @@ send_mail(const char *subject, const char *body)
 		close(pfd[1]);
 		dup2(pfd[0], STDIN_FILENO);
 		close(pfd[0]);
+
+		/* close inherited fds (pcap handles) before exec */
+		long maxfd = sysconf(_SC_OPEN_MAX);
+		if (maxfd <= 0)
+			maxfd = 256;
+		for (long i = STDERR_FILENO + 1; i < maxfd; i++)
+			close((int)i);
+
 		execl("/usr/sbin/sendmail", "sendmail", "-t", (char *)NULL);
 		_exit(127);
 	}

@@ -17,6 +17,7 @@
 #ifndef DB_H
 #define DB_H
 
+#include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdint.h>
 #include <time.h>

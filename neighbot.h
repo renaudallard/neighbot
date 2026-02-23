@@ -17,6 +17,7 @@
 #ifndef NEIGHBOT_H
 #define NEIGHBOT_H
 
+#include <sys/socket.h>
 #include <netinet/in.h>
 #include <signal.h>
 #include <stdint.h>

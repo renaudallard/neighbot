@@ -5,9 +5,13 @@ DBDIR   ?= /var/neighbot
 
 CC      ?= cc
 CFLAGS  ?= -O2 -pipe
-CFLAGS  += -std=c11 -D_GNU_SOURCE
+CFLAGS  += -std=c11
 CFLAGS  += -Wall -Wextra -Wpedantic
 LDFLAGS += -lpcap
+
+# _GNU_SOURCE needed on Linux for strptime(3) and daemon(3)
+_GNU_SOURCE != [ "$$(uname -s)" = Linux ] && echo -D_GNU_SOURCE || true
+CFLAGS  += $(_GNU_SOURCE)
 
 SRCS = neighbot.c log.c db.c parse.c notify.c capture.c
 OBJS = $(SRCS:.c=.o)

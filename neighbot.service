@@ -1,0 +1,13 @@
+[Unit]
+Description=Network neighbor monitoring daemon
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/neighbot -q
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

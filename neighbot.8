@@ -1,0 +1,98 @@
+.Dd February 23, 2026
+.Dt NEIGHBOT 8
+.Os
+.Sh NAME
+.Nm neighbot
+.Nd network neighbor monitoring daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl d
+.Op Fl f Ar dbfile
+.Op Fl m Ar mailto
+.Op Fl q
+.Sh DESCRIPTION
+.Nm
+passively monitors ARP (IPv4) and NDP (IPv6) traffic on all Ethernet
+interfaces.
+It maintains a database of IP-to-MAC address mappings and sends email
+alerts when new stations appear or existing mappings change.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d
+Daemonize.
+Detach from the terminal and log to syslog instead of stderr.
+.It Fl f Ar dbfile
+Path to the database file.
+Default:
+.Pa /var/neighbot/neighbot.csv .
+.It Fl m Ar mailto
+Email recipient for notifications.
+Default:
+.Ql root .
+.It Fl q
+Quiet mode.
+Suppress email notifications.
+Events are still logged.
+.El
+.Sh DATABASE FORMAT
+The database is a CSV file with the following fields:
+.Pp
+.D1 ip,mac,interface,first_seen,last_seen
+.Pp
+Timestamps are in ISO 8601 format (local time).
+The database is saved atomically via a temporary file and rename.
+.Sh SIGNALS
+.Bl -tag -width SIGTERM
+.It Dv SIGHUP
+Save the database to disk.
+.It Dv SIGTERM , Dv SIGINT
+Save the database and exit.
+.It Dv SIGPIPE
+Ignored.
+.El
+.Sh FILES
+.Bl -tag -width "/var/neighbot/neighbot.csv"
+.It Pa /var/neighbot/neighbot.csv
+Default database file.
+.It Pa /etc/systemd/system/neighbot.service
+Systemd unit file (Linux).
+.It Pa /etc/rc.d/neighbot
+rc.d script (OpenBSD).
+.El
+.Sh SECURITY
+On
+.Ox ,
+.Nm
+uses
+.Xr pledge 2
+and
+.Xr unveil 2
+to restrict its privileges after initialization.
+.Pp
+In quiet mode
+.Pq Fl q ,
+.Nm
+pledges
+.Cm stdio wpath cpath
+and unveils only the database directory.
+.Pp
+When email notifications are enabled,
+.Nm
+pledges
+.Cm stdio wpath cpath proc exec
+and does not use
+.Xr unveil 2
+so that
+.Xr sendmail 8
+can access its configuration files.
+.Sh EXIT STATUS
+.Nm
+exits 0 on clean shutdown, or 1 if no usable interfaces were found.
+.Sh SEE ALSO
+.Xr pledge 2 ,
+.Xr unveil 2 ,
+.Xr arpwatch 8 ,
+.Xr tcpdump 8
+.Sh AUTHORS
+.An neighbot contributors

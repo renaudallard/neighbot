@@ -166,4 +166,4 @@ All pcap/BPF handles are opened before pledge, so no `bpf` promise is needed.
 
 ## License
 
-ISC (BSD 2-Clause). See [LICENSE](LICENSE).
+BSD 2-Clause. See [LICENSE](LICENSE).

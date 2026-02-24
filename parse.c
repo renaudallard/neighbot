@@ -107,8 +107,14 @@ handle_event(int event, int af, const uint8_t *ip, const uint8_t *mac,
 		if (!cfg.quiet)
 			notify_new(af, ip, mac, iface);
 
-		/* schedule probes for other IPs of this MAC */
-		if (cfg.probe) {
+		/* schedule probes for other IPs of this MAC.
+		 * skip if new IP is link-local since every IPv6
+		 * interface has one alongside its global address */
+		if (cfg.probe &&
+		    !(af == AF_INET6 &&
+		      ip[0] == 0xfe && (ip[1] & 0xc0) == 0x80) &&
+		    !(af == AF_INET &&
+		      ip[0] == 169 && ip[1] == 254)) {
 			struct db_entry_info others[PROBE_MAX_SLOTS];
 			int n = db_find_other_entries(mac, af, ip,
 			    others, PROBE_MAX_SLOTS);

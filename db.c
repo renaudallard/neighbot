@@ -405,6 +405,13 @@ db_find_other_entries(const uint8_t *mac, int exclude_af,
 				continue;
 			if (memcmp(e->ip, exclude_ip, ip_len(exclude_af)) == 0)
 				continue;
+			/* skip link-local entries */
+			if (e->af == AF_INET6 &&
+			    e->ip[0] == 0xfe && (e->ip[1] & 0xc0) == 0x80)
+				continue;
+			if (e->af == AF_INET &&
+			    e->ip[0] == 169 && e->ip[1] == 254)
+				continue;
 
 			out[count].af = e->af;
 			memcpy(out[count].ip, e->ip, 16);

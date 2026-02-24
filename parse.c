@@ -144,6 +144,25 @@ handle_moved(int new_af, const uint8_t *new_ip, const uint8_t *mac,
 	        macstr, oldstr, newstr, iface);
 	if (!cfg.quiet)
 		notify_moved(new_af, new_ip, mac, old_af, old_ip, iface);
+
+	save = 1;
+}
+
+void
+handle_multiple_ips(int af, const uint8_t *ip, const uint8_t *mac,
+                    int other_af, const uint8_t *other_ip,
+                    const char *iface)
+{
+	char ipstr[INET6_ADDRSTRLEN];
+	char otherstr[INET6_ADDRSTRLEN];
+
+	(void)mac;
+	(void)iface;
+
+	inet_ntop(af, ip, ipstr, sizeof(ipstr));
+	inet_ntop(other_af, other_ip, otherstr, sizeof(otherstr));
+	log_msg("probe: %s still active, device has multiple IPs (also %s)",
+	    ipstr, otherstr);
 }
 
 static void

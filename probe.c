@@ -51,6 +51,7 @@ struct probe {
 	time_t   first_sent;
 	time_t   last_sent;
 	int      answered;
+	int      stolen;
 };
 
 static struct probe probes[PROBE_MAX_SLOTS];
@@ -224,6 +225,7 @@ probe_schedule(int af, const uint8_t *ip, const uint8_t *mac,
 		probes[i].first_sent = 0;
 		probes[i].last_sent = 0;
 		probes[i].answered = 0;
+		probes[i].stolen = 0;
 
 		{
 			char ipstr[INET6_ADDRSTRLEN];
@@ -234,7 +236,7 @@ probe_schedule(int af, const uint8_t *ip, const uint8_t *mac,
 		return;
 	}
 
-	log_msg("probe: no free slots");
+	log_err("probe: no free slots");
 }
 
 void
@@ -252,6 +254,19 @@ probe_mark_seen(int af, const uint8_t *ip, const uint8_t *mac)
 		if (memcmp(probes[i].mac, mac, 6) != 0)
 			continue;
 		probes[i].answered = 1;
+	}
+
+	/* different MAC at probed IP means original device lost it */
+	for (int i = 0; i < PROBE_MAX_SLOTS; i++) {
+		if (!probes[i].active)
+			continue;
+		if (probes[i].af != af)
+			continue;
+		if (memcmp(probes[i].ip, ip, ilen) != 0)
+			continue;
+		if (memcmp(probes[i].mac, mac, 6) == 0)
+			continue;
+		probes[i].stolen = 1;
 	}
 }
 
@@ -304,15 +319,16 @@ probe_tick(struct iface *ifaces, int nifaces)
 
 		/* answered: device has multiple IPs */
 		if (p->answered) {
-			char ipstr[INET6_ADDRSTRLEN];
-			char newstr[INET6_ADDRSTRLEN];
+			handle_multiple_ips(p->af, p->ip, p->mac,
+			    p->new_af, p->new_ip, p->iface);
+			p->active = 0;
+			continue;
+		}
 
-			inet_ntop(p->af, p->ip, ipstr, sizeof(ipstr));
-			inet_ntop(p->new_af, p->new_ip, newstr,
-			    sizeof(newstr));
-			log_msg("probe: %s still active, "
-			    "device has multiple IPs (also %s)",
-			    ipstr, newstr);
+		/* different MAC responded at probed IP */
+		if (p->stolen) {
+			handle_moved(p->new_af, p->new_ip,
+			    p->mac, p->af, p->ip, p->iface);
 			p->active = 0;
 			continue;
 		}
@@ -342,4 +358,33 @@ probe_tick(struct iface *ifaces, int nifaces)
 			p->last_sent = now;
 		}
 	}
+}
+
+void
+probe_dump(void)
+{
+	time_t now = time(NULL);
+	int active = 0;
+
+	for (int i = 0; i < PROBE_MAX_SLOTS; i++) {
+		struct probe *p = &probes[i];
+		char ipstr[INET6_ADDRSTRLEN];
+		char macstr[18];
+
+		if (!p->active)
+			continue;
+
+		inet_ntop(p->af, p->ip, ipstr, sizeof(ipstr));
+		snprintf(macstr, sizeof(macstr),
+		    "%02x:%02x:%02x:%02x:%02x:%02x",
+		    p->mac[0], p->mac[1], p->mac[2],
+		    p->mac[3], p->mac[4], p->mac[5]);
+		log_msg("probe[%d]: %s %s tries=%d age=%lds on %s",
+		    i, ipstr, macstr, p->tries,
+		    p->first_sent ? (long)(now - p->first_sent) : 0L,
+		    p->iface);
+		active++;
+	}
+
+	log_msg("probe: %d/%d slots active", active, PROBE_MAX_SLOTS);
 }

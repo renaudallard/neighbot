@@ -48,6 +48,7 @@
 struct config cfg = {
 	.daemonize = 0,
 	.quiet     = 0,
+	.probe     = 1,
 	.dbfile    = NULL,
 	.mailto    = NULL,
 	.user      = NULL,
@@ -55,6 +56,7 @@ struct config cfg = {
 
 volatile sig_atomic_t quit;
 volatile sig_atomic_t save;
+static volatile sig_atomic_t dump_probes;
 
 static void
 sig_handler(int sig)
@@ -63,6 +65,8 @@ sig_handler(int sig)
 		quit = 1;
 	else if (sig == SIGHUP)
 		save = 1;
+	else if (sig == SIGUSR1)
+		dump_probes = 1;
 }
 
 static void
@@ -84,7 +88,6 @@ main(int argc, char *argv[])
 	cfg.dbfile = DEFAULT_DBFILE;
 	cfg.mailto = DEFAULT_MAILTO;
 	cfg.user   = DEFAULT_USER;
-	cfg.probe  = 1;
 
 	while ((ch = getopt(argc, argv, "df:m:pqu:")) != -1) {
 		switch (ch) {
@@ -124,6 +127,7 @@ main(int argc, char *argv[])
 	sigaction(SIGTERM, &sa, NULL);
 	sigaction(SIGINT, &sa, NULL);
 	sigaction(SIGHUP, &sa, NULL);
+	sigaction(SIGUSR1, &sa, NULL);
 	signal(SIGPIPE, SIG_IGN);
 
 	db_init();
@@ -200,6 +204,7 @@ main(int argc, char *argv[])
 
 	log_msg("neighbot %s started, monitoring %d interface(s)",
 	        NEIGHBOT_VERSION, nifaces);
+	log_msg("active probing %s", cfg.probe ? "enabled" : "disabled");
 
 	/* build pollfd array */
 	for (int i = 0; i < nifaces; i++) {
@@ -270,10 +275,13 @@ main(int argc, char *argv[])
 			}
 		}
 
+check_signals:
 		if (cfg.probe)
 			probe_tick(ifaces, nifaces);
-
-check_signals:
+		if (dump_probes) {
+			dump_probes = 0;
+			probe_dump();
+		}
 		if (save) {
 			save = 0;
 			db_save(cfg.dbfile);

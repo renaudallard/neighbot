@@ -148,6 +148,7 @@ is limited to 100,000 to prevent memory exhaustion from spoofed traffic.
 |--------|--------|
 | `SIGHUP` | Save database to disk |
 | `SIGTERM` / `SIGINT` | Save database and exit |
+| `SIGUSR1` | Dump active probe state to the log |
 | `SIGPIPE` | Ignored |
 
 ## Security

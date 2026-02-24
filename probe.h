@@ -40,5 +40,6 @@ void probe_schedule(int af, const uint8_t *ip, const uint8_t *mac,
                     const char *iface);
 void probe_mark_seen(int af, const uint8_t *ip, const uint8_t *mac);
 void probe_tick(struct iface *ifaces, int nifaces);
+void probe_dump(void);
 
 #endif

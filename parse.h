@@ -34,5 +34,8 @@ void parse_packet(u_char *user, const struct pcap_pkthdr *hdr,
 void handle_moved(int new_af, const uint8_t *new_ip,
                   const uint8_t *mac, int old_af,
                   const uint8_t *old_ip, const char *iface);
+void handle_multiple_ips(int af, const uint8_t *ip, const uint8_t *mac,
+                         int other_af, const uint8_t *other_ip,
+                         const char *iface);
 
 #endif

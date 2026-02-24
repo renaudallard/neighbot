@@ -55,6 +55,7 @@ struct config {
 	int    quiet;
 	int    probe;
 	char  *dbfile;
+	char  *iface;
 	char  *mailto;
 	char  *user;
 };

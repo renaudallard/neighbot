@@ -50,6 +50,7 @@ struct config cfg = {
 	.quiet     = 0,
 	.probe     = 1,
 	.dbfile    = NULL,
+	.iface     = NULL,
 	.mailto    = NULL,
 	.user      = NULL,
 };
@@ -73,8 +74,8 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: neighbot [-d] [-f dbfile] [-m mailto] [-p] [-q] "
-	    "[-u user]\n");
+	    "usage: neighbot [-d] [-f dbfile] [-i iface] [-m mailto] "
+	    "[-p] [-q] [-u user]\n");
 	exit(1);
 }
 
@@ -89,13 +90,16 @@ main(int argc, char *argv[])
 	cfg.mailto = DEFAULT_MAILTO;
 	cfg.user   = DEFAULT_USER;
 
-	while ((ch = getopt(argc, argv, "df:m:pqu:")) != -1) {
+	while ((ch = getopt(argc, argv, "df:i:m:pqu:")) != -1) {
 		switch (ch) {
 		case 'd':
 			cfg.daemonize = 1;
 			break;
 		case 'f':
 			cfg.dbfile = optarg;
+			break;
+		case 'i':
+			cfg.iface = optarg;
 			break;
 		case 'm':
 			cfg.mailto = optarg;

@@ -62,13 +62,14 @@ sudo make PREFIX=/usr install
 ## Usage
 
 ```
-neighbot [-d] [-f dbfile] [-m mailto] [-p] [-q] [-u user]
+neighbot [-d] [-f dbfile] [-i iface] [-m mailto] [-p] [-q] [-u user]
 ```
 
 | Flag | Description |
 |------|-------------|
 | `-d` | Daemonize (log to syslog instead of stderr) |
 | `-f path` | Database file (default: `/var/neighbot/neighbot.csv`) |
+| `-i iface` | Monitor only the specified interface (default: all Ethernet interfaces) |
 | `-m addr` | Email recipient (default: `root`) |
 | `-p` | Disable active probing (passive only) |
 | `-q` | Quiet mode -- no email, still logs |

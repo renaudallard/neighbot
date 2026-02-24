@@ -216,6 +216,10 @@ capture_open_all(struct iface *ifaces, int max)
 		if (dev->flags & PCAP_IF_LOOPBACK)
 			continue;
 
+		/* filter by interface name if specified */
+		if (cfg.iface && strcmp(dev->name, cfg.iface) != 0)
+			continue;
+
 		p = pcap_create(dev->name, errbuf);
 		if (!p) {
 			log_err("pcap_create(%s): %s", dev->name, errbuf);

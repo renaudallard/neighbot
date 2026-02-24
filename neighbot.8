@@ -8,6 +8,7 @@
 .Nm
 .Op Fl d
 .Op Fl f Ar dbfile
+.Op Fl i Ar iface
 .Op Fl m Ar mailto
 .Op Fl p
 .Op Fl q
@@ -30,6 +31,8 @@ Detach from the terminal and log to syslog instead of stderr.
 Path to the database file.
 Default:
 .Pa /var/neighbot/neighbot.csv .
+.It Fl i Ar iface
+Monitor only the specified interface instead of all Ethernet interfaces.
 .It Fl m Ar mailto
 Email recipient for notifications.
 Default:

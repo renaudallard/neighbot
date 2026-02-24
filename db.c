@@ -423,6 +423,42 @@ db_find_other_entries(const uint8_t *mac, int exclude_af,
 	return count;
 }
 
+/* Check if MAC already has a non-EUI-64 routable IPv6 in the same /64.
+ * Used to detect temporary address rotation (RFC 4941). */
+int
+db_has_temp_in_prefix(const uint8_t *mac, const uint8_t *ip6)
+{
+	for (unsigned i = 0; i < HT_BUCKETS; i++) {
+		for (struct entry *e = buckets[i]; e; e = e->next) {
+			if (e->af != AF_INET6)
+				continue;
+			if (memcmp(e->mac, mac, 6) != 0)
+				continue;
+			/* same /64 prefix */
+			if (memcmp(e->ip, ip6, 8) != 0)
+				continue;
+			/* skip the IP itself */
+			if (memcmp(e->ip, ip6, 16) == 0)
+				continue;
+			/* skip link-local */
+			if (e->ip[0] == 0xfe && (e->ip[1] & 0xc0) == 0x80)
+				continue;
+			/* skip EUI-64 derived addresses */
+			if (e->ip[8]  == (mac[0] ^ 0x02) &&
+			    e->ip[9]  == mac[1] &&
+			    e->ip[10] == mac[2] &&
+			    e->ip[11] == 0xff &&
+			    e->ip[12] == 0xfe &&
+			    e->ip[13] == mac[3] &&
+			    e->ip[14] == mac[4] &&
+			    e->ip[15] == mac[5])
+				continue;
+			return 1;
+		}
+	}
+	return 0;
+}
+
 void
 db_free(void)
 {

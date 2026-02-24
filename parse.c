@@ -84,6 +84,21 @@ is_multicast_mac(const uint8_t *mac)
 	return mac[0] & 0x01;
 }
 
+/* Check if IPv6 address uses EUI-64 interface ID derived from MAC.
+ * EUI-64: mac[0]^0x02, mac[1], mac[2], 0xff, 0xfe, mac[3:5] */
+static int
+is_eui64(const uint8_t *ip6, const uint8_t *mac)
+{
+	return ip6[8]  == (mac[0] ^ 0x02) &&
+	       ip6[9]  == mac[1] &&
+	       ip6[10] == mac[2] &&
+	       ip6[11] == 0xff &&
+	       ip6[12] == 0xfe &&
+	       ip6[13] == mac[3] &&
+	       ip6[14] == mac[4] &&
+	       ip6[15] == mac[5];
+}
+
 static void
 format_mac(const uint8_t *mac, char *buf, size_t len)
 {
@@ -103,9 +118,24 @@ handle_event(int event, int af, const uint8_t *ip, const uint8_t *mac,
 	format_mac(mac, macstr, sizeof(macstr));
 
 	if (event == EVENT_NEW) {
-		log_msg("new station %s %s on %s", ipstr, macstr, iface);
-		if (!cfg.quiet)
-			notify_new(af, ip, mac, iface);
+		/* detect temporary IPv6 address rotation: if this
+		 * non-EUI-64 address shares a /64 with an existing
+		 * non-EUI-64 entry for this MAC, suppress "new
+		 * station" and let probing report "moved" instead */
+		int temp_rotate = (af == AF_INET6 &&
+		    !(ip[0] == 0xfe && (ip[1] & 0xc0) == 0x80) &&
+		    !is_eui64(ip, mac) &&
+		    db_has_temp_in_prefix(mac, ip));
+
+		if (temp_rotate) {
+			log_msg("new temporary %s %s on %s",
+			    ipstr, macstr, iface);
+		} else {
+			log_msg("new station %s %s on %s",
+			    ipstr, macstr, iface);
+			if (!cfg.quiet)
+				notify_new(af, ip, mac, iface);
+		}
 
 		/* schedule probes for other IPs of this MAC.
 		 * skip if new IP is link-local since every IPv6

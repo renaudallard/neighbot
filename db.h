@@ -67,5 +67,6 @@ int   db_other_ips(const uint8_t *mac, int exclude_af,
 int   db_find_other_entries(const uint8_t *mac, int exclude_af,
                             const uint8_t *exclude_ip,
                             struct db_entry_info *out, int max);
+int   db_has_temp_in_prefix(const uint8_t *mac, const uint8_t *ip6);
 
 #endif

@@ -277,8 +277,10 @@ is_zero_mac(const uint8_t *mac)
 	return 1;
 }
 
-/* Returns EVENT_NEW, EVENT_CHANGED, EVENT_FLIPFLOP, or 0 (no change).
- * If EVENT_CHANGED or EVENT_FLIPFLOP, old_mac is filled with the previous MAC. */
+/* Returns EVENT_NEW, EVENT_CHANGED, EVENT_FLIPFLOP, EVENT_REAPPEARED,
+ * or 0 (no change).
+ * If EVENT_CHANGED or EVENT_FLIPFLOP, old_mac is filled with the previous MAC.
+ * If EVENT_REAPPEARED, old_last_seen is filled with the previous last_seen. */
 int
 db_update(int af, const uint8_t *ip, const uint8_t *mac,
           const char *iface, uint8_t *old_mac, time_t *old_last_seen)
@@ -308,6 +310,11 @@ db_update(int af, const uint8_t *ip, const uint8_t *mac,
 				snprintf(e->iface, sizeof(e->iface),
 				    "%s", iface);
 				return ev;
+			}
+			if (now - prev >= REAPPEAR_SECS) {
+				if (old_last_seen)
+					*old_last_seen = prev;
+				return EVENT_REAPPEARED;
 			}
 			return 0;
 		}

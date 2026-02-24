@@ -45,6 +45,7 @@
 #define MAX_IFACES       64
 #define SNAP_LEN         128
 #define POLL_TIMEOUT_MS  1000
+#define REAPPEAR_SECS    (180 * 24 * 3600)  /* 6 months */
 
 #define BPF_FILTER "arp or (icmp6 and (ip6[40] == 136 or ip6[40] == 135))"
 

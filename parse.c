@@ -129,6 +129,12 @@ handle_event(int event, int af, const uint8_t *ip, const uint8_t *mac,
 		if (!cfg.quiet)
 			notify_flipflop(af, ip, mac, old_mac, iface,
 			                old_last_seen);
+	} else if (event == EVENT_REAPPEARED) {
+		log_msg("reappeared station %s %s on %s", ipstr, macstr,
+		        iface);
+		if (!cfg.quiet)
+			notify_reappeared(af, ip, mac, iface,
+			                  old_last_seen);
 	}
 
 	/* trigger save in main loop */

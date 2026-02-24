@@ -32,14 +32,16 @@
 #include <stdint.h>
 #include <time.h>
 
-#define EVENT_NEW     1
-#define EVENT_CHANGED 2
-#define EVENT_MOVED   3
+#define EVENT_NEW      1
+#define EVENT_CHANGED  2
+#define EVENT_MOVED    3
+#define EVENT_FLIPFLOP 4
 
 struct entry {
 	int            af;        /* AF_INET or AF_INET6 */
 	uint8_t        ip[16];    /* network byte order */
 	uint8_t        mac[6];
+	uint8_t        prev_mac[6];
 	char           iface[32];
 	time_t         first_seen;
 	time_t         last_seen;

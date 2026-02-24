@@ -58,10 +58,32 @@ dropping.
 Default:
 .Ql nobody .
 .El
+.Sh EVENTS
+.Nm
+generates the following event types:
+.Bl -tag -width "flip-flop"
+.It new
+A previously unknown IP address is seen for the first time.
+.It changed
+An IP address is seen with a different MAC address than the one
+previously recorded.
+.It flip-flop
+An IP address alternates between two previously seen MAC addresses.
+This typically indicates VRRP/HSRP failover, dual-homed hosts,
+or ARP spoofing.
+.It moved
+A MAC address is seen at a new IP address while its old IP no longer
+responds to probes (requires active probing).
+.El
 .Sh DATABASE FORMAT
 The database is a CSV file with the following fields:
 .Pp
-.D1 ip,mac,interface,first_seen,last_seen
+.D1 ip,mac,interface,first_seen,last_seen,prev_mac
+.Pp
+The
+.Ar prev_mac
+field stores the previous MAC address for flip-flop detection.
+Old database files without this field are loaded without errors.
 .Pp
 Timestamps are in ISO 8601 format (local time).
 The database is saved atomically via a temporary file and rename.

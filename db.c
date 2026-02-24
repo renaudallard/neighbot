@@ -114,8 +114,14 @@ db_load(const char *path)
 			break;
 		}
 
-		if (sscanf(line, "%45[^,],%17[^,],%31[^,],%31[^,],%31s",
-		           ipstr, macstr, iface, first_str, last_str) != 5)
+		char prevmacstr[18] = "";
+		int nf;
+
+		nf = sscanf(line,
+		    "%45[^,],%17[^,],%31[^,],%31[^,],%31[^,],%17s",
+		    ipstr, macstr, iface, first_str, last_str,
+		    prevmacstr);
+		if (nf < 5)
 			continue;
 
 		if (inet_pton(AF_INET, ipstr, ip) == 1)
@@ -155,6 +161,17 @@ db_load(const char *path)
 		memcpy(e->ip, ip, ilen);
 		for (int i = 0; i < 6; i++)
 			e->mac[i] = (uint8_t)m[i];
+
+		if (nf >= 6 && prevmacstr[0] != '\0') {
+			unsigned pm[6];
+			if (sscanf(prevmacstr,
+			    "%x:%x:%x:%x:%x:%x",
+			    &pm[0], &pm[1], &pm[2],
+			    &pm[3], &pm[4], &pm[5]) == 6) {
+				for (int i = 0; i < 6; i++)
+					e->prev_mac[i] = (uint8_t)pm[i];
+			}
+		}
 
 		snprintf(e->iface, sizeof(e->iface), "%s", iface);
 
@@ -220,11 +237,17 @@ db_save(const char *path)
 			strftime(last_str, sizeof(last_str),
 			         "%Y-%m-%dT%H:%M:%S", &tm);
 
-			fprintf(fp, "%s,%02x:%02x:%02x:%02x:%02x:%02x,%s,%s,%s\n",
+			fprintf(fp, "%s,"
+			        "%02x:%02x:%02x:%02x:%02x:%02x,"
+			        "%s,%s,%s,"
+			        "%02x:%02x:%02x:%02x:%02x:%02x\n",
 			        ipstr,
 			        e->mac[0], e->mac[1], e->mac[2],
 			        e->mac[3], e->mac[4], e->mac[5],
-			        e->iface, first_str, last_str);
+			        e->iface, first_str, last_str,
+			        e->prev_mac[0], e->prev_mac[1],
+			        e->prev_mac[2], e->prev_mac[3],
+			        e->prev_mac[4], e->prev_mac[5]);
 			count++;
 		}
 	}
@@ -245,8 +268,17 @@ db_save(const char *path)
 	return count;
 }
 
-/* Returns EVENT_NEW, EVENT_CHANGED, or 0 (no change).
- * If EVENT_CHANGED, old_mac is filled with the previous MAC. */
+static int
+is_zero_mac(const uint8_t *mac)
+{
+	for (int i = 0; i < 6; i++)
+		if (mac[i] != 0)
+			return 0;
+	return 1;
+}
+
+/* Returns EVENT_NEW, EVENT_CHANGED, EVENT_FLIPFLOP, or 0 (no change).
+ * If EVENT_CHANGED or EVENT_FLIPFLOP, old_mac is filled with the previous MAC. */
 int
 db_update(int af, const uint8_t *ip, const uint8_t *mac,
           const char *iface, uint8_t *old_mac, time_t *old_last_seen)
@@ -260,13 +292,22 @@ db_update(int af, const uint8_t *ip, const uint8_t *mac,
 			time_t prev = e->last_seen;
 			e->last_seen = now;
 			if (memcmp(e->mac, mac, 6) != 0) {
+				int ev;
+
 				if (old_mac)
 					memcpy(old_mac, e->mac, 6);
 				if (old_last_seen)
 					*old_last_seen = prev;
+				if (!is_zero_mac(e->prev_mac) &&
+				    memcmp(mac, e->prev_mac, 6) == 0)
+					ev = EVENT_FLIPFLOP;
+				else
+					ev = EVENT_CHANGED;
+				memcpy(e->prev_mac, e->mac, 6);
 				memcpy(e->mac, mac, 6);
-				snprintf(e->iface, sizeof(e->iface), "%s", iface);
-				return EVENT_CHANGED;
+				snprintf(e->iface, sizeof(e->iface),
+				    "%s", iface);
+				return ev;
 			}
 			return 0;
 		}

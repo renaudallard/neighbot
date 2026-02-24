@@ -400,8 +400,10 @@ db_find_other_entries(const uint8_t *mac, int exclude_af,
 		     e = e->next) {
 			if (memcmp(e->mac, mac, 6) != 0)
 				continue;
-			if (e->af == exclude_af &&
-			    memcmp(e->ip, exclude_ip, ip_len(exclude_af)) == 0)
+			/* only probe same address family */
+			if (e->af != exclude_af)
+				continue;
+			if (memcmp(e->ip, exclude_ip, ip_len(exclude_af)) == 0)
 				continue;
 
 			out[count].af = e->af;

@@ -112,7 +112,8 @@ sudo neighbot -d -i eth0 -p
 ## Active Probing
 
 When a known MAC appears at a new IP, neighbot sends up to 3 probes (5s
-timeout each) to each old IP associated with that MAC:
+timeout each) to each old IP of the same address family associated with that
+MAC (dual-stack hosts are not probed across IPv4/IPv6):
 
 - **IPv4**: ARP request with sender IP `0.0.0.0` (RFC 5227)
 - **IPv6**: NDP Neighbor Solicitation with source `::`

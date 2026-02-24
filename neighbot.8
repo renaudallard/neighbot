@@ -52,9 +52,10 @@ Default:
 Disable active probing.
 By default, when a known MAC address appears at a new IP,
 .Nm
-sends ARP requests or NDP Neighbor Solicitations to the old IP
-to determine whether the device moved (old IP dead) or has
-multiple addresses (both active).
+sends ARP requests or NDP Neighbor Solicitations to each old IP
+of the same address family to determine whether the device moved
+(old IP dead) or has multiple addresses (both active).
+Dual-stack hosts are not probed across IPv4/IPv6.
 Probes use a zero source address to avoid polluting ARP/NDP caches.
 This flag makes
 .Nm

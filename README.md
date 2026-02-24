@@ -11,7 +11,7 @@ Like [arpwatch](https://ee.lbl.gov/), but also handles IPv6 and runs on Linux an
 ## Features
 
 - Monitors **ARP** (IPv4) and **NDP** (IPv6) on all Ethernet interfaces
-- Detects **new stations**, **MAC address changes**, **flip-flops**, and **reappearances** (after 6+ months of silence)
+- Detects **new stations**, **MAC address changes**, **flip-flops**, **reappearances**, and **bogons** (IPs outside local subnets)
 - Email alerts via sendmail with hostname, vendor, and timestamps
 - Optional OUI database for hardware vendor identification
 - Simple CSV database with atomic saves

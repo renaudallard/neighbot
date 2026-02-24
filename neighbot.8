@@ -73,6 +73,11 @@ This typically indicates VRRP/HSRP failover, dual-homed hosts,
 or ARP spoofing.
 .It reappeared
 A known MAC/IP pair is seen again after more than 6 months of silence.
+.It bogon
+An IP address is seen that does not belong to any subnet configured
+on the receiving interface.
+This may indicate ARP or NDP spoofing.
+Bogon packets are not added to the database.
 .It moved
 A MAC address is seen at a new IP address while its old IP no longer
 responds to probes (requires active probing).

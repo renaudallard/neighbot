@@ -43,6 +43,7 @@
 #endif
 
 #include "neighbot.h"
+#include "capture.h"
 #include "db.h"
 #include "log.h"
 #include "notify.h"
@@ -179,6 +180,20 @@ handle_multiple_ips(int af, const uint8_t *ip, const uint8_t *mac,
 }
 
 static void
+handle_bogon(int af, const uint8_t *ip, const uint8_t *mac,
+             const char *iface)
+{
+	char ipstr[INET6_ADDRSTRLEN];
+	char macstr[18];
+
+	inet_ntop(af, ip, ipstr, sizeof(ipstr));
+	format_mac(mac, macstr, sizeof(macstr));
+	log_msg("bogon %s %s on %s", ipstr, macstr, iface);
+	if (!cfg.quiet)
+		notify_bogon(af, ip, mac, iface);
+}
+
+static void
 parse_arp(const u_char *pkt, size_t len, const char *iface)
 {
 	const struct arp_pkt *arp;
@@ -202,6 +217,11 @@ parse_arp(const u_char *pkt, size_t len, const char *iface)
 	/* skip ARP probes (sender IP 0.0.0.0) */
 	if (is_zero_ip4(arp->spa))
 		return;
+
+	if (!capture_is_local(iface, AF_INET, arp->spa)) {
+		handle_bogon(AF_INET, arp->spa, arp->sha, iface);
+		return;
+	}
 
 	event = db_update(AF_INET, arp->spa, arp->sha, iface, old_mac,
 	                  &old_last_seen);
@@ -304,6 +324,11 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface)
 	/* skip multicast/broadcast MACs */
 	if (is_multicast_mac(mac))
 		return;
+
+	if (!capture_is_local(iface, AF_INET6, ip_addr)) {
+		handle_bogon(AF_INET6, ip_addr, mac, iface);
+		return;
+	}
 
 	/* for NA, use the target address; for NS, use source IP */
 	event = db_update(AF_INET6, ip_addr, mac, iface, old_mac,

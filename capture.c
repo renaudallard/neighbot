@@ -28,6 +28,7 @@
 #include <sys/socket.h>
 
 #include <ifaddrs.h>
+#include <netinet/in.h>
 #include <pcap.h>
 #include <string.h>
 
@@ -40,6 +41,16 @@
 #include "neighbot.h"
 #include "capture.h"
 #include "log.h"
+
+struct subnet {
+	char    iface[32];
+	int     af;
+	uint8_t addr[16];
+	uint8_t mask[16];
+};
+
+static struct subnet subnets[MAX_SUBNETS];
+static int subnet_count;
 
 static void
 fill_local_macs(struct iface *ifaces, int count)
@@ -85,6 +96,103 @@ fill_local_macs(struct iface *ifaces, int count)
 	}
 
 	freeifaddrs(ifap);
+}
+
+static void
+fill_local_subnets(struct iface *ifaces, int count)
+{
+	struct ifaddrs *ifap, *ifa;
+
+	subnet_count = 0;
+
+	if (getifaddrs(&ifap) < 0)
+		return;
+
+	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+		int af, alen;
+		const uint8_t *addr, *mask;
+		int found = 0;
+
+		if (!ifa->ifa_addr || !ifa->ifa_netmask)
+			continue;
+
+		af = ifa->ifa_addr->sa_family;
+		if (af == AF_INET) {
+			struct sockaddr_in *sin =
+			    (struct sockaddr_in *)ifa->ifa_addr;
+			struct sockaddr_in *sinm =
+			    (struct sockaddr_in *)ifa->ifa_netmask;
+			addr = (const uint8_t *)&sin->sin_addr;
+			mask = (const uint8_t *)&sinm->sin_addr;
+			alen = 4;
+		} else if (af == AF_INET6) {
+			struct sockaddr_in6 *sin6 =
+			    (struct sockaddr_in6 *)ifa->ifa_addr;
+			struct sockaddr_in6 *sin6m =
+			    (struct sockaddr_in6 *)ifa->ifa_netmask;
+			addr = (const uint8_t *)&sin6->sin6_addr;
+			mask = (const uint8_t *)&sin6m->sin6_addr;
+			alen = 16;
+		} else {
+			continue;
+		}
+
+		/* only track subnets for monitored interfaces */
+		for (int i = 0; i < count; i++) {
+			if (strcmp(ifaces[i].name, ifa->ifa_name) == 0) {
+				found = 1;
+				break;
+			}
+		}
+		if (!found)
+			continue;
+
+		if (subnet_count >= MAX_SUBNETS)
+			break;
+
+		struct subnet *s = &subnets[subnet_count];
+		snprintf(s->iface, sizeof(s->iface), "%s", ifa->ifa_name);
+		s->af = af;
+		memset(s->addr, 0, sizeof(s->addr));
+		memset(s->mask, 0, sizeof(s->mask));
+		memcpy(s->addr, addr, alen);
+		memcpy(s->mask, mask, alen);
+		subnet_count++;
+	}
+
+	freeifaddrs(ifap);
+}
+
+int
+capture_is_local(const char *iface, int af, const uint8_t *ip)
+{
+	int alen = (af == AF_INET) ? 4 : 16;
+	int has_subnet = 0;
+
+	for (int i = 0; i < subnet_count; i++) {
+		struct subnet *s = &subnets[i];
+
+		if (s->af != af || strcmp(s->iface, iface) != 0)
+			continue;
+		has_subnet = 1;
+
+		int match = 1;
+		for (int j = 0; j < alen; j++) {
+			if ((ip[j] & s->mask[j]) !=
+			    (s->addr[j] & s->mask[j])) {
+				match = 0;
+				break;
+			}
+		}
+		if (match)
+			return 1;
+	}
+
+	/* no configured subnets for this af. cannot determine locality */
+	if (!has_subnet)
+		return 1;
+
+	return 0;
 }
 
 int
@@ -180,6 +288,7 @@ capture_open_all(struct iface *ifaces, int max)
 
 	pcap_freealldevs(alldevs);
 	fill_local_macs(ifaces, count);
+	fill_local_subnets(ifaces, count);
 	return count;
 }
 

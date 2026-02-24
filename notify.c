@@ -298,6 +298,43 @@ notify_flipflop(int af, const uint8_t *ip, const uint8_t *mac,
 }
 
 void
+notify_bogon(int af, const uint8_t *ip, const uint8_t *mac,
+             const char *iface)
+{
+	char subject[256];
+	char body[2048];
+	char ipstr[INET6_ADDRSTRLEN];
+	char macstr[18];
+	char host[256];
+	char timebuf[128];
+	const char *vendor;
+
+	inet_ntop(af, ip, ipstr, sizeof(ipstr));
+	format_mac(mac, macstr, sizeof(macstr));
+	resolve_hostname(af, ip, host, sizeof(host));
+	format_timestamp(time(NULL), timebuf, sizeof(timebuf));
+	vendor = oui_lookup(mac);
+
+	snprintf(subject, sizeof(subject),
+	         "neighbot: bogon %s on %s", ipstr, iface);
+	snprintf(body, sizeof(body),
+	         "          hostname: %s\n"
+	         "        ip address: %s\n"
+	         "  ethernet address: %s\n"
+	         "   ethernet vendor: %s\n"
+	         "         interface: %s\n"
+	         "         timestamp: %s\n"
+	         "\n"
+	         "This IP is not in any local subnet configured on %s.\n"
+	         "This may indicate ARP/NDP spoofing.\n",
+	         host, ipstr, macstr,
+	         vendor ? vendor : "<unknown>",
+	         iface, timebuf, iface);
+
+	send_mail(subject, body);
+}
+
+void
 notify_reappeared(int af, const uint8_t *ip, const uint8_t *mac,
                   const char *iface, time_t prev_seen)
 {

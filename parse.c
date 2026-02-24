@@ -218,6 +218,10 @@ parse_arp(const u_char *pkt, size_t len, const char *iface)
 	if (is_zero_ip4(arp->spa))
 		return;
 
+	/* skip broadcast and multicast sender IPs */
+	if (arp->spa[0] >= 224)
+		return;
+
 	if (!capture_is_local(iface, AF_INET, arp->spa)) {
 		handle_bogon(AF_INET, arp->spa, arp->sha, iface);
 		return;
@@ -323,6 +327,10 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface)
 
 	/* skip multicast/broadcast MACs */
 	if (is_multicast_mac(mac))
+		return;
+
+	/* skip multicast IPs (ff00::/8) */
+	if (ip_addr[0] == 0xff)
 		return;
 
 	if (!capture_is_local(iface, AF_INET6, ip_addr)) {

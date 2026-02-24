@@ -128,6 +128,24 @@ handle_event(int event, int af, const uint8_t *ip, const uint8_t *mac,
 	save = 1;
 }
 
+void
+handle_moved(int new_af, const uint8_t *new_ip, const uint8_t *mac,
+             int old_af, const uint8_t *old_ip, const char *iface)
+{
+	char newstr[INET6_ADDRSTRLEN];
+	char oldstr[INET6_ADDRSTRLEN];
+	char macstr[18];
+
+	inet_ntop(new_af, new_ip, newstr, sizeof(newstr));
+	inet_ntop(old_af, old_ip, oldstr, sizeof(oldstr));
+	format_mac(mac, macstr, sizeof(macstr));
+
+	log_msg("moved station %s %s -> %s on %s",
+	        macstr, oldstr, newstr, iface);
+	if (!cfg.quiet)
+		notify_moved(new_af, new_ip, mac, old_af, old_ip, iface);
+}
+
 static void
 parse_arp(const u_char *pkt, size_t len, const char *iface)
 {

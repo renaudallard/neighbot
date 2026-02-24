@@ -34,6 +34,7 @@
 
 #define EVENT_NEW     1
 #define EVENT_CHANGED 2
+#define EVENT_MOVED   3
 
 struct entry {
 	int            af;        /* AF_INET or AF_INET6 */

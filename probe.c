@@ -36,7 +36,7 @@
 #include "neighbot.h"
 #include "capture.h"
 #include "log.h"
-#include "notify.h"
+#include "parse.h"
 #include "probe.h"
 
 struct probe {
@@ -320,17 +320,8 @@ probe_tick(struct iface *ifaces, int nifaces)
 		/* timed out after all attempts */
 		if (p->tries >= PROBE_MAX_TRIES &&
 		    now - p->last_sent >= PROBE_TIMEOUT) {
-			char ipstr[INET6_ADDRSTRLEN];
-			char newstr[INET6_ADDRSTRLEN];
-
-			inet_ntop(p->af, p->ip, ipstr, sizeof(ipstr));
-			inet_ntop(p->new_af, p->new_ip, newstr,
-			    sizeof(newstr));
-			log_msg("probe: %s not responding, "
-			    "device moved to %s", ipstr, newstr);
-			if (!cfg.quiet)
-				notify_moved(p->new_af, p->new_ip,
-				    p->mac, p->af, p->ip, p->iface);
+			handle_moved(p->new_af, p->new_ip,
+			    p->mac, p->af, p->ip, p->iface);
 			p->active = 0;
 			continue;
 		}

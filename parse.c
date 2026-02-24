@@ -198,7 +198,7 @@ parse_arp(const u_char *pkt, size_t len, const char *iface)
 {
 	const struct arp_pkt *arp;
 	uint8_t old_mac[6];
-	time_t old_last_seen;
+	time_t old_last_seen = 0;
 	int event;
 
 	if (len < sizeof(struct arp_pkt))
@@ -271,7 +271,7 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface)
 	const u_char *opts;
 	size_t opts_len;
 	uint8_t old_mac[6];
-	time_t old_last_seen;
+	time_t old_last_seen = 0;
 	int event;
 
 	if (len < sizeof(struct ip6_hdr))

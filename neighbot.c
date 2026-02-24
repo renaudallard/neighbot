@@ -147,6 +147,7 @@ main(int argc, char *argv[])
 	if (nifaces <= 0) {
 		log_err("no usable interfaces found");
 		db_free();
+		oui_free();
 		return 1;
 	}
 
@@ -155,6 +156,7 @@ main(int argc, char *argv[])
 			log_err("daemon: %s", strerror(errno));
 			capture_close_all(ifaces, nifaces);
 			db_free();
+			oui_free();
 			return 1;
 		}
 		/* re-init logging after daemon() closes stderr */
@@ -168,6 +170,7 @@ main(int argc, char *argv[])
 			log_err("unknown user: %s", cfg.user);
 			capture_close_all(ifaces, nifaces);
 			db_free();
+			oui_free();
 			return 1;
 		}
 
@@ -193,18 +196,21 @@ main(int argc, char *argv[])
 			log_err("setgroups: %s", strerror(errno));
 			capture_close_all(ifaces, nifaces);
 			db_free();
+			oui_free();
 			return 1;
 		}
 		if (setgid(pw->pw_gid) < 0) {
 			log_err("setgid: %s", strerror(errno));
 			capture_close_all(ifaces, nifaces);
 			db_free();
+			oui_free();
 			return 1;
 		}
 		if (setuid(pw->pw_uid) < 0) {
 			log_err("setuid: %s", strerror(errno));
 			capture_close_all(ifaces, nifaces);
 			db_free();
+			oui_free();
 			return 1;
 		}
 
@@ -249,6 +255,7 @@ main(int argc, char *argv[])
 		log_err("pledge: %s", strerror(errno));
 		capture_close_all(ifaces, nifaces);
 		db_free();
+		oui_free();
 		return 1;
 	}
 #endif

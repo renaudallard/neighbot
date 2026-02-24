@@ -102,7 +102,7 @@ sudo neighbot -d -i eth0 -p
 
 | Event | Description | Email |
 |-------|-------------|-------|
-| **new** | Previously unknown IP address seen for the first time | yes |
+| **new** | Previously unknown IP address seen for the first time | yes (suppressed for IPv6 temporary address rotations) |
 | **changed** | IP seen with a different MAC than previously recorded | yes |
 | **flip-flop** | IP alternates between two known MACs (VRRP/HSRP, dual-homing, or spoofing) | yes |
 | **reappeared** | Known MAC/IP pair seen again after 6+ months of silence | yes |
@@ -124,6 +124,15 @@ This avoids polluting the target's neighbor cache.
 |---------|---------|--------|
 | Probe answered | Device has multiple IPs | Log only |
 | Probe timed out | Device moved to new IP | Log + email |
+
+Link-local addresses (fe80::/10, 169.254/16) are excluded from probing
+since every IPv6 interface has one alongside its global address.
+
+**IPv6 temporary addresses (RFC 4941):** When a device using privacy
+extensions rotates its temporary address, neighbot detects that the same
+MAC already has a non-EUI-64 address in the same /64 prefix and suppresses
+the "new station" email.  The old temporary address is probed, and if it no
+longer responds, a "moved" notification is sent instead.
 
 Disable with `-p` for purely passive monitoring.
 

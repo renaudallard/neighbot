@@ -57,6 +57,12 @@ of the same address family to determine whether the device moved
 (old IP dead) or has multiple addresses (both active).
 Dual-stack hosts are not probed across IPv4/IPv6.
 Probes use a zero source address to avoid polluting ARP/NDP caches.
+Link-local addresses are excluded from probing.
+.Pp
+When an IPv6 temporary address (RFC 4941) rotates, the new address
+is not reported as a new station; instead the old temporary address
+is probed and reported as moved if it no longer responds.
+.Pp
 This flag makes
 .Nm
 purely passive.
@@ -83,6 +89,11 @@ generates the following event types:
 .Bl -tag -width "flip-flop"
 .It new
 A previously unknown IP address is seen for the first time.
+The email notification is suppressed when an IPv6 temporary address
+rotates (same MAC, same /64 prefix, non-EUI-64); in that case the
+old address is probed and a
+.Em moved
+event is generated instead if it no longer responds.
 .It changed
 An IP address is seen with a different MAC address than the one
 previously recorded.

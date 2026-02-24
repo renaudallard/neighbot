@@ -58,6 +58,7 @@ struct config {
 	char  *dbfile;
 	char  *iface;
 	char  *mailto;
+	char  *ouifile;
 	char  *sendmail;
 	char  *user;
 };

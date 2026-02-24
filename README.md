@@ -70,7 +70,7 @@ sudo make uninstall
 ## Usage
 
 ```
-neighbot [-d] [-f dbfile] [-i iface] [-m mailto] [-p] [-q] [-s sendmail] [-u user]
+neighbot [-d] [-f dbfile] [-i iface] [-m mailto] [-o ouifile] [-p] [-q] [-s sendmail] [-u user]
 ```
 
 | Flag | Description |
@@ -79,6 +79,7 @@ neighbot [-d] [-f dbfile] [-i iface] [-m mailto] [-p] [-q] [-s sendmail] [-u use
 | `-f path` | Database file (default: `/var/neighbot/neighbot.csv`) |
 | `-i iface` | Monitor only this interface (default: all Ethernet interfaces) |
 | `-m addr` | Email recipient (default: `root`) |
+| `-o path` | OUI vendor database file (default: `/var/neighbot/oui.txt`) |
 | `-p` | Disable active probing (passive only) |
 | `-q` | Quiet mode. No email notifications, events are still logged |
 | `-s path` | Path to sendmail-compatible MTA (default: `/usr/sbin/sendmail`) |
@@ -161,8 +162,19 @@ neighbot_flags=-d -m admin@example.com
 ## OUI Database
 
 The OUI vendor database is installed by `make install` to
-`/var/neighbot/oui.txt` and loaded once at startup. To keep it current,
-add a daily cron job:
+`/var/neighbot/oui.txt` and loaded once at startup.
+
+Two file formats are supported:
+
+| Format | Example | Source |
+|--------|---------|--------|
+| neighbot | `aa:bb:cc Vendor Name` | `make oui.txt` |
+| arp-scan | `AABBCC\tVendor Name` | `net/arp-scan,-mac` package |
+
+On OpenBSD, install the `arp-scan,-mac` package and point neighbot at
+`/usr/local/share/arp-scan/ieee-oui.txt`.
+
+To keep the bundled format current, add a daily cron job:
 
 ```sh
 0 3 * * * curl -sL https://standards-oui.ieee.org/oui/oui.txt \

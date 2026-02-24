@@ -76,7 +76,7 @@ usage(void)
 {
 	fprintf(stderr,
 	    "usage: neighbot [-d] [-f dbfile] [-i iface] [-m mailto] "
-	    "[-p] [-q] [-s sendmail] [-u user]\n");
+	    "[-o ouifile] [-p] [-q] [-s sendmail] [-u user]\n");
 	exit(1);
 }
 
@@ -89,10 +89,11 @@ main(int argc, char *argv[])
 
 	cfg.dbfile   = DEFAULT_DBFILE;
 	cfg.mailto   = DEFAULT_MAILTO;
+	cfg.ouifile  = DEFAULT_OUIFILE;
 	cfg.sendmail = DEFAULT_SENDMAIL;
 	cfg.user     = DEFAULT_USER;
 
-	while ((ch = getopt(argc, argv, "df:i:m:pqs:u:")) != -1) {
+	while ((ch = getopt(argc, argv, "df:i:m:o:pqs:u:")) != -1) {
 		switch (ch) {
 		case 'd':
 			cfg.daemonize = 1;
@@ -105,6 +106,9 @@ main(int argc, char *argv[])
 			break;
 		case 'm':
 			cfg.mailto = optarg;
+			break;
+		case 'o':
+			cfg.ouifile = optarg;
 			break;
 		case 'p':
 			cfg.probe = 0;
@@ -141,7 +145,7 @@ main(int argc, char *argv[])
 
 	db_init();
 	db_load(cfg.dbfile);
-	oui_load(DEFAULT_OUIFILE);
+	oui_load(cfg.ouifile);
 
 	nifaces = capture_open_all(ifaces, MAX_IFACES);
 	if (nifaces <= 0) {

@@ -197,12 +197,14 @@ void
 probe_schedule(int af, const uint8_t *ip, const uint8_t *mac,
                int new_af, const uint8_t *new_ip, const char *iface)
 {
+	int ilen = (af == AF_INET) ? 4 : 16;
+
 	/* check for duplicate probe */
 	for (int i = 0; i < PROBE_MAX_SLOTS; i++) {
 		if (!probes[i].active)
 			continue;
 		if (probes[i].af == af &&
-		    memcmp(probes[i].ip, ip, 16) == 0 &&
+		    memcmp(probes[i].ip, ip, ilen) == 0 &&
 		    memcmp(probes[i].mac, mac, 6) == 0)
 			return;
 	}
@@ -213,7 +215,8 @@ probe_schedule(int af, const uint8_t *ip, const uint8_t *mac,
 
 		probes[i].active = 1;
 		probes[i].af = af;
-		memcpy(probes[i].ip, ip, 16);
+		memset(probes[i].ip, 0, sizeof(probes[i].ip));
+		memcpy(probes[i].ip, ip, ilen);
 		memcpy(probes[i].mac, mac, 6);
 		probes[i].new_af = new_af;
 		memset(probes[i].new_ip, 0, sizeof(probes[i].new_ip));

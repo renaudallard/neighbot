@@ -10,6 +10,7 @@
 .Op Fl f Ar dbfile
 .Op Fl i Ar iface
 .Op Fl m Ar mailto
+.Op Fl o Ar ouifile
 .Op Fl p
 .Op Fl q
 .Op Fl s Ar sendmail
@@ -38,6 +39,15 @@ Monitor only the specified interface instead of all Ethernet interfaces.
 Email recipient for notifications.
 Default:
 .Ql root .
+.It Fl o Ar ouifile
+Path to the OUI vendor database file.
+Both the neighbot format
+.Pq aa:bb:cc Vendor
+and the arp-scan format
+.Pq AABBCC<tab>Vendor
+are supported.
+Default:
+.Pa /var/neighbot/oui.txt .
 .It Fl p
 Disable active probing.
 By default, when a known MAC address appears at a new IP,

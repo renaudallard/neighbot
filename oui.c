@@ -63,9 +63,25 @@ oui_load(const char *path)
 		unsigned a, b, c;
 		char vendor[VENDOR_MAX];
 
+		/* neighbot format: aa:bb:cc Vendor Name */
 		if (sscanf(line, "%x:%x:%x %79[^\n]",
-		           &a, &b, &c, vendor) != 4)
-			continue;
+		           &a, &b, &c, vendor) != 4) {
+			/* arp-scan format: AABBCC\tVendor Name
+			 * skip MA-M (7 hex) and MA-S (9 hex) entries */
+			unsigned oui;
+			int pos;
+
+			if (sscanf(line, "%6x%n", &oui, &pos) != 1 ||
+			    pos != 6 || line[6] != '\t')
+				continue;
+			a = (oui >> 16) & 0xff;
+			b = (oui >> 8) & 0xff;
+			c = oui & 0xff;
+			line[strcspn(line, "\n")] = '\0';
+			snprintf(vendor, sizeof(vendor), "%.79s", line + 7);
+			if (vendor[0] == '\0')
+				continue;
+		}
 
 		if (oui_count >= oui_alloc) {
 			oui_alloc = oui_alloc ? oui_alloc * 2 : 1024;

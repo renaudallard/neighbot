@@ -12,6 +12,7 @@
 .Op Fl m Ar mailto
 .Op Fl p
 .Op Fl q
+.Op Fl s Ar sendmail
 .Op Fl u Ar user
 .Sh DESCRIPTION
 .Nm
@@ -52,6 +53,10 @@ purely passive.
 Quiet mode.
 Suppress email notifications.
 Events are still logged.
+.It Fl s Ar sendmail
+Path to the sendmail-compatible mail program used for notifications.
+Default:
+.Pa /usr/sbin/sendmail .
 .It Fl u Ar user
 Drop privileges to
 .Ar user

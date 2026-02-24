@@ -131,7 +131,7 @@ send_mail(const char *subject, const char *body)
 		for (long i = STDERR_FILENO + 1; i < maxfd; i++)
 			close((int)i);
 
-		execl("/usr/sbin/sendmail", "sendmail", "-t", (char *)NULL);
+		execl(cfg.sendmail, "sendmail", "-t", (char *)NULL);
 		_exit(127);
 	}
 

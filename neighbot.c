@@ -52,6 +52,7 @@ struct config cfg = {
 	.dbfile    = NULL,
 	.iface     = NULL,
 	.mailto    = NULL,
+	.sendmail  = NULL,
 	.user      = NULL,
 };
 
@@ -75,7 +76,7 @@ usage(void)
 {
 	fprintf(stderr,
 	    "usage: neighbot [-d] [-f dbfile] [-i iface] [-m mailto] "
-	    "[-p] [-q] [-u user]\n");
+	    "[-p] [-q] [-s sendmail] [-u user]\n");
 	exit(1);
 }
 
@@ -86,11 +87,12 @@ main(int argc, char *argv[])
 	struct pollfd pfds[MAX_IFACES];
 	int nifaces, ch;
 
-	cfg.dbfile = DEFAULT_DBFILE;
-	cfg.mailto = DEFAULT_MAILTO;
-	cfg.user   = DEFAULT_USER;
+	cfg.dbfile   = DEFAULT_DBFILE;
+	cfg.mailto   = DEFAULT_MAILTO;
+	cfg.sendmail = DEFAULT_SENDMAIL;
+	cfg.user     = DEFAULT_USER;
 
-	while ((ch = getopt(argc, argv, "df:i:m:pqu:")) != -1) {
+	while ((ch = getopt(argc, argv, "df:i:m:pqs:u:")) != -1) {
 		switch (ch) {
 		case 'd':
 			cfg.daemonize = 1;
@@ -109,6 +111,9 @@ main(int argc, char *argv[])
 			break;
 		case 'q':
 			cfg.quiet = 1;
+			break;
+		case 's':
+			cfg.sendmail = optarg;
 			break;
 		case 'u':
 			cfg.user = optarg;

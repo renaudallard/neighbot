@@ -62,7 +62,7 @@ sudo make PREFIX=/usr install
 ## Usage
 
 ```
-neighbot [-d] [-f dbfile] [-i iface] [-m mailto] [-p] [-q] [-u user]
+neighbot [-d] [-f dbfile] [-i iface] [-m mailto] [-p] [-q] [-s sendmail] [-u user]
 ```
 
 | Flag | Description |
@@ -73,6 +73,7 @@ neighbot [-d] [-f dbfile] [-i iface] [-m mailto] [-p] [-q] [-u user]
 | `-m addr` | Email recipient (default: `root`) |
 | `-p` | Disable active probing (passive only) |
 | `-q` | Quiet mode -- no email, still logs |
+| `-s path` | Path to sendmail-compatible mail program (default: `/usr/sbin/sendmail`) |
 | `-u user` | Drop privileges to `user` after opening pcap handles (default: `nobody`) |
 
 ### Examples

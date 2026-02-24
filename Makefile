@@ -26,7 +26,7 @@ $(BIN): $(OBJS)
 	$(CC) $(CFLAGS) -c $<
 
 clean:
-	rm -f $(BIN) $(OBJS)
+	rm -f $(BIN) $(OBJS) fuzz_parse fuzz_dbload fuzz_ouiload
 
 oui.txt:
 	curl -sL https://standards-oui.ieee.org/oui/oui.txt | \
@@ -60,4 +60,25 @@ uninstall:
 	rm -f $(DESTDIR)/etc/systemd/system/neighbot.service
 	rm -f $(DESTDIR)/etc/rc.d/neighbot
 
+# Fuzz targets (requires clang with libFuzzer support)
+FUZZ_CC      = clang
+FUZZ_CFLAGS  = -std=c11 -g -O1 -fno-omit-frame-pointer $(_GNU_SOURCE)
+FUZZ_CFLAGS += -fsanitize=fuzzer,address,undefined
+FUZZ_LDFLAGS = -fsanitize=fuzzer,address,undefined -lpcap
+
+fuzz: fuzz_parse fuzz_dbload fuzz_ouiload
+
+fuzz_parse: fuzz/fuzz_parse.c parse.c db.c log.c
+	$(FUZZ_CC) $(FUZZ_CFLAGS) -o $@ fuzz/fuzz_parse.c parse.c db.c log.c $(FUZZ_LDFLAGS)
+
+fuzz_dbload: fuzz/fuzz_dbload.c db.c log.c
+	$(FUZZ_CC) $(FUZZ_CFLAGS) -o $@ fuzz/fuzz_dbload.c db.c log.c $(FUZZ_LDFLAGS)
+
+fuzz_ouiload: fuzz/fuzz_ouiload.c oui.c log.c
+	$(FUZZ_CC) $(FUZZ_CFLAGS) -o $@ fuzz/fuzz_ouiload.c oui.c log.c $(FUZZ_LDFLAGS)
+
+fuzz-clean:
+	rm -f fuzz_parse fuzz_dbload fuzz_ouiload
+
 .PHONY: all clean install install-systemd install-rcd oui-update uninstall
+.PHONY: fuzz fuzz_parse fuzz_dbload fuzz_ouiload fuzz-clean

@@ -1,0 +1,44 @@
+name: Fuzz
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  schedule:
+    - cron: '0 3 * * *'
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [fuzz_parse, fuzz_dbload, fuzz_ouiload]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y clang libpcap-dev
+
+      - name: Build
+        run: make ${{ matrix.target }}
+
+      - name: Run
+        run: |
+          mkdir -p corpus
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            duration=7200
+          else
+            duration=60
+          fi
+          ./${{ matrix.target }} -max_total_time=$duration corpus
+
+      - name: Upload crash artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}-crashes
+          path: |
+            crash-*
+            leak-*
+            timeout-*

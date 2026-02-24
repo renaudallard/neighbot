@@ -214,6 +214,21 @@ On OpenBSD, neighbot additionally restricts itself using `pledge(2)` and
 
 All pcap/BPF handles are opened before pledge, so no `bpf` promise is needed.
 
+## Fuzzing
+
+Requires clang with libFuzzer support (included in most clang packages).
+
+```sh
+make fuzz                              # build all three fuzz targets
+./fuzz_parse -max_total_time=60        # fuzz the packet parser for 60s
+./fuzz_dbload -max_total_time=60       # fuzz the CSV database loader
+./fuzz_ouiload -max_total_time=60      # fuzz the OUI file loader
+make fuzz-clean                        # remove fuzz binaries
+```
+
+Each target is built with ASan and UBSan enabled.
+Crashes and slow inputs are written to the current directory.
+
 ## How It Works
 
 1. Enumerates non-loopback Ethernet interfaces via `pcap_findalldevs()`

@@ -293,6 +293,8 @@ db_update(int af, const uint8_t *ip, const uint8_t *mac,
 		if (e->af == af && memcmp(e->ip, ip, ilen) == 0) {
 			time_t prev = e->last_seen;
 			e->last_seen = now;
+			snprintf(e->iface, sizeof(e->iface),
+			    "%s", iface);
 			if (memcmp(e->mac, mac, 6) != 0) {
 				int ev;
 
@@ -307,8 +309,6 @@ db_update(int af, const uint8_t *ip, const uint8_t *mac,
 					ev = EVENT_CHANGED;
 				memcpy(e->prev_mac, e->mac, 6);
 				memcpy(e->mac, mac, 6);
-				snprintf(e->iface, sizeof(e->iface),
-				    "%s", iface);
 				return ev;
 			}
 			if (now - prev >= REAPPEAR_SECS) {

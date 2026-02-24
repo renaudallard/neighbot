@@ -1,26 +1,28 @@
 # neighbot
 
-**Network neighbor monitoring daemon.** Passively watches ARP and NDP traffic
-on all Ethernet interfaces, records IP-to-MAC mappings, and alerts you when
-something changes.
+**Network neighbor monitoring daemon.**
+Passively watches ARP and NDP traffic on all Ethernet interfaces, records
+IP-to-MAC mappings, and alerts you when something changes.
 
-Like [arpwatch](https://ee.lbl.gov/), but also handles IPv6 and runs on Linux and OpenBSD.
-
----
+Like [arpwatch](https://ee.lbl.gov/), but also handles IPv6 and runs on
+Linux, FreeBSD, OpenBSD, and NetBSD.
 
 ## Features
 
-- Monitors **ARP** (IPv4) and **NDP** (IPv6) on all Ethernet interfaces
-- Detects **new stations**, **MAC address changes**, **flip-flops**, **reappearances**, and **bogons** (IPs outside local subnets)
-- Email alerts via sendmail with hostname, vendor, and timestamps
-- Optional OUI database for hardware vendor identification
-- Simple CSV database with atomic saves
-- Single-threaded, single binary, no dependencies beyond libpcap
-- Runs as a foreground process or daemon (syslog)
-- `pledge(2)` and `unveil(2)` support on OpenBSD
-- Portable: Linux (glibc, musl), FreeBSD, OpenBSD, NetBSD
+| | |
+|---|---|
+| **Protocols** | ARP (IPv4), NDP (IPv6) |
+| **Events** | New stations, MAC changes, flip-flops, reappearances, bogons, moves |
+| **Notifications** | Email via sendmail with hostname, vendor, and timestamps |
+| **Active probing** | ARP requests / NDP solicitations to detect moved vs. multi-homed hosts |
+| **OUI database** | Optional hardware vendor identification from MAC prefix |
+| **Storage** | Plain CSV with atomic saves (temp file + rename) |
+| **Sandboxing** | `pledge(2)` + `unveil(2)` on OpenBSD, privilege drop everywhere |
+| **Portability** | Linux (glibc, musl), FreeBSD, OpenBSD, NetBSD |
 
-## Quick start
+Single-threaded, single binary, no dependencies beyond libpcap.
+
+## Quick Start
 
 ```sh
 make
@@ -35,10 +37,10 @@ Requires a C compiler and libpcap.
 
 | OS | Install libpcap |
 |----|-----------------|
-| Debian/Ubuntu | `apt install libpcap-dev` |
+| Debian / Ubuntu | `apt install libpcap-dev` |
 | Alpine | `apk add libpcap-dev` |
-| Fedora/RHEL | `dnf install libpcap-devel` |
-| FreeBSD/OpenBSD | included in base |
+| Fedora / RHEL | `dnf install libpcap-devel` |
+| FreeBSD / OpenBSD / NetBSD | included in base |
 
 ```sh
 make
@@ -59,6 +61,12 @@ Installs to `/usr/local/sbin` by default. Override with `PREFIX`:
 sudo make PREFIX=/usr install
 ```
 
+Uninstall:
+
+```sh
+sudo make uninstall
+```
+
 ## Usage
 
 ```
@@ -69,24 +77,55 @@ neighbot [-d] [-f dbfile] [-i iface] [-m mailto] [-p] [-q] [-s sendmail] [-u use
 |------|-------------|
 | `-d` | Daemonize (log to syslog instead of stderr) |
 | `-f path` | Database file (default: `/var/neighbot/neighbot.csv`) |
-| `-i iface` | Monitor only the specified interface (default: all Ethernet interfaces) |
+| `-i iface` | Monitor only this interface (default: all Ethernet interfaces) |
 | `-m addr` | Email recipient (default: `root`) |
 | `-p` | Disable active probing (passive only) |
-| `-q` | Quiet mode -- no email, still logs |
-| `-s path` | Path to sendmail-compatible mail program (default: `/usr/sbin/sendmail`) |
-| `-u user` | Drop privileges to `user` after opening pcap handles (default: `nobody`) |
+| `-q` | Quiet mode. No email notifications, events are still logged |
+| `-s path` | Path to sendmail-compatible MTA (default: `/usr/sbin/sendmail`) |
+| `-u user` | Drop privileges to this user after opening pcap handles (default: `nobody`) |
 
 ### Examples
 
 ```sh
-# foreground, quiet, custom DB
+# Foreground, quiet, custom DB
 sudo neighbot -q -f /tmp/neighbot.csv
 
-# daemon with email alerts, drop privileges
+# Daemon with email alerts
 sudo neighbot -d -u neighbot -m admin@example.com
+
+# Single interface, no probing
+sudo neighbot -d -i eth0 -p
 ```
 
-## Service setup
+## Event Types
+
+| Event | Description | Email |
+|-------|-------------|-------|
+| **new** | Previously unknown IP address seen for the first time | yes |
+| **changed** | IP seen with a different MAC than previously recorded | yes |
+| **flip-flop** | IP alternates between two known MACs (VRRP/HSRP, dual-homing, or spoofing) | yes |
+| **reappeared** | Known MAC/IP pair seen again after 6+ months of silence | yes |
+| **bogon** | IP outside any local subnet on the receiving interface (possible spoofing) | yes |
+| **moved** | MAC seen at a new IP while old IP no longer responds to probes | yes |
+
+## Active Probing
+
+When a known MAC appears at a new IP, neighbot sends up to 3 probes (5s
+timeout each) to each old IP associated with that MAC:
+
+- **IPv4**: ARP request with sender IP `0.0.0.0` (RFC 5227)
+- **IPv6**: NDP Neighbor Solicitation with source `::`
+
+This avoids polluting the target's neighbor cache.
+
+| Outcome | Meaning | Action |
+|---------|---------|--------|
+| Probe answered | Device has multiple IPs | Log only |
+| Probe timed out | Device moved to new IP | Log + email |
+
+Disable with `-p` for purely passive monitoring.
+
+## Service Setup
 
 <details>
 <summary><b>Linux (systemd)</b></summary>
@@ -119,32 +158,36 @@ neighbot_flags=-d -m admin@example.com
 
 </details>
 
-## OUI updates
+## OUI Database
 
-The OUI vendor database is installed by `make install` and loaded once at
-startup. To keep it current, add a daily cron job:
+The OUI vendor database is installed by `make install` to
+`/var/neighbot/oui.txt` and loaded once at startup. To keep it current,
+add a daily cron job:
 
-```
-0 3 * * * curl -sL https://standards-oui.ieee.org/oui/oui.txt | awk '/\(hex\)/ { gsub(/-/, ":", $1); v=""; for (i=3; i<=NF; i++) v = v (i>3?" ":"") $i; print tolower($1) " " v }' > /var/neighbot/oui.txt
+```sh
+0 3 * * * curl -sL https://standards-oui.ieee.org/oui/oui.txt \
+  | awk '/\(hex\)/ { gsub(/-/,":",$1); v=""; for(i=3;i<=NF;i++) v=v(i>3?" ":"")$i; print tolower($1)" "v }' \
+  > /var/neighbot/oui.txt
 ```
 
 neighbot will pick up the new data on its next restart.
 
-## Database format
+## Database Format
 
 Plain CSV stored at `/var/neighbot/neighbot.csv` by default:
 
 ```
+ip,mac,interface,first_seen,last_seen,prev_mac
 192.168.1.1,aa:bb:cc:dd:ee:ff,eth0,2026-02-23T14:30:00,2026-02-23T15:12:00,00:00:00:00:00:00
 fe80::1,11:22:33:44:55:66,eth0,2026-02-23T14:30:05,2026-02-23T15:12:05,00:00:00:00:00:00
 ```
 
-Fields: `ip, mac, interface, first_seen, last_seen, prev_mac` (ISO 8601, local time).
-The `prev_mac` field stores the previous MAC address for flip-flop detection.
-Old database files without this field are loaded without errors.
+Timestamps are ISO 8601, local time. The `prev_mac` field stores the
+previous MAC address for flip-flop detection. Old database files without
+this field are loaded without errors.
 
-Saves are atomic (write to temp file + rename). The maximum number of entries
-is limited to 100,000 to prevent memory exhaustion from spoofed traffic.
+Saves are atomic (write to temp file + rename). The entry limit is
+100,000 to prevent memory exhaustion from spoofed traffic.
 
 ## Signals
 
@@ -157,37 +200,21 @@ is limited to 100,000 to prevent memory exhaustion from spoofed traffic.
 
 ## Security
 
-neighbot always drops to an unprivileged user (default: `nobody`) after
-opening pcap handles. All supplementary groups are dropped. The database
-directory and file are chowned to the target user before switching.
+neighbot drops to an unprivileged user (default: `nobody`) after opening
+pcap handles. All supplementary groups are dropped. The database directory
+and file are chowned to the target user before switching.
 
-On OpenBSD, neighbot additionally drops privileges after initialization
-using `pledge(2)` and `unveil(2)`:
+On OpenBSD, neighbot additionally restricts itself using `pledge(2)` and
+`unveil(2)`:
 
 | Mode | pledge | unveil |
 |------|--------|--------|
 | Quiet (`-q`) | `stdio rpath wpath cpath` | DB directory only |
-| With email | `stdio rpath wpath cpath proc exec dns` | disabled (sendmail needs filesystem access) |
+| With email | `stdio rpath wpath cpath proc exec dns` | disabled |
 
 All pcap/BPF handles are opened before pledge, so no `bpf` promise is needed.
 
-## Active probing
-
-By default, neighbot actively probes old IP addresses to distinguish between
-a device that **moved** (old IP no longer responds) and a device with
-**multiple IPs** (both still active).
-
-When a known MAC appears at a new IP, neighbot sends up to 3 probes (ARP
-requests for IPv4, NDP Neighbor Solicitations for IPv6) to each old IP with a
-5-second timeout per attempt. Probes use a zero source address (RFC 5227 for
-ARP, `::` for NDP) to avoid polluting the target's neighbor cache.
-
-- **Probe answered**: device has multiple IPs (log only, no email)
-- **Probe timed out**: device moved (log + email notification)
-
-Use `-p` to disable probing and make neighbot purely passive.
-
-## How it works
+## How It Works
 
 1. Enumerates non-loopback Ethernet interfaces via `pcap_findalldevs()`
 2. Opens one pcap handle per interface with BPF filter:
@@ -197,7 +224,7 @@ Use `-p` to disable probing and make neighbot purely passive.
 5. **NDP**: parses Neighbor Advertisements (type 136) and Solicitations
    (type 135) for link-layer address options (skips DAD)
 6. Updates an in-memory hash table; on new/changed entries, logs and
-   optionally emails via `fork()`/`exec()` of `/usr/sbin/sendmail`
+   optionally emails via `fork()`/`exec()` of sendmail
 
 ## License
 

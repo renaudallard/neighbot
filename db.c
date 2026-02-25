@@ -256,6 +256,13 @@ db_save(const char *path)
 		}
 	}
 
+	if (ferror(fp)) {
+		log_err("db_save: write error");
+		fclose(fp);
+		unlink(tmp);
+		return -1;
+	}
+
 	if (fclose(fp) != 0) {
 		log_err("db_save: fclose: %s", strerror(errno));
 		unlink(tmp);

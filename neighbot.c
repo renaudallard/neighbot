@@ -81,6 +81,15 @@ usage(void)
 }
 
 static void
+cleanup(struct iface *ifaces, int nifaces)
+{
+	if (nifaces > 0)
+		capture_close_all(ifaces, nifaces);
+	db_free();
+	oui_free();
+}
+
+static void
 dbdir_from_path(const char *path, char *dir, size_t dirlen)
 {
 	const char *sl = strrchr(path, '/');
@@ -98,7 +107,7 @@ main(int argc, char *argv[])
 {
 	struct iface ifaces[MAX_IFACES];
 	struct pollfd pfds[MAX_IFACES];
-	int nifaces, ch;
+	int nifaces = 0, ch;
 
 	cfg.dbfile   = DEFAULT_DBFILE;
 	cfg.mailto   = DEFAULT_MAILTO;
@@ -167,18 +176,15 @@ main(int argc, char *argv[])
 	nifaces = capture_open_all(ifaces, MAX_IFACES);
 	if (nifaces <= 0) {
 		log_err("no usable interfaces found");
-		db_free();
-		oui_free();
+		cleanup(ifaces, nifaces);
 		return 1;
 	}
 
 	if (cfg.daemonize) {
 		if (daemon(1, 0) < 0) {
 			log_err("daemon: %s", strerror(errno));
-			capture_close_all(ifaces, nifaces);
-			db_free();
-			oui_free();
-			return 1;
+			cleanup(ifaces, nifaces);
+		return 1;
 		}
 		/* re-init logging after daemon() closes stderr */
 		log_init("neighbot", 1);
@@ -189,10 +195,8 @@ main(int argc, char *argv[])
 		struct passwd *pw = getpwnam(cfg.user);
 		if (!pw) {
 			log_err("unknown user: %s", cfg.user);
-			capture_close_all(ifaces, nifaces);
-			db_free();
-			oui_free();
-			return 1;
+			cleanup(ifaces, nifaces);
+		return 1;
 		}
 
 		/* fix ownership and permissions on DB directory and file */
@@ -208,24 +212,18 @@ main(int argc, char *argv[])
 
 		if (setgroups(1, &pw->pw_gid) < 0) {
 			log_err("setgroups: %s", strerror(errno));
-			capture_close_all(ifaces, nifaces);
-			db_free();
-			oui_free();
-			return 1;
+			cleanup(ifaces, nifaces);
+		return 1;
 		}
 		if (setgid(pw->pw_gid) < 0) {
 			log_err("setgid: %s", strerror(errno));
-			capture_close_all(ifaces, nifaces);
-			db_free();
-			oui_free();
-			return 1;
+			cleanup(ifaces, nifaces);
+		return 1;
 		}
 		if (setuid(pw->pw_uid) < 0) {
 			log_err("setuid: %s", strerror(errno));
-			capture_close_all(ifaces, nifaces);
-			db_free();
-			oui_free();
-			return 1;
+			cleanup(ifaces, nifaces);
+		return 1;
 		}
 
 		log_msg("dropped privileges to %s", cfg.user);
@@ -258,9 +256,7 @@ main(int argc, char *argv[])
 	if (pledge(cfg.quiet ? "stdio rpath wpath cpath" :
 	    "stdio rpath wpath cpath proc exec dns", NULL) == -1) {
 		log_err("pledge: %s", strerror(errno));
-		capture_close_all(ifaces, nifaces);
-		db_free();
-		oui_free();
+		cleanup(ifaces, nifaces);
 		return 1;
 	}
 #endif
@@ -314,9 +310,6 @@ check_signals:
 
 	log_msg("shutting down");
 	db_save(cfg.dbfile);
-	capture_close_all(ifaces, nifaces);
-	db_free();
-	oui_free();
-
+	cleanup(ifaces, nifaces);
 	return 0;
 }

@@ -80,6 +80,19 @@ usage(void)
 	exit(1);
 }
 
+static void
+dbdir_from_path(const char *path, char *dir, size_t dirlen)
+{
+	const char *sl = strrchr(path, '/');
+
+	if (sl && sl != path)
+		snprintf(dir, dirlen, "%.*s", (int)(sl - path), path);
+	else if (sl)
+		snprintf(dir, dirlen, "/");
+	else
+		snprintf(dir, dirlen, ".");
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -183,15 +196,8 @@ main(int argc, char *argv[])
 		}
 
 		/* fix ownership and permissions on DB directory and file */
-		const char *sl = strrchr(cfg.dbfile, '/');
 		char dbdir[PATH_MAX];
-		if (sl && sl != cfg.dbfile)
-			snprintf(dbdir, sizeof(dbdir), "%.*s",
-			    (int)(sl - cfg.dbfile), cfg.dbfile);
-		else if (sl)
-			snprintf(dbdir, sizeof(dbdir), "/");
-		else
-			snprintf(dbdir, sizeof(dbdir), ".");
+		dbdir_from_path(cfg.dbfile, dbdir, sizeof(dbdir));
 
 		if (chown(dbdir, pw->pw_uid, pw->pw_gid) < 0)
 			log_err("chown %s: %s", dbdir, strerror(errno));
@@ -240,17 +246,8 @@ main(int argc, char *argv[])
 	tzset();
 
 	if (cfg.quiet) {
-		const char *sl;
 		char dbdir[PATH_MAX];
-
-		sl = strrchr(cfg.dbfile, '/');
-		if (sl && sl != cfg.dbfile)
-			snprintf(dbdir, sizeof(dbdir), "%.*s",
-			    (int)(sl - cfg.dbfile), cfg.dbfile);
-		else if (sl)
-			snprintf(dbdir, sizeof(dbdir), "/");
-		else
-			snprintf(dbdir, sizeof(dbdir), ".");
+		dbdir_from_path(cfg.dbfile, dbdir, sizeof(dbdir));
 
 		if (unveil(dbdir, "rwc") == -1)
 			log_err("unveil %s: %s", dbdir, strerror(errno));

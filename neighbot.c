@@ -105,6 +105,10 @@ main(int argc, char *argv[])
 			cfg.iface = optarg;
 			break;
 		case 'm':
+			if (strchr(optarg, '\n') || strchr(optarg, '\r')) {
+				fprintf(stderr, "invalid mailto address\n");
+				return 1;
+			}
 			cfg.mailto = optarg;
 			break;
 		case 'o':

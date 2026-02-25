@@ -13,6 +13,7 @@
 .Op Fl o Ar ouifile
 .Op Fl p
 .Op Fl q
+.Op Fl r
 .Op Fl s Ar sendmail
 .Op Fl u Ar user
 .Op Fl V
@@ -71,6 +72,27 @@ purely passive.
 Quiet mode.
 Suppress email notifications.
 Events are still logged.
+.It Fl r
+Report mode.
+Load the database and print a summary of all known neighbors to
+stdout, grouped by interface and MAC address.
+No packet capture, privilege drop, or daemon setup is performed.
+.Pp
+When combined with
+.Fl m ,
+the report is emailed via sendmail instead of printed.
+When combined with
+.Fl q ,
+the report is always printed to stdout.
+.Pp
+The OUI vendor database is resolved in this order: the path given by
+.Fl o ,
+then
+.Pa /var/neighbot/oui.txt ,
+then
+.Pa /usr/local/share/arp-scan/ieee-oui.txt .
+If none is found, vendor names show as
+.Ql <unknown> .
 .It Fl s Ar sendmail
 Path to the sendmail-compatible mail program used for notifications.
 Default:
@@ -191,9 +213,22 @@ and does not use
 so that
 .Xr sendmail 8
 can access its configuration files.
+.Pp
+In report mode
+.Pq Fl r ,
+.Nm
+pledges
+.Cm stdio
+after loading the database and OUI file.
+When combined with
+.Fl m ,
+the pledge is
+.Cm stdio proc exec
+to allow sendmail execution.
 .Sh EXIT STATUS
 .Nm
-exits 0 on clean shutdown, or 1 if no usable interfaces were found.
+exits 0 on clean shutdown or after printing a report, or 1 if no
+usable interfaces were found.
 .Sh SEE ALSO
 .Xr pledge 2 ,
 .Xr unveil 2 ,

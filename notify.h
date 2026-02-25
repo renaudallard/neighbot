@@ -28,7 +28,11 @@
 #define NOTIFY_H
 
 #include <stdint.h>
+#include <stdio.h>
 #include <time.h>
+
+FILE *notify_report_open(const char *subject);
+int   notify_report_close(FILE *fp);
 
 void notify_new(int af, const uint8_t *ip, const uint8_t *mac,
                 const char *iface);

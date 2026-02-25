@@ -40,6 +40,7 @@
 #define DEFAULT_USER    "nobody"
 #define DEFAULT_OUIFILE  "/var/neighbot/oui.txt"
 #define DEFAULT_SENDMAIL "/usr/sbin/sendmail"
+#define OPENBSD_OUIFILE  "/usr/local/share/arp-scan/ieee-oui.txt"
 
 #define HT_BUCKETS      1024
 #define MAX_ENTRIES      100000
@@ -58,6 +59,8 @@ struct config {
 	int    daemonize;
 	int    quiet;
 	int    probe;
+	int    report;
+	int    oui_explicit;
 	char  *dbfile;
 	char  *iface;
 	char  *mailto;

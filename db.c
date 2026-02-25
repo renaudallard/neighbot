@@ -36,6 +36,7 @@
 #include "neighbot.h"
 #include "db.h"
 #include "log.h"
+#include "oui.h"
 
 static struct entry *buckets[HT_BUCKETS];
 static unsigned     entry_count;
@@ -467,6 +468,101 @@ db_has_temp_in_prefix(const uint8_t *mac, const uint8_t *ip6)
 		}
 	}
 	return 0;
+}
+
+static int
+report_cmp(const void *a, const void *b)
+{
+	const struct entry *ea = *(const struct entry *const *)a;
+	const struct entry *eb = *(const struct entry *const *)b;
+	int r;
+
+	r = strcmp(ea->iface, eb->iface);
+	if (r != 0)
+		return r;
+	r = memcmp(ea->mac, eb->mac, 6);
+	if (r != 0)
+		return r;
+	/* IPv4 before IPv6 */
+	if (ea->af != eb->af)
+		return ea->af == AF_INET ? -1 : 1;
+	return memcmp(ea->ip, eb->ip, ip_len(ea->af));
+}
+
+void
+db_report(FILE *fp)
+{
+	struct entry **list;
+	unsigned n = 0;
+
+	/* collect all entries into a flat array */
+	list = calloc(entry_count ? entry_count : 1, sizeof(*list));
+	if (!list) {
+		fprintf(fp, "out of memory\n");
+		return;
+	}
+
+	for (unsigned i = 0; i < HT_BUCKETS; i++)
+		for (struct entry *e = buckets[i]; e; e = e->next)
+			if (n < entry_count)
+				list[n++] = e;
+
+	if (n == 0) {
+		fprintf(fp, "database is empty\n");
+		free(list);
+		return;
+	}
+
+	qsort(list, n, sizeof(*list), report_cmp);
+
+	const char *cur_iface = NULL;
+	const uint8_t *cur_mac = NULL;
+
+	for (unsigned i = 0; i < n; i++) {
+		struct entry *e = list[i];
+		char ipstr[INET6_ADDRSTRLEN];
+		char first_str[32], last_str[32];
+		struct tm tm;
+
+		/* interface header */
+		if (!cur_iface || strcmp(cur_iface, e->iface) != 0) {
+			if (cur_iface)
+				fprintf(fp, "\n");
+			fprintf(fp, "=== %s ===\n", e->iface);
+			cur_iface = e->iface;
+			cur_mac = NULL;
+		}
+
+		/* MAC header */
+		if (!cur_mac || memcmp(cur_mac, e->mac, 6) != 0) {
+			char macstr[18];
+			const char *vendor;
+
+			format_mac(e->mac, macstr, sizeof(macstr));
+			vendor = oui_lookup(e->mac);
+			fprintf(fp, "\n  %s (%s)\n", macstr,
+			    vendor ? vendor : "<unknown>");
+			cur_mac = e->mac;
+		}
+
+		/* IP line */
+		inet_ntop(e->af, e->ip, ipstr, sizeof(ipstr));
+
+		memset(&tm, 0, sizeof(tm));
+		localtime_r(&e->first_seen, &tm);
+		strftime(first_str, sizeof(first_str),
+		    "%Y-%m-%d %H:%M", &tm);
+
+		memset(&tm, 0, sizeof(tm));
+		localtime_r(&e->last_seen, &tm);
+		strftime(last_str, sizeof(last_str),
+		    "%Y-%m-%d %H:%M", &tm);
+
+		fprintf(fp, "        %-40s first %s    last %s\n",
+		    ipstr, first_str, last_str);
+	}
+
+	free(list);
 }
 
 void

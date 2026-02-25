@@ -42,6 +42,7 @@
 #include "capture.h"
 #include "db.h"
 #include "log.h"
+#include "notify.h"
 #include "oui.h"
 #include "parse.h"
 #include "probe.h"
@@ -77,7 +78,7 @@ usage(void)
 {
 	fprintf(stderr,
 	    "usage: neighbot [-d] [-f dbfile] [-i iface] [-m mailto] "
-	    "[-o ouifile] [-p] [-q] [-s sendmail] [-u user] [-V]\n");
+	    "[-o ouifile] [-p] [-q] [-r] [-s sendmail] [-u user] [-V]\n");
 	exit(1);
 }
 
@@ -111,12 +112,11 @@ main(int argc, char *argv[])
 	int nifaces = 0, ch;
 
 	cfg.dbfile   = DEFAULT_DBFILE;
-	cfg.mailto   = DEFAULT_MAILTO;
 	cfg.ouifile  = DEFAULT_OUIFILE;
 	cfg.sendmail = DEFAULT_SENDMAIL;
 	cfg.user     = DEFAULT_USER;
 
-	while ((ch = getopt(argc, argv, "df:i:m:o:pqs:u:V")) != -1) {
+	while ((ch = getopt(argc, argv, "df:i:m:o:pqrs:u:V")) != -1) {
 		switch (ch) {
 		case 'd':
 			cfg.daemonize = 1;
@@ -136,12 +136,16 @@ main(int argc, char *argv[])
 			break;
 		case 'o':
 			cfg.ouifile = optarg;
+			cfg.oui_explicit = 1;
 			break;
 		case 'p':
 			cfg.probe = 0;
 			break;
 		case 'q':
 			cfg.quiet = 1;
+			break;
+		case 'r':
+			cfg.report = 1;
 			break;
 		case 's':
 			cfg.sendmail = optarg;
@@ -159,6 +163,45 @@ main(int argc, char *argv[])
 
 	if (optind != argc)
 		usage();
+
+	if (cfg.report) {
+		db_init();
+		db_load(cfg.dbfile);
+		if (cfg.oui_explicit)
+			oui_load(cfg.ouifile);
+		else if (access(DEFAULT_OUIFILE, R_OK) == 0)
+			oui_load(DEFAULT_OUIFILE);
+		else
+			oui_load(OPENBSD_OUIFILE);
+
+#ifdef __OpenBSD__
+		tzset();
+		if (pledge(!cfg.quiet && cfg.mailto ?
+		    "stdio proc exec" : "stdio", NULL) == -1) {
+			log_err("pledge: %s", strerror(errno));
+			db_free();
+			oui_free();
+			return 1;
+		}
+#endif
+		if (!cfg.quiet && cfg.mailto) {
+			signal(SIGPIPE, SIG_IGN);
+			FILE *fp = notify_report_open(
+			    "neighbot: database report");
+			if (fp) {
+				db_report(fp);
+				notify_report_close(fp);
+			}
+		} else {
+			db_report(stdout);
+		}
+		db_free();
+		oui_free();
+		return 0;
+	}
+
+	if (!cfg.mailto)
+		cfg.mailto = DEFAULT_MAILTO;
 
 	log_init("neighbot", cfg.daemonize);
 

@@ -89,7 +89,7 @@ sudo apk add --allow-untrusted neighbot-*.apk  # Alpine
 ## Usage
 
 ```
-neighbot [-d] [-f dbfile] [-i iface] [-m mailto] [-o ouifile] [-p] [-q] [-s sendmail] [-u user]
+neighbot [-d] [-f dbfile] [-i iface] [-m mailto] [-o ouifile] [-p] [-q] [-r] [-s sendmail] [-u user]
 ```
 
 | Flag | Description |
@@ -101,6 +101,7 @@ neighbot [-d] [-f dbfile] [-i iface] [-m mailto] [-o ouifile] [-p] [-q] [-s send
 | `-o path` | OUI vendor database file (default: `/var/neighbot/oui.txt`) |
 | `-p` | Disable active probing (passive only) |
 | `-q` | Quiet mode. No email notifications, events are still logged |
+| `-r` | Report mode. Print database summary to stdout (or email with `-m`), then exit |
 | `-s path` | Path to sendmail-compatible MTA (default: `/usr/sbin/sendmail`) |
 | `-u user` | Drop privileges to this user after opening pcap handles (default: `nobody`) |
 
@@ -115,6 +116,12 @@ sudo neighbot -d -u neighbot -m admin@example.com
 
 # Single interface, no probing
 sudo neighbot -d -i eth0 -p
+
+# Print database report to stdout
+neighbot -r -f /var/neighbot/neighbot.csv
+
+# Email database report
+neighbot -r -m admin@example.com
 ```
 
 ## Event Types

@@ -30,6 +30,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <time.h>
 
 #define EVENT_NEW        1
@@ -62,6 +63,7 @@ int   db_save(const char *path);
 int   db_update(int af, const uint8_t *ip, const uint8_t *mac,
                 const char *iface, uint8_t *old_mac,
                 time_t *old_last_seen);
+void  db_report(FILE *fp);
 void  db_free(void);
 int   db_other_ips(const uint8_t *mac, int exclude_af,
                    const uint8_t *exclude_ip, char *buf, size_t len);

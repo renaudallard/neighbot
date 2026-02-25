@@ -170,6 +170,81 @@ send_mail(const char *subject, const char *body)
 		        WIFEXITED(status) ? WEXITSTATUS(status) : -1);
 }
 
+static pid_t report_child;
+
+FILE *
+notify_report_open(const char *subject)
+{
+	int pfd[2];
+	pid_t pid;
+	FILE *fp;
+
+	if (pipe(pfd) < 0) {
+		log_err("notify: pipe: %s", strerror(errno));
+		return NULL;
+	}
+
+	pid = fork();
+	if (pid < 0) {
+		log_err("notify: fork: %s", strerror(errno));
+		close(pfd[0]);
+		close(pfd[1]);
+		return NULL;
+	}
+
+	if (pid == 0) {
+		close(pfd[1]);
+		dup2(pfd[0], STDIN_FILENO);
+		close(pfd[0]);
+
+		long maxfd = sysconf(_SC_OPEN_MAX);
+		if (maxfd <= 0)
+			maxfd = 256;
+		for (long i = STDERR_FILENO + 1; i < maxfd; i++)
+			close((int)i);
+
+		execl(cfg.sendmail, "sendmail", "-t", (char *)NULL);
+		_exit(127);
+	}
+
+	close(pfd[0]);
+	fp = fdopen(pfd[1], "w");
+	if (!fp) {
+		log_err("notify: fdopen: %s", strerror(errno));
+		close(pfd[1]);
+		return NULL;
+	}
+
+	report_child = pid;
+
+	fprintf(fp, "To: %s\n", cfg.mailto);
+	fprintf(fp, "Subject: %s\n", subject);
+	fprintf(fp, "Content-Type: text/plain; charset=utf-8\n");
+	fprintf(fp, "\n");
+	return fp;
+}
+
+int
+notify_report_close(FILE *fp)
+{
+	int status;
+
+	fclose(fp);
+
+	while (waitpid(report_child, &status, 0) < 0) {
+		if (errno == EINTR)
+			continue;
+		log_err("notify: waitpid: %s", strerror(errno));
+		return -1;
+	}
+	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+		log_err("notify: sendmail exited with status %d",
+		    WIFEXITED(status) ? WEXITSTATUS(status) : -1);
+		return -1;
+	}
+	return 0;
+}
+
 void
 notify_new(int af, const uint8_t *ip, const uint8_t *mac,
            const char *iface)

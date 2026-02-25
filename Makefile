@@ -15,6 +15,7 @@ CFLAGS  += $(_GNU_SOURCE)
 
 SRCS = neighbot.c log.c db.c parse.c notify.c capture.c oui.c probe.c
 OBJS = $(SRCS:.c=.o)
+DEPS = $(SRCS:.c=.d)
 BIN  = neighbot
 
 all: $(BIN)
@@ -23,10 +24,12 @@ $(BIN): $(OBJS)
 	$(CC) $(OBJS) $(LDFLAGS) -o $@
 
 .c.o:
-	$(CC) $(CFLAGS) -c $<
+	$(CC) $(CFLAGS) -MMD -MP -c $<
+
+-include $(DEPS)
 
 clean:
-	rm -f $(BIN) $(OBJS) fuzz_parse fuzz_dbload fuzz_ouiload
+	rm -f $(BIN) $(OBJS) $(DEPS) fuzz_parse fuzz_dbload fuzz_ouiload
 	rm -f tests/test_parse tests/test_dbload tests/test_ouiload
 
 oui.txt:

@@ -315,3 +315,22 @@ capture_close_all(struct iface *ifaces, int count)
 		}
 	}
 }
+
+void
+capture_log_drops(struct iface *ifaces, int count)
+{
+	struct pcap_stat ps;
+
+	for (int i = 0; i < count; i++) {
+		if (!ifaces[i].handle)
+			continue;
+		if (pcap_stats(ifaces[i].handle, &ps) < 0)
+			continue;
+		if (ps.ps_drop > ifaces[i].last_drop) {
+			log_err("%s: kernel dropped %u packets",
+			    ifaces[i].name,
+			    ps.ps_drop - ifaces[i].last_drop);
+			ifaces[i].last_drop = ps.ps_drop;
+		}
+	}
+}

@@ -146,9 +146,13 @@ send_mail(const char *subject, const char *body)
 	close(pfd[1]);
 
 	int status;
-	if (waitpid(pid, &status, 0) < 0)
+	while (waitpid(pid, &status, 0) < 0) {
+		if (errno == EINTR)
+			continue;
 		log_err("notify: waitpid: %s", strerror(errno));
-	else if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
+		return;
+	}
+	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
 		log_err("notify: sendmail exited with status %d",
 		        WIFEXITED(status) ? WEXITSTATUS(status) : -1);
 }

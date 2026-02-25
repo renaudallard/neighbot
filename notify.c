@@ -97,6 +97,11 @@ format_delta(time_t delta, char *buf, size_t len)
 {
 	long d = (long)delta;
 
+	if (d < 0) {
+		snprintf(buf, len, "0 seconds");
+		return;
+	}
+
 	if (d < 60)
 		snprintf(buf, len, "%ld seconds", d);
 	else if (d < 3600)

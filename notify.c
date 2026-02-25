@@ -190,10 +190,10 @@ notify_new(int af, const uint8_t *ip, const uint8_t *mac,
 	send_mail(subject, body);
 }
 
-void
-notify_changed(int af, const uint8_t *ip, const uint8_t *mac,
-               const uint8_t *old_mac, const char *iface,
-               time_t prev_seen)
+static void
+notify_mac_change(const char *label, int af, const uint8_t *ip,
+                  const uint8_t *mac, const uint8_t *old_mac,
+                  const char *iface, time_t prev_seen)
 {
 	char subject[256];
 	char body[2048];
@@ -217,7 +217,7 @@ notify_changed(int af, const uint8_t *ip, const uint8_t *mac,
 	old_vendor = oui_lookup(old_mac);
 
 	snprintf(subject, sizeof(subject),
-	         "neighbot: changed station %s on %s", ipstr, iface);
+	         "neighbot: %s %s on %s", label, ipstr, iface);
 	off = snprintf(body, sizeof(body),
 	         "            hostname: %s\n"
 	         "          ip address: %s\n"
@@ -243,55 +243,21 @@ notify_changed(int af, const uint8_t *ip, const uint8_t *mac,
 }
 
 void
+notify_changed(int af, const uint8_t *ip, const uint8_t *mac,
+               const uint8_t *old_mac, const char *iface,
+               time_t prev_seen)
+{
+	notify_mac_change("changed station", af, ip, mac, old_mac,
+	    iface, prev_seen);
+}
+
+void
 notify_flipflop(int af, const uint8_t *ip, const uint8_t *mac,
                 const uint8_t *old_mac, const char *iface,
                 time_t prev_seen)
 {
-	char subject[256];
-	char body[2048];
-	char ipstr[INET6_ADDRSTRLEN];
-	char macstr[18], oldmacstr[18];
-	char host[256];
-	char timebuf[128], prevbuf[128], deltabuf[64];
-	char other_ips[512];
-	const char *vendor, *old_vendor;
-	time_t now = time(NULL);
-	size_t off;
-
-	inet_ntop(af, ip, ipstr, sizeof(ipstr));
-	format_mac(mac, macstr, sizeof(macstr));
-	format_mac(old_mac, oldmacstr, sizeof(oldmacstr));
-	resolve_hostname(af, ip, host, sizeof(host));
-	format_timestamp(now, timebuf, sizeof(timebuf));
-	format_timestamp(prev_seen, prevbuf, sizeof(prevbuf));
-	format_delta(now - prev_seen, deltabuf, sizeof(deltabuf));
-	vendor = oui_lookup(mac);
-	old_vendor = oui_lookup(old_mac);
-
-	snprintf(subject, sizeof(subject),
-	         "neighbot: flip-flop %s on %s", ipstr, iface);
-	off = snprintf(body, sizeof(body),
-	         "            hostname: %s\n"
-	         "          ip address: %s\n"
-	         "    ethernet address: %s\n"
-	         "     ethernet vendor: %s\n"
-	         "old ethernet address: %s\n"
-	         " old ethernet vendor: %s\n"
-	         "           timestamp: %s\n"
-	         "  previous timestamp: %s\n"
-	         "               delta: %s\n",
-	         host, ipstr, macstr,
-	         vendor ? vendor : "<unknown>",
-	         oldmacstr,
-	         old_vendor ? old_vendor : "<unknown>",
-	         timebuf, prevbuf, deltabuf);
-
-	if (off < sizeof(body) &&
-	    db_other_ips(mac, af, ip, other_ips, sizeof(other_ips)) > 0)
-		snprintf(body + off, sizeof(body) - off,
-		         "       also known as: %s\n", other_ips);
-
-	send_mail(subject, body);
+	notify_mac_change("flip-flop", af, ip, mac, old_mac,
+	    iface, prev_seen);
 }
 
 void

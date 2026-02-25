@@ -33,7 +33,7 @@
 #include <stdint.h>
 #include <time.h>
 
-#define NEIGHBOT_VERSION "0.3.5"
+#define NEIGHBOT_VERSION "0.3.6"
 
 #define DEFAULT_DBFILE  "/var/neighbot/neighbot.csv"
 #define DEFAULT_MAILTO  "root"

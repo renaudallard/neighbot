@@ -65,7 +65,8 @@ oui_load(const char *path)
 
 		/* neighbot format: aa:bb:cc Vendor Name */
 		if (sscanf(line, "%x:%x:%x %79[^\n]",
-		           &a, &b, &c, vendor) != 4) {
+		           &a, &b, &c, vendor) != 4 ||
+		    a > 0xff || b > 0xff || c > 0xff) {
 			/* arp-scan format: AABBCC\tVendor Name
 			 * skip MA-M (7 hex) and MA-S (9 hex) entries */
 			unsigned oui;

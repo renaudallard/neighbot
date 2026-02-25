@@ -151,6 +151,9 @@ db_load(const char *path)
 		if (sscanf(macstr, "%x:%x:%x:%x:%x:%x",
 		           &m[0], &m[1], &m[2], &m[3], &m[4], &m[5]) != 6)
 			continue;
+		if (m[0] > 0xff || m[1] > 0xff || m[2] > 0xff ||
+		    m[3] > 0xff || m[4] > 0xff || m[5] > 0xff)
+			continue;
 
 		e = calloc(1, sizeof(*e));
 		if (!e) {
@@ -169,7 +172,10 @@ db_load(const char *path)
 			if (sscanf(prevmacstr,
 			    "%x:%x:%x:%x:%x:%x",
 			    &pm[0], &pm[1], &pm[2],
-			    &pm[3], &pm[4], &pm[5]) == 6) {
+			    &pm[3], &pm[4], &pm[5]) == 6 &&
+			    pm[0] <= 0xff && pm[1] <= 0xff &&
+			    pm[2] <= 0xff && pm[3] <= 0xff &&
+			    pm[4] <= 0xff && pm[5] <= 0xff) {
 				for (int i = 0; i < 6; i++)
 					e->prev_mac[i] = (uint8_t)pm[i];
 			}

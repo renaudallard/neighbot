@@ -202,9 +202,13 @@ db_save(const char *path)
 {
 	char tmp[PATH_MAX];
 	FILE *fp;
-	int fd, count = 0;
+	int fd, count = 0, n;
 
-	snprintf(tmp, sizeof(tmp), "%s.tmp", path);
+	n = snprintf(tmp, sizeof(tmp), "%s.tmp", path);
+	if (n < 0 || (size_t)n >= sizeof(tmp)) {
+		log_err("db_save: path too long");
+		return -1;
+	}
 
 	/* remove stale temp file, then create exclusively to prevent
 	 * symlink attacks (O_NOFOLLOW + O_EXCL) with fixed permissions */

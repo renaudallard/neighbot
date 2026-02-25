@@ -57,8 +57,8 @@ if [ -x /usr/bin/systemctl ]; then
 fi
 
 %changelog
-* Tue Feb 25 2026 Renaud Allard <renaud@allard.it> 0.4.0-1
+* Wed Feb 25 2026 Renaud Allard <renaud@allard.it> 0.4.0-1
 - Async notifications, hardening flags, input validation, pcap drop logging
 
-* Tue Feb 25 2026 Renaud Allard <renaud@allard.it> 0.3.7-1
+* Wed Feb 25 2026 Renaud Allard <renaud@allard.it> 0.3.7-1
 - Initial packaging

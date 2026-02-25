@@ -5,16 +5,17 @@ DBDIR   ?= /var/neighbot
 
 CC      ?= cc
 CFLAGS  ?= -O2 -pipe
-CFLAGS  += -std=c11
 CFLAGS  += -Wall -Wextra -Wpedantic -Wformat=2
 CFLAGS  += -D_FORTIFY_SOURCE=2
-CFLAGS  += -fstack-protector-strong -fPIE
-LDFLAGS += -pie -Wl,-z,relro -Wl,-z,now
+CFLAGS  += -fstack-protector-strong
+LDFLAGS += -Wl,-z,relro -Wl,-z,now
 LDFLAGS += -lpcap
 
-# _GNU_SOURCE needed on Linux for strptime(3) and daemon(3)
+# Flags that must survive a command-line CFLAGS override (e.g. RPM %{optflags}).
+# GNU Make ignores CFLAGS += when CFLAGS is set on the command line, so these
+# go into internal variables referenced directly in the compile rule.
+_STD = -std=c11
 _GNU_SOURCE != [ "$$(uname -s)" = Linux ] && echo -D_GNU_SOURCE || true
-CFLAGS  += $(_GNU_SOURCE)
 
 SRCS = neighbot.c log.c db.c parse.c notify.c capture.c oui.c probe.c
 OBJS = $(SRCS:.c=.o)
@@ -27,7 +28,7 @@ $(BIN): $(OBJS)
 	$(CC) $(OBJS) $(LDFLAGS) -o $@
 
 .c.o:
-	$(CC) $(CFLAGS) -MMD -MP -c $<
+	$(CC) $(_STD) $(_GNU_SOURCE) $(CFLAGS) -MMD -MP -c $<
 
 -include $(DEPS)
 
@@ -91,13 +92,13 @@ fuzz-clean:
 test: tests/test_parse tests/test_dbload tests/test_ouiload
 
 tests/test_parse: tests/test_parse.c parse.c db.c log.c
-	$(CC) $(CFLAGS) -o $@ tests/test_parse.c parse.c db.c log.c $(LDFLAGS)
+	$(CC) $(_STD) $(_GNU_SOURCE) $(CFLAGS) -o $@ tests/test_parse.c parse.c db.c log.c $(LDFLAGS)
 
 tests/test_dbload: tests/test_dbload.c db.c log.c
-	$(CC) $(CFLAGS) -o $@ tests/test_dbload.c db.c log.c $(LDFLAGS)
+	$(CC) $(_STD) $(_GNU_SOURCE) $(CFLAGS) -o $@ tests/test_dbload.c db.c log.c $(LDFLAGS)
 
 tests/test_ouiload: tests/test_ouiload.c oui.c log.c
-	$(CC) $(CFLAGS) -o $@ tests/test_ouiload.c oui.c log.c $(LDFLAGS)
+	$(CC) $(_STD) $(_GNU_SOURCE) $(CFLAGS) -o $@ tests/test_ouiload.c oui.c log.c $(LDFLAGS)
 
 test-clean:
 	rm -f tests/test_parse tests/test_dbload tests/test_ouiload

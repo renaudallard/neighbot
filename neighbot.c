@@ -303,7 +303,6 @@ check_signals:
 		/* reap notification children */
 		while (waitpid(-1, NULL, WNOHANG) > 0)
 			;
-		capture_log_drops(ifaces, nifaces);
 		if (cfg.probe)
 			probe_tick(ifaces, nifaces);
 		if (dump_probes) {

@@ -207,8 +207,11 @@ main(int argc, char *argv[])
 			log_err("chown %s: %s", dbdir, strerror(errno));
 		if (chmod(dbdir, 0750) < 0)
 			log_err("chmod %s: %s", dbdir, strerror(errno));
-		(void)chown(cfg.dbfile, pw->pw_uid, pw->pw_gid);
-		(void)chmod(cfg.dbfile, 0640);
+		if (chown(cfg.dbfile, pw->pw_uid, pw->pw_gid) < 0 &&
+		    errno != ENOENT)
+			log_err("chown %s: %s", cfg.dbfile, strerror(errno));
+		if (chmod(cfg.dbfile, 0640) < 0 && errno != ENOENT)
+			log_err("chmod %s: %s", cfg.dbfile, strerror(errno));
 
 		if (setgroups(1, &pw->pw_gid) < 0) {
 			log_err("setgroups: %s", strerror(errno));

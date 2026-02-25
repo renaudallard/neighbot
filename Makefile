@@ -6,7 +6,10 @@ DBDIR   ?= /var/neighbot
 CC      ?= cc
 CFLAGS  ?= -O2 -pipe
 CFLAGS  += -std=c11
-CFLAGS  += -Wall -Wextra -Wpedantic
+CFLAGS  += -Wall -Wextra -Wpedantic -Wformat=2
+CFLAGS  += -D_FORTIFY_SOURCE=2
+CFLAGS  += -fstack-protector-strong -fPIE
+LDFLAGS += -pie -Wl,-z,relro -Wl,-z,now
 LDFLAGS += -lpcap
 
 # _GNU_SOURCE needed on Linux for strptime(3) and daemon(3)

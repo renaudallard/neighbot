@@ -1,0 +1,17 @@
+Source: neighbot
+Section: net
+Priority: optional
+Maintainer: Renaud Allard <renaud@allard.it>
+Build-Depends: debhelper-compat (= 13), libpcap-dev
+Standards-Version: 4.6.2
+Vcs-Git: https://github.com/renaudallard/neighbot.git
+Vcs-Browser: https://github.com/renaudallard/neighbot
+
+Package: neighbot
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Network neighbor monitoring daemon
+ Passively watches ARP and NDP traffic on all Ethernet interfaces, records
+ IP-to-MAC mappings, and alerts you when something changes. Like arpwatch,
+ but also handles IPv6 and runs on Linux, FreeBSD, OpenBSD, and NetBSD.
+ Single-threaded, single binary, no dependencies beyond libpcap.

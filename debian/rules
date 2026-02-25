@@ -1,0 +1,20 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	$(MAKE)
+
+override_dh_auto_install:
+	$(MAKE) install PREFIX=/usr DESTDIR=$(CURDIR)/debian/neighbot
+	install -D -m 644 neighbot.service \
+		$(CURDIR)/debian/neighbot/lib/systemd/system/neighbot.service
+	sed -i 's|/usr/local/sbin|/usr/sbin|' \
+		$(CURDIR)/debian/neighbot/lib/systemd/system/neighbot.service
+	install -d -m 755 $(CURDIR)/debian/neighbot/var/neighbot
+
+override_dh_auto_test:
+
+override_dh_auto_clean:
+	$(MAKE) clean || true

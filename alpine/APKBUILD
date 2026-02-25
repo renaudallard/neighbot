@@ -1,0 +1,22 @@
+# Maintainer: Renaud Allard <renaud@allard.it>
+pkgname=neighbot
+pkgver=0.3.6
+pkgrel=0
+pkgdesc="Network neighbor monitoring daemon"
+url="https://github.com/renaudallard/neighbot"
+arch="all"
+license="BSD-2-Clause"
+depends=""
+makedepends="libpcap-dev linux-headers"
+subpackages="$pkgname-doc"
+source="$pkgname-$pkgver.tar.gz"
+builddir="$srcdir/$pkgname-$pkgver"
+
+build() {
+	make
+}
+
+package() {
+	make install PREFIX=/usr DESTDIR="$pkgdir"
+	install -d -m 755 "$pkgdir"/var/neighbot
+}

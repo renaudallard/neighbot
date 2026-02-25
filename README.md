@@ -67,6 +67,25 @@ Uninstall:
 sudo make uninstall
 ```
 
+### Pre-built packages
+
+`.deb` and `.rpm` packages are built automatically for each GitHub release
+and attached as release assets. Supported distributions:
+
+| Format | Distributions |
+|--------|---------------|
+| `.deb` | Ubuntu (stable, LTS), Debian (stable, oldstable) |
+| `.rpm` | Fedora, Rocky Linux (2 versions), openSUSE Leap, SUSE BCI |
+| `.apk` | Alpine Linux |
+
+Install with your package manager:
+
+```sh
+sudo dpkg -i neighbot_*.deb        # Debian/Ubuntu
+sudo rpm -i neighbot-*.rpm         # Fedora/RHEL/SUSE
+sudo apk add --allow-untrusted neighbot-*.apk  # Alpine
+```
+
 ## Usage
 
 ```

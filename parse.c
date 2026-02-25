@@ -254,7 +254,9 @@ parse_arp(const u_char *pkt, size_t len, const char *iface)
 	if (is_zero_ip4(arp->spa))
 		return;
 
-	/* skip broadcast and multicast sender IPs */
+	/* skip broadcast and multicast sender MACs and IPs */
+	if (is_multicast_mac(arp->sha))
+		return;
 	if (arp->spa[0] >= 224)
 		return;
 

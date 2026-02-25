@@ -102,7 +102,7 @@ handle_event(int event, int af, const uint8_t *ip, const uint8_t *mac,
 		 * non-EUI-64 entry for this MAC, suppress "new
 		 * station" and let probing report "moved" instead */
 		int temp_rotate = (af == AF_INET6 &&
-		    !(ip[0] == 0xfe && (ip[1] & 0xc0) == 0x80) &&
+		    !IS_LINKLOCAL6(ip) &&
 		    !is_eui64(ip, mac) &&
 		    db_has_temp_in_prefix(mac, ip));
 
@@ -120,10 +120,8 @@ handle_event(int event, int af, const uint8_t *ip, const uint8_t *mac,
 		 * skip if new IP is link-local since every IPv6
 		 * interface has one alongside its global address */
 		if (cfg.probe &&
-		    !(af == AF_INET6 &&
-		      ip[0] == 0xfe && (ip[1] & 0xc0) == 0x80) &&
-		    !(af == AF_INET &&
-		      ip[0] == 169 && ip[1] == 254)) {
+		    !(af == AF_INET6 && IS_LINKLOCAL6(ip)) &&
+		    !(af == AF_INET && IS_LINKLOCAL4(ip))) {
 			struct db_entry_info others[PROBE_MAX_SLOTS];
 			int n = db_find_other_entries(mac, af, ip,
 			    others, PROBE_MAX_SLOTS);

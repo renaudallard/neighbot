@@ -170,9 +170,9 @@ capture_is_local(const char *iface, int af, const uint8_t *ip)
 	int has_subnet = 0;
 
 	/* link-local addresses are always valid on the local link */
-	if (af == AF_INET6 && ip[0] == 0xfe && (ip[1] & 0xc0) == 0x80)
+	if (af == AF_INET6 && IS_LINKLOCAL6(ip))
 		return 1;
-	if (af == AF_INET && ip[0] == 169 && ip[1] == 254)
+	if (af == AF_INET && IS_LINKLOCAL4(ip))
 		return 1;
 
 	for (int i = 0; i < subnet_count; i++) {

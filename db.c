@@ -424,11 +424,9 @@ db_find_other_entries(const uint8_t *mac, int exclude_af,
 			if (memcmp(e->ip, exclude_ip, ip_len(exclude_af)) == 0)
 				continue;
 			/* skip link-local entries */
-			if (e->af == AF_INET6 &&
-			    e->ip[0] == 0xfe && (e->ip[1] & 0xc0) == 0x80)
+			if (e->af == AF_INET6 && IS_LINKLOCAL6(e->ip))
 				continue;
-			if (e->af == AF_INET &&
-			    e->ip[0] == 169 && e->ip[1] == 254)
+			if (e->af == AF_INET && IS_LINKLOCAL4(e->ip))
 				continue;
 
 			out[count].af = e->af;
@@ -459,7 +457,7 @@ db_has_temp_in_prefix(const uint8_t *mac, const uint8_t *ip6)
 			if (memcmp(e->ip, ip6, 16) == 0)
 				continue;
 			/* skip link-local */
-			if (e->ip[0] == 0xfe && (e->ip[1] & 0xc0) == 0x80)
+			if (IS_LINKLOCAL6(e->ip))
 				continue;
 			/* skip EUI-64 derived addresses */
 			if (is_eui64(e->ip, mac))

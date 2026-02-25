@@ -51,6 +51,9 @@
 
 #define BPF_FILTER "arp or (icmp6 and (ip6[40] == 136 or ip6[40] == 135))"
 
+#define IS_LINKLOCAL6(ip) ((ip)[0] == 0xfe && ((ip)[1] & 0xc0) == 0x80)
+#define IS_LINKLOCAL4(ip) ((ip)[0] == 169 && (ip)[1] == 254)
+
 struct config {
 	int    daemonize;
 	int    quiet;

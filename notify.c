@@ -43,6 +43,21 @@
 #include "notify.h"
 #include "oui.h"
 
+/* Fork a notification child. Returns 0 in child, -1 in parent. */
+static int
+notify_fork(void)
+{
+	pid_t pid = fork();
+
+	if (pid < 0) {
+		log_err("notify: fork: %s", strerror(errno));
+		return -1;
+	}
+	if (pid > 0)
+		return -1;
+	return 0;
+}
+
 static void
 resolve_hostname(int af, const uint8_t *ip, char *host, size_t hostlen)
 {
@@ -154,6 +169,9 @@ void
 notify_new(int af, const uint8_t *ip, const uint8_t *mac,
            const char *iface)
 {
+	if (notify_fork() != 0)
+		return;
+
 	char subject[256];
 	char body[2048];
 	char ipstr[INET6_ADDRSTRLEN];
@@ -188,6 +206,7 @@ notify_new(int af, const uint8_t *ip, const uint8_t *mac,
 		         "     also known as: %s\n", other_ips);
 
 	send_mail(subject, body);
+	_exit(0);
 }
 
 static void
@@ -195,6 +214,9 @@ notify_mac_change(const char *label, int af, const uint8_t *ip,
                   const uint8_t *mac, const uint8_t *old_mac,
                   const char *iface, time_t prev_seen)
 {
+	if (notify_fork() != 0)
+		return;
+
 	char subject[256];
 	char body[2048];
 	char ipstr[INET6_ADDRSTRLEN];
@@ -240,6 +262,7 @@ notify_mac_change(const char *label, int af, const uint8_t *ip,
 		         "       also known as: %s\n", other_ips);
 
 	send_mail(subject, body);
+	_exit(0);
 }
 
 void
@@ -264,6 +287,9 @@ void
 notify_bogon(int af, const uint8_t *ip, const uint8_t *mac,
              const char *iface)
 {
+	if (notify_fork() != 0)
+		return;
+
 	char subject[256];
 	char body[2048];
 	char ipstr[INET6_ADDRSTRLEN];
@@ -295,12 +321,16 @@ notify_bogon(int af, const uint8_t *ip, const uint8_t *mac,
 	         iface, timebuf, iface);
 
 	send_mail(subject, body);
+	_exit(0);
 }
 
 void
 notify_reappeared(int af, const uint8_t *ip, const uint8_t *mac,
                   const char *iface, time_t prev_seen)
 {
+	if (notify_fork() != 0)
+		return;
+
 	char subject[256];
 	char body[2048];
 	char ipstr[INET6_ADDRSTRLEN];
@@ -340,12 +370,16 @@ notify_reappeared(int af, const uint8_t *ip, const uint8_t *mac,
 		         "     also known as: %s\n", other_ips);
 
 	send_mail(subject, body);
+	_exit(0);
 }
 
 void
 notify_moved(int new_af, const uint8_t *new_ip, const uint8_t *mac,
              int old_af, const uint8_t *old_ip, const char *iface)
 {
+	if (notify_fork() != 0)
+		return;
+
 	char subject[256];
 	char body[2048];
 	char newstr[INET6_ADDRSTRLEN];
@@ -383,4 +417,5 @@ notify_moved(int new_af, const uint8_t *new_ip, const uint8_t *mac,
 	    iface, timebuf);
 
 	send_mail(subject, body);
+	_exit(0);
 }

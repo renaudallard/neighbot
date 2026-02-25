@@ -25,6 +25,7 @@
  */
 
 #include <sys/stat.h>
+#include <sys/wait.h>
 
 #include <errno.h>
 #include <grp.h>
@@ -299,6 +300,9 @@ main(int argc, char *argv[])
 		}
 
 check_signals:
+		/* reap notification children */
+		while (waitpid(-1, NULL, WNOHANG) > 0)
+			;
 		if (cfg.probe)
 			probe_tick(ifaces, nifaces);
 		if (dump_probes) {

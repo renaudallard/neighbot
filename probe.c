@@ -198,7 +198,7 @@ void
 probe_schedule(int af, const uint8_t *ip, const uint8_t *mac,
                int new_af, const uint8_t *new_ip, const char *iface)
 {
-	int ilen = (af == AF_INET) ? 4 : 16;
+	int ilen = ip_len(af);
 
 	/* check for duplicate probe */
 	for (int i = 0; i < PROBE_MAX_SLOTS; i++) {
@@ -221,8 +221,7 @@ probe_schedule(int af, const uint8_t *ip, const uint8_t *mac,
 		memcpy(probes[i].mac, mac, 6);
 		probes[i].new_af = new_af;
 		memset(probes[i].new_ip, 0, sizeof(probes[i].new_ip));
-		memcpy(probes[i].new_ip, new_ip,
-		    (new_af == AF_INET) ? 4 : 16);
+		memcpy(probes[i].new_ip, new_ip, ip_len(new_af));
 		snprintf(probes[i].iface, sizeof(probes[i].iface),
 		    "%s", iface);
 		probes[i].tries = 0;
@@ -246,7 +245,7 @@ probe_schedule(int af, const uint8_t *ip, const uint8_t *mac,
 void
 probe_mark_seen(int af, const uint8_t *ip, const uint8_t *mac)
 {
-	int ilen = (af == AF_INET) ? 4 : 16;
+	int ilen = ip_len(af);
 
 	for (int i = 0; i < PROBE_MAX_SLOTS; i++) {
 		if (!probes[i].active)

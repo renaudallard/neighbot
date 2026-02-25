@@ -40,6 +40,7 @@
 
 #include "neighbot.h"
 #include "capture.h"
+#include "db.h"
 #include "log.h"
 
 struct subnet {
@@ -166,7 +167,7 @@ fill_local_subnets(struct iface *ifaces, int count)
 int
 capture_is_local(const char *iface, int af, const uint8_t *ip)
 {
-	int alen = (af == AF_INET) ? 4 : 16;
+	int alen = ip_len(af);
 	int has_subnet = 0;
 
 	/* link-local addresses are always valid on the local link */

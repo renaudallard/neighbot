@@ -66,11 +66,6 @@ hash_key(int af, const uint8_t *ip)
 	return fnv1a(buf, 1 + len) % HT_BUCKETS;
 }
 
-static int
-ip_len(int af)
-{
-	return (af == AF_INET) ? 4 : 16;
-}
 
 void
 format_mac(const uint8_t *mac, char *buf, size_t len)

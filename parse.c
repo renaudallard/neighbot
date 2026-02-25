@@ -100,13 +100,6 @@ is_eui64(const uint8_t *ip6, const uint8_t *mac)
 }
 
 static void
-format_mac(const uint8_t *mac, char *buf, size_t len)
-{
-	snprintf(buf, len, "%02x:%02x:%02x:%02x:%02x:%02x",
-	         mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-}
-
-static void
 handle_event(int event, int af, const uint8_t *ip, const uint8_t *mac,
              const uint8_t *old_mac, const char *iface,
              time_t old_last_seen)

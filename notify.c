@@ -69,13 +69,6 @@ resolve_hostname(int af, const uint8_t *ip, char *host, size_t hostlen)
 }
 
 static void
-format_mac(const uint8_t *mac, char *buf, size_t len)
-{
-	snprintf(buf, len, "%02x:%02x:%02x:%02x:%02x:%02x",
-	         mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-}
-
-static void
 format_timestamp(time_t t, char *buf, size_t len)
 {
 	struct tm tm;

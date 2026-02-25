@@ -35,6 +35,7 @@
 
 #include "neighbot.h"
 #include "capture.h"
+#include "db.h"
 #include "log.h"
 #include "parse.h"
 #include "probe.h"
@@ -378,10 +379,7 @@ probe_dump(void)
 			continue;
 
 		inet_ntop(p->af, p->ip, ipstr, sizeof(ipstr));
-		snprintf(macstr, sizeof(macstr),
-		    "%02x:%02x:%02x:%02x:%02x:%02x",
-		    p->mac[0], p->mac[1], p->mac[2],
-		    p->mac[3], p->mac[4], p->mac[5]);
+		format_mac(p->mac, macstr, sizeof(macstr));
 		log_msg("probe[%d]: %s %s tries=%d age=%lds on %s",
 		    i, ipstr, macstr, p->tries,
 		    p->first_sent ? (long)(now - p->first_sent) : 0L,

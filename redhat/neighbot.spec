@@ -1,5 +1,5 @@
 Name: neighbot
-Version: 0.3.7
+Version: 0.4.0
 Release: 1%{?dist}
 Summary: Network neighbor monitoring daemon
 
@@ -57,5 +57,8 @@ if [ -x /usr/bin/systemctl ]; then
 fi
 
 %changelog
+* Tue Feb 25 2026 Renaud Allard <renaud@allard.it> 0.4.0-1
+- Async notifications, hardening flags, input validation, pcap drop logging
+
 * Tue Feb 25 2026 Renaud Allard <renaud@allard.it> 0.3.7-1
 - Initial packaging

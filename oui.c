@@ -84,14 +84,20 @@ oui_load(const char *path)
 		}
 
 		if (oui_count >= oui_alloc) {
-			oui_alloc = oui_alloc ? oui_alloc * 2 : 1024;
+			int new_alloc = oui_alloc ? oui_alloc * 2 : 1024;
+			if (new_alloc <= oui_alloc) {
+				/* int overflow */
+				fclose(fp);
+				return oui_count;
+			}
 			struct oui_entry *tmp = realloc(oui_db,
-			    oui_alloc * sizeof(*tmp));
+			    (size_t)new_alloc * sizeof(*tmp));
 			if (!tmp) {
 				fclose(fp);
 				return oui_count;
 			}
 			oui_db = tmp;
+			oui_alloc = new_alloc;
 		}
 
 		oui_db[oui_count].prefix[0] = (uint8_t)a;

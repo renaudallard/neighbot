@@ -70,4 +70,18 @@ int   db_find_other_entries(const uint8_t *mac, int exclude_af,
                             struct db_entry_info *out, int max);
 int   db_has_temp_in_prefix(const uint8_t *mac, const uint8_t *ip6);
 
+/* Check if IPv6 address uses EUI-64 interface ID derived from MAC. */
+static inline int
+is_eui64(const uint8_t *ip6, const uint8_t *mac)
+{
+	return ip6[8]  == (mac[0] ^ 0x02) &&
+	       ip6[9]  == mac[1] &&
+	       ip6[10] == mac[2] &&
+	       ip6[11] == 0xff &&
+	       ip6[12] == 0xfe &&
+	       ip6[13] == mac[3] &&
+	       ip6[14] == mac[4] &&
+	       ip6[15] == mac[5];
+}
+
 #endif

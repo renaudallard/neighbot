@@ -462,14 +462,7 @@ db_has_temp_in_prefix(const uint8_t *mac, const uint8_t *ip6)
 			if (e->ip[0] == 0xfe && (e->ip[1] & 0xc0) == 0x80)
 				continue;
 			/* skip EUI-64 derived addresses */
-			if (e->ip[8]  == (mac[0] ^ 0x02) &&
-			    e->ip[9]  == mac[1] &&
-			    e->ip[10] == mac[2] &&
-			    e->ip[11] == 0xff &&
-			    e->ip[12] == 0xfe &&
-			    e->ip[13] == mac[3] &&
-			    e->ip[14] == mac[4] &&
-			    e->ip[15] == mac[5])
+			if (is_eui64(e->ip, mac))
 				continue;
 			return 1;
 		}

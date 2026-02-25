@@ -84,20 +84,6 @@ is_multicast_mac(const uint8_t *mac)
 	return mac[0] & 0x01;
 }
 
-/* Check if IPv6 address uses EUI-64 interface ID derived from MAC.
- * EUI-64: mac[0]^0x02, mac[1], mac[2], 0xff, 0xfe, mac[3:5] */
-static int
-is_eui64(const uint8_t *ip6, const uint8_t *mac)
-{
-	return ip6[8]  == (mac[0] ^ 0x02) &&
-	       ip6[9]  == mac[1] &&
-	       ip6[10] == mac[2] &&
-	       ip6[11] == 0xff &&
-	       ip6[12] == 0xfe &&
-	       ip6[13] == mac[3] &&
-	       ip6[14] == mac[4] &&
-	       ip6[15] == mac[5];
-}
 
 static void
 handle_event(int event, int af, const uint8_t *ip, const uint8_t *mac,

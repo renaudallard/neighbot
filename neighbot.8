@@ -15,6 +15,7 @@
 .Op Fl q
 .Op Fl s Ar sendmail
 .Op Fl u Ar user
+.Op Fl V
 .Sh DESCRIPTION
 .Nm
 passively monitors ARP (IPv4) and NDP (IPv6) traffic on all Ethernet
@@ -82,6 +83,8 @@ The database directory and file are chowned to this user before
 dropping.
 Default:
 .Ql nobody .
+.It Fl V
+Print the version number and exit.
 .El
 .Sh EVENTS
 .Nm

@@ -77,7 +77,7 @@ usage(void)
 {
 	fprintf(stderr,
 	    "usage: neighbot [-d] [-f dbfile] [-i iface] [-m mailto] "
-	    "[-o ouifile] [-p] [-q] [-s sendmail] [-u user]\n");
+	    "[-o ouifile] [-p] [-q] [-s sendmail] [-u user] [-V]\n");
 	exit(1);
 }
 
@@ -116,7 +116,7 @@ main(int argc, char *argv[])
 	cfg.sendmail = DEFAULT_SENDMAIL;
 	cfg.user     = DEFAULT_USER;
 
-	while ((ch = getopt(argc, argv, "df:i:m:o:pqs:u:")) != -1) {
+	while ((ch = getopt(argc, argv, "df:i:m:o:pqs:u:V")) != -1) {
 		switch (ch) {
 		case 'd':
 			cfg.daemonize = 1;
@@ -149,6 +149,9 @@ main(int argc, char *argv[])
 		case 'u':
 			cfg.user = optarg;
 			break;
+		case 'V':
+			printf("neighbot %s\n", NEIGHBOT_VERSION);
+			return 0;
 		default:
 			usage();
 		}

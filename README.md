@@ -255,6 +255,30 @@ On OpenBSD, neighbot additionally restricts itself using `pledge(2)` and
 
 All pcap/BPF handles are opened before pledge, so no `bpf` promise is needed.
 
+## Testing
+
+Standalone test harnesses exercise the parser, database loader, and OUI loader
+with known inputs. They link without sanitizers so they can run under valgrind.
+
+```sh
+make test                              # build all three test binaries
+tests/test_parse                       # run parser tests
+tests/test_dbload                      # run database loader tests
+tests/test_ouiload                     # run OUI loader tests
+make test-clean                        # remove test binaries
+```
+
+With valgrind:
+
+```sh
+valgrind --leak-check=full --error-exitcode=1 tests/test_parse
+valgrind --leak-check=full --error-exitcode=1 tests/test_dbload
+valgrind --leak-check=full --error-exitcode=1 tests/test_ouiload
+```
+
+A CI workflow (`.github/workflows/valgrind.yml`) runs all tests under valgrind
+on every push and pull request.
+
 ## Fuzzing
 
 Requires clang with libFuzzer support (included in most clang packages).

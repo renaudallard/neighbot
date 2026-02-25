@@ -1,0 +1,43 @@
+name: Valgrind
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  valgrind:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential libpcap-dev valgrind
+
+      - name: Build test harnesses
+        run: make test
+
+      - name: Run under valgrind
+        run: |
+          rc=0
+          for t in tests/test_parse tests/test_dbload tests/test_ouiload; do
+            name=$(basename "$t")
+            echo "=== $name ==="
+            if ! valgrind --leak-check=full --errors-for-leak-kinds=all \
+                          --show-leak-kinds=all --track-origins=yes \
+                          --error-exitcode=1 \
+                          --log-file="valgrind-${name}.log" \
+                          "./$t"; then
+              echo "FAIL: $name"
+              cat "valgrind-${name}.log"
+              rc=1
+            fi
+          done
+          exit $rc
+
+      - name: Upload valgrind logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: valgrind-logs
+          path: valgrind-*.log

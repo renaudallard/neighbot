@@ -27,6 +27,7 @@ $(BIN): $(OBJS)
 
 clean:
 	rm -f $(BIN) $(OBJS) fuzz_parse fuzz_dbload fuzz_ouiload
+	rm -f tests/test_parse tests/test_dbload tests/test_ouiload
 
 oui.txt:
 	curl -sL https://standards-oui.ieee.org/oui/oui.txt | \
@@ -80,5 +81,21 @@ fuzz_ouiload: fuzz/fuzz_ouiload.c oui.c log.c
 fuzz-clean:
 	rm -f fuzz_parse fuzz_dbload fuzz_ouiload
 
+# Test harnesses (for valgrind, no sanitizers)
+test: tests/test_parse tests/test_dbload tests/test_ouiload
+
+tests/test_parse: tests/test_parse.c parse.c db.c log.c
+	$(CC) $(CFLAGS) -o $@ tests/test_parse.c parse.c db.c log.c $(LDFLAGS)
+
+tests/test_dbload: tests/test_dbload.c db.c log.c
+	$(CC) $(CFLAGS) -o $@ tests/test_dbload.c db.c log.c $(LDFLAGS)
+
+tests/test_ouiload: tests/test_ouiload.c oui.c log.c
+	$(CC) $(CFLAGS) -o $@ tests/test_ouiload.c oui.c log.c $(LDFLAGS)
+
+test-clean:
+	rm -f tests/test_parse tests/test_dbload tests/test_ouiload
+
 .PHONY: all clean install install-systemd install-rcd oui-update uninstall
 .PHONY: fuzz fuzz_parse fuzz_dbload fuzz_ouiload fuzz-clean
+.PHONY: test test-clean

@@ -278,19 +278,20 @@ capture_open_all(struct iface *ifaces, int max)
 			continue;
 		}
 
-		snprintf(ifaces[count].name, sizeof(ifaces[count].name),
-		         "%s", dev->name);
-		ifaces[count].handle = p;
-		ifaces[count].fd = pcap_get_selectable_fd(p);
-		memset(ifaces[count].local_mac, 0,
-		    sizeof(ifaces[count].local_mac));
-
-		if (ifaces[count].fd < 0) {
+		int fd = pcap_get_selectable_fd(p);
+		if (fd < 0) {
 			log_err("pcap_get_selectable_fd(%s): not supported",
 			        dev->name);
 			pcap_close(p);
 			continue;
 		}
+
+		snprintf(ifaces[count].name, sizeof(ifaces[count].name),
+		         "%s", dev->name);
+		ifaces[count].handle = p;
+		ifaces[count].fd = fd;
+		memset(ifaces[count].local_mac, 0,
+		    sizeof(ifaces[count].local_mac));
 
 		log_msg("monitoring %s", dev->name);
 		count++;

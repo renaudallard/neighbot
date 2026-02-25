@@ -1,5 +1,5 @@
 Name: neighbot
-Version: 0.4.0
+Version: 0.4.1
 Release: 1%{?dist}
 Summary: Network neighbor monitoring daemon
 
@@ -57,6 +57,9 @@ if [ -x /usr/bin/systemctl ]; then
 fi
 
 %changelog
+* Wed Feb 25 2026 Renaud Allard <renaud@allard.it> 0.4.1-1
+- Fix pledge violation on OpenBSD from pcap_stats ioctl
+
 * Wed Feb 25 2026 Renaud Allard <renaud@allard.it> 0.4.0-1
 - Async notifications, hardening flags, input validation, pcap drop logging
 

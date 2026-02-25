@@ -319,6 +319,12 @@ capture_close_all(struct iface *ifaces, int count)
 void
 capture_log_drops(struct iface *ifaces, int count)
 {
+#ifdef __OpenBSD__
+	/* pcap_stats() calls ioctl(BIOCGSTATS) which is not allowed
+	 * under pledge. Silently skip drop monitoring on OpenBSD. */
+	(void)ifaces;
+	(void)count;
+#else
 	struct pcap_stat ps;
 
 	for (int i = 0; i < count; i++) {
@@ -333,4 +339,5 @@ capture_log_drops(struct iface *ifaces, int count)
 			ifaces[i].last_drop = ps.ps_drop;
 		}
 	}
+#endif
 }

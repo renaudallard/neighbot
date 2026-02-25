@@ -254,22 +254,10 @@ probe_mark_seen(int af, const uint8_t *ip, const uint8_t *mac)
 			continue;
 		if (memcmp(probes[i].ip, ip, ilen) != 0)
 			continue;
-		if (memcmp(probes[i].mac, mac, 6) != 0)
-			continue;
-		probes[i].answered = 1;
-	}
-
-	/* different MAC at probed IP means original device lost it */
-	for (int i = 0; i < PROBE_MAX_SLOTS; i++) {
-		if (!probes[i].active)
-			continue;
-		if (probes[i].af != af)
-			continue;
-		if (memcmp(probes[i].ip, ip, ilen) != 0)
-			continue;
 		if (memcmp(probes[i].mac, mac, 6) == 0)
-			continue;
-		probes[i].stolen = 1;
+			probes[i].answered = 1;
+		else
+			probes[i].stolen = 1;
 	}
 }
 

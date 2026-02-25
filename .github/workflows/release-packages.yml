@@ -4,6 +4,10 @@ on:
   release:
     types:
       - published
+  workflow_run:
+    workflows: ["Release"]
+    types:
+      - completed
   workflow_dispatch:
     inputs:
       ref:
@@ -26,8 +30,37 @@ defaults:
     shell: bash
 
 jobs:
+  resolve-tag:
+    name: Resolve release tag
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || '' }}
+
+      - name: Determine tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.release_tag }}" >> "$GITHUB_OUTPUT"
+          else
+            ver=$(grep '#define NEIGHBOT_VERSION' neighbot.h | sed 's/.*"\(.*\)"/\1/')
+            echo "tag=v${ver}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify release exists
+        run: gh release view "${{ steps.tag.outputs.tag }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   detect-versions:
     name: Detect distro versions
+    needs: resolve-tag
     runs-on: ubuntu-latest
     outputs:
       ubuntu_stable: ${{ steps.detect.outputs.ubuntu_stable }}
@@ -963,6 +996,7 @@ jobs:
     name: Upload Release Assets
     runs-on: ubuntu-latest
     needs:
+      - resolve-tag
       - detect-versions
       - build-deb-ubuntu-stable
       - build-deb-ubuntu-lts
@@ -999,7 +1033,7 @@ jobs:
       - name: Upload release assets
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.event.release.tag_name }}
+          tag_name: ${{ needs.resolve-tag.outputs.tag }}
           files: |
             release-assets/deb/*.deb
             release-assets/rpm/*.rpm

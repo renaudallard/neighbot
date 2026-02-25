@@ -293,9 +293,12 @@ main(int argc, char *argv[])
 			}
 
 			if (pfds[i].revents & POLLIN) {
-				pcap_dispatch(ifaces[i].handle, -1,
-				              parse_packet,
-				              (u_char *)ifaces[i].name);
+				if (pcap_dispatch(ifaces[i].handle, -1,
+				    parse_packet,
+				    (u_char *)ifaces[i].name) < 0)
+					log_err("pcap_dispatch(%s): %s",
+					    ifaces[i].name,
+					    pcap_geterr(ifaces[i].handle));
 			}
 		}
 

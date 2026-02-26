@@ -89,7 +89,7 @@ sudo apk add --allow-untrusted neighbot-*.apk  # Alpine
 ## Usage
 
 ```
-neighbot [-B seconds] [-d] [-f dbfile] [-i iface] [-m mailto] [-o ouifile] [-p] [-q] [-r] [-s sendmail] [-u user]
+neighbot [-B seconds] [-d] [-f dbfile] [-i iface] [-m mailto] [-o ouifile] [-p] [-q] [-r] [-s sendmail] [-u user] [-V]
 ```
 
 | Flag | Description |
@@ -105,6 +105,7 @@ neighbot [-B seconds] [-d] [-f dbfile] [-i iface] [-m mailto] [-o ouifile] [-p] 
 | `-r` | Report mode. Print database summary to stdout (or email with `-m`), then exit |
 | `-s path` | Path to sendmail-compatible MTA (default: `/usr/sbin/sendmail`) |
 | `-u user` | Drop privileges to this user after opening pcap handles (default: `nobody`) |
+| `-V` | Print the version number and exit |
 
 ### Examples
 

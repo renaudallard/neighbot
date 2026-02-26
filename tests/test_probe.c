@@ -20,14 +20,7 @@ struct config          cfg;
 volatile sig_atomic_t  quit;
 volatile sig_atomic_t  save;
 
-/* stubs */
-int
-capture_is_local(const char *iface, int af, const uint8_t *ip)
-{
-	(void)iface; (void)af; (void)ip;
-	return 1;
-}
-
+/* stubs for symbols referenced by probe.c */
 void handle_moved(int new_af, const uint8_t *new_ip, const uint8_t *mac,
     int old_af, const uint8_t *old_ip, const char *iface)
 { (void)new_af; (void)new_ip; (void)mac; (void)old_af; (void)old_ip; (void)iface; }
@@ -35,30 +28,6 @@ void handle_moved(int new_af, const uint8_t *new_ip, const uint8_t *mac,
 void handle_multiple_ips(int af, const uint8_t *ip, const uint8_t *mac,
     int other_af, const uint8_t *other_ip, const char *iface)
 { (void)af; (void)ip; (void)mac; (void)other_af; (void)other_ip; (void)iface; }
-
-void notify_new(int af, const uint8_t *ip, const uint8_t *mac,
-    const char *iface)
-{ (void)af; (void)ip; (void)mac; (void)iface; }
-
-void notify_changed(int af, const uint8_t *ip, const uint8_t *mac,
-    const uint8_t *old_mac, const char *iface, time_t prev_seen)
-{ (void)af; (void)ip; (void)mac; (void)old_mac; (void)iface; (void)prev_seen; }
-
-void notify_flipflop(int af, const uint8_t *ip, const uint8_t *mac,
-    const uint8_t *old_mac, const char *iface, time_t prev_seen)
-{ (void)af; (void)ip; (void)mac; (void)old_mac; (void)iface; (void)prev_seen; }
-
-void notify_bogon(int af, const uint8_t *ip, const uint8_t *mac,
-    const char *iface)
-{ (void)af; (void)ip; (void)mac; (void)iface; }
-
-void notify_reappeared(int af, const uint8_t *ip, const uint8_t *mac,
-    const char *iface, time_t prev_seen)
-{ (void)af; (void)ip; (void)mac; (void)iface; (void)prev_seen; }
-
-void notify_moved(int new_af, const uint8_t *new_ip, const uint8_t *mac,
-    int old_af, const uint8_t *old_ip, const char *iface)
-{ (void)new_af; (void)new_ip; (void)mac; (void)old_af; (void)old_ip; (void)iface; }
 
 #define ASSERT(cond, msg) do { \
 	if (!(cond)) { \

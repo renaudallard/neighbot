@@ -268,8 +268,8 @@ All pcap/BPF handles are opened before pledge, so no `bpf` promise is needed.
 ## Testing
 
 Standalone test harnesses exercise the parser, database loader, OUI loader,
-and probe packet builders with known inputs. They link without sanitizers so
-they can run under valgrind.
+probe packet builders, subnet matching, and notification formatting with
+known inputs. They link without sanitizers so they can run under valgrind.
 
 ```sh
 make test                              # build all test binaries

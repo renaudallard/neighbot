@@ -199,8 +199,9 @@ neighbot_flags=-d -m admin@example.com
 
 ## OUI Database
 
-The OUI vendor database is installed by `make install` to
-`/var/neighbot/oui.txt` and loaded once at startup.
+The OUI vendor database is optional and installed by `make install` to
+`/var/neighbot/oui.txt`. It is loaded once at startup. If the file is not
+found, a warning is logged and neighbot continues without vendor names.
 
 Two file formats are supported:
 

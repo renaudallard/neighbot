@@ -24,6 +24,7 @@
  * SUCH DAMAGE.
  */
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -56,8 +57,10 @@ oui_load(const char *path)
 	char line[256];
 
 	fp = fopen(path, "r");
-	if (!fp)
+	if (!fp) {
+		log_msg("cannot open OUI file %s: %s", path, strerror(errno));
 		return 0;
+	}
 
 	while (fgets(line, sizeof(line), fp)) {
 		unsigned a, b, c;

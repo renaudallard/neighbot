@@ -77,8 +77,9 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: neighbot [-d] [-f dbfile] [-i iface] [-m mailto] "
-	    "[-o ouifile] [-p] [-q] [-r] [-s sendmail] [-u user] [-V]\n");
+	    "usage: neighbot [-B seconds] [-d] [-f dbfile] [-i iface] "
+	    "[-m mailto] [-o ouifile] [-p] [-q] [-r] [-s sendmail] "
+	    "[-u user] [-V]\n");
 	exit(1);
 }
 
@@ -111,13 +112,28 @@ main(int argc, char *argv[])
 	struct pollfd pfds[MAX_IFACES];
 	int nifaces = 0, ch;
 
-	cfg.dbfile   = DEFAULT_DBFILE;
-	cfg.ouifile  = DEFAULT_OUIFILE;
-	cfg.sendmail = DEFAULT_SENDMAIL;
-	cfg.user     = DEFAULT_USER;
+	cfg.dbfile         = DEFAULT_DBFILE;
+	cfg.ouifile        = DEFAULT_OUIFILE;
+	cfg.sendmail       = DEFAULT_SENDMAIL;
+	cfg.user           = DEFAULT_USER;
+	cfg.bogon_cooldown = DEFAULT_BOGON_COOLDOWN;
 
-	while ((ch = getopt(argc, argv, "df:i:m:o:pqrs:u:V")) != -1) {
+	while ((ch = getopt(argc, argv, "B:df:i:m:o:pqrs:u:V")) != -1) {
 		switch (ch) {
+		case 'B': {
+			char *end;
+			long val;
+
+			errno = 0;
+			val = strtol(optarg, &end, 10);
+			if (*end != '\0' || errno != 0 ||
+			    val < 0 || val > INT_MAX) {
+				fprintf(stderr, "invalid bogon cooldown\n");
+				return 1;
+			}
+			cfg.bogon_cooldown = (int)val;
+			break;
+		}
 		case 'd':
 			cfg.daemonize = 1;
 			break;

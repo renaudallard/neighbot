@@ -33,7 +33,7 @@
 #include <stdint.h>
 #include <time.h>
 
-#define NEIGHBOT_VERSION "0.5.0"
+#define NEIGHBOT_VERSION "0.5.1"
 
 #define DEFAULT_DBFILE  "/var/neighbot/neighbot.csv"
 #define DEFAULT_MAILTO  "root"
@@ -49,6 +49,7 @@
 #define POLL_TIMEOUT_MS  1000
 #define MAX_SUBNETS      256
 #define REAPPEAR_SECS    (180 * 24 * 3600)  /* 6 months */
+#define DEFAULT_BOGON_COOLDOWN 1800         /* 30 minutes */
 
 #define BPF_FILTER "arp or (icmp6 and (ip6[40] == 136 or ip6[40] == 135))"
 
@@ -61,6 +62,7 @@ struct config {
 	int    probe;
 	int    report;
 	int    oui_explicit;
+	int    bogon_cooldown;
 	char  *dbfile;
 	char  *iface;
 	char  *mailto;

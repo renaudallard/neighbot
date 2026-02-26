@@ -89,11 +89,12 @@ sudo apk add --allow-untrusted neighbot-*.apk  # Alpine
 ## Usage
 
 ```
-neighbot [-d] [-f dbfile] [-i iface] [-m mailto] [-o ouifile] [-p] [-q] [-r] [-s sendmail] [-u user]
+neighbot [-B seconds] [-d] [-f dbfile] [-i iface] [-m mailto] [-o ouifile] [-p] [-q] [-r] [-s sendmail] [-u user]
 ```
 
 | Flag | Description |
 |------|-------------|
+| `-B seconds` | Bogon notification cooldown in seconds (default: 1800). Set to 0 for no rate limiting |
 | `-d` | Daemonize (log to syslog instead of stderr) |
 | `-f path` | Database file (default: `/var/neighbot/neighbot.csv`) |
 | `-i iface` | Monitor only this interface (default: all Ethernet interfaces) |

@@ -192,6 +192,57 @@ handle_multiple_ips(int af, const uint8_t *ip, const uint8_t *mac,
 	    ipstr, otherstr);
 }
 
+#define BOGON_CACHE_SIZE 128
+
+struct bogon_slot {
+	int     af;
+	uint8_t ip[16];
+	char    iface[32];
+	time_t  last_notified;
+};
+
+static struct bogon_slot bogon_cache[BOGON_CACHE_SIZE];
+
+static int
+bogon_should_notify(int af, const uint8_t *ip, const char *iface, time_t now)
+{
+	int ilen = ip_len(af);
+	int oldest = 0;
+	time_t oldest_time = bogon_cache[0].last_notified;
+	int empty = -1;
+
+	for (int i = 0; i < BOGON_CACHE_SIZE; i++) {
+		if (bogon_cache[i].last_notified == 0) {
+			if (empty < 0)
+				empty = i;
+			continue;
+		}
+		if (bogon_cache[i].af == af &&
+		    memcmp(bogon_cache[i].ip, ip, ilen) == 0 &&
+		    strcmp(bogon_cache[i].iface, iface) == 0) {
+			if (now - bogon_cache[i].last_notified <
+			    cfg.bogon_cooldown)
+				return 0;
+			bogon_cache[i].last_notified = now;
+			return 1;
+		}
+		if (bogon_cache[i].last_notified < oldest_time) {
+			oldest_time = bogon_cache[i].last_notified;
+			oldest = i;
+		}
+	}
+
+	/* insert into empty slot or evict oldest */
+	int slot = (empty >= 0) ? empty : oldest;
+	bogon_cache[slot].af = af;
+	memset(bogon_cache[slot].ip, 0, sizeof(bogon_cache[slot].ip));
+	memcpy(bogon_cache[slot].ip, ip, ilen);
+	snprintf(bogon_cache[slot].iface, sizeof(bogon_cache[slot].iface),
+	    "%s", iface);
+	bogon_cache[slot].last_notified = now;
+	return 1;
+}
+
 static void
 handle_bogon(int af, const uint8_t *ip, const uint8_t *mac,
              const char *iface)
@@ -202,8 +253,11 @@ handle_bogon(int af, const uint8_t *ip, const uint8_t *mac,
 	inet_ntop(af, ip, ipstr, sizeof(ipstr));
 	format_mac(mac, macstr, sizeof(macstr));
 	log_msg("bogon %s %s on %s", ipstr, macstr, iface);
-	if (!cfg.quiet)
-		notify_bogon(af, ip, mac, iface);
+	if (!cfg.quiet) {
+		if (cfg.bogon_cooldown == 0 ||
+		    bogon_should_notify(af, ip, iface, time(NULL)))
+			notify_bogon(af, ip, mac, iface);
+	}
 }
 
 static void

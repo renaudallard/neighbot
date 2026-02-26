@@ -6,6 +6,7 @@
 .Nd network neighbor monitoring daemon
 .Sh SYNOPSIS
 .Nm
+.Op Fl B Ar seconds
 .Op Fl d
 .Op Fl f Ar dbfile
 .Op Fl i Ar iface
@@ -28,6 +29,14 @@ Notifications include reverse DNS hostname, hardware vendor
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl B Ar seconds
+Bogon notification cooldown.
+Suppress duplicate bogon email notifications for the same IP and
+interface within
+.Ar seconds .
+Every bogon is still logged regardless.
+Default: 1800 (30 minutes).
+Set to 0 to notify on every bogon (no rate limiting).
 .It Fl d
 Daemonize.
 Detach from the terminal and log to syslog instead of stderr.

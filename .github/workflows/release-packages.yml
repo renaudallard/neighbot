@@ -47,7 +47,9 @@ jobs:
           if [ "${{ github.event_name }}" = "release" ]; then
             echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "tag=${{ inputs.release_tag }}" >> "$GITHUB_OUTPUT"
+            tag="${{ inputs.release_tag }}"
+            tag="${tag#v}"
+            echo "tag=v${tag}" >> "$GITHUB_OUTPUT"
           else
             ver=$(grep '#define NEIGHBOT_VERSION' neighbot.h | sed 's/.*"\(.*\)"/\1/')
             echo "tag=v${ver}" >> "$GITHUB_OUTPUT"

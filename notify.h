@@ -31,6 +31,8 @@
 #include <stdio.h>
 #include <time.h>
 
+void format_timestamp(time_t t, char *buf, size_t len);
+void format_delta(time_t delta, char *buf, size_t len);
 FILE *notify_report_open(const char *subject);
 int   notify_report_close(FILE *fp);
 

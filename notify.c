@@ -83,7 +83,7 @@ resolve_hostname(int af, const uint8_t *ip, char *host, size_t hostlen)
 		snprintf(host, hostlen, "<unknown>");
 }
 
-static void
+void
 format_timestamp(time_t t, char *buf, size_t len)
 {
 	struct tm tm;
@@ -92,7 +92,7 @@ format_timestamp(time_t t, char *buf, size_t len)
 	strftime(buf, len, "%A, %B %d, %Y %H:%M:%S %z", &tm);
 }
 
-static void
+void
 format_delta(time_t delta, char *buf, size_t len)
 {
 	long d = (long)delta;

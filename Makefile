@@ -34,7 +34,7 @@ $(BIN): $(OBJS)
 
 clean:
 	rm -f $(BIN) $(OBJS) $(DEPS) fuzz_parse fuzz_dbload fuzz_ouiload
-	rm -f tests/test_parse tests/test_dbload tests/test_ouiload tests/test_probe tests/test_capture
+	rm -f tests/test_parse tests/test_dbload tests/test_ouiload tests/test_probe tests/test_capture tests/test_notify
 
 oui.txt:
 	curl -sL https://standards-oui.ieee.org/oui/oui.txt | \
@@ -89,7 +89,7 @@ fuzz-clean:
 	rm -f fuzz_parse fuzz_dbload fuzz_ouiload
 
 # Test harnesses (for valgrind, no sanitizers)
-test: tests/test_parse tests/test_dbload tests/test_ouiload tests/test_probe tests/test_capture
+test: tests/test_parse tests/test_dbload tests/test_ouiload tests/test_probe tests/test_capture tests/test_notify
 
 tests/test_parse: tests/test_parse.c parse.c db.c oui.c log.c
 	$(CC) $(_STD) $(_GNU_SOURCE) $(CFLAGS) -o $@ tests/test_parse.c parse.c db.c oui.c log.c $(LDFLAGS)
@@ -106,8 +106,11 @@ tests/test_probe: tests/test_probe.c probe.c log.c db.c oui.c
 tests/test_capture: tests/test_capture.c capture.c log.c
 	$(CC) $(_STD) $(_GNU_SOURCE) $(CFLAGS) -o $@ tests/test_capture.c capture.c log.c $(LDFLAGS)
 
+tests/test_notify: tests/test_notify.c notify.c db.c oui.c log.c
+	$(CC) $(_STD) $(_GNU_SOURCE) $(CFLAGS) -o $@ tests/test_notify.c notify.c db.c oui.c log.c $(LDFLAGS)
+
 test-clean:
-	rm -f tests/test_parse tests/test_dbload tests/test_ouiload tests/test_probe tests/test_capture
+	rm -f tests/test_parse tests/test_dbload tests/test_ouiload tests/test_probe tests/test_capture tests/test_notify
 
 .PHONY: all clean install install-systemd install-rcd oui-update uninstall
 .PHONY: fuzz fuzz_parse fuzz_dbload fuzz_ouiload fuzz-clean

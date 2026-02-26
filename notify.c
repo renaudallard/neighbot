@@ -212,6 +212,8 @@ notify_report_open(const char *subject)
 	if (!fp) {
 		log_err("notify: fdopen: %s", strerror(errno));
 		close(pfd[1]);
+		while (waitpid(pid, NULL, 0) < 0 && errno == EINTR)
+			;
 		return NULL;
 	}
 

@@ -333,7 +333,8 @@ ndp_find_lladdr_opt(const u_char *opts, size_t opts_len, uint8_t want_type)
 }
 
 static void
-parse_ndp(const u_char *pkt, size_t len, const char *iface)
+parse_ndp(const u_char *pkt, size_t len, const char *iface,
+          const uint8_t *eth_src)
 {
 	const struct ip6_hdr *ip6;
 	const uint8_t *icmp;
@@ -387,8 +388,9 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface)
 		return;
 	}
 
+	/* fall back to Ethernet source MAC if NDP option is missing */
 	if (!mac)
-		return;
+		mac = eth_src;
 
 	/* skip DAD probes (source ::) */
 	if (is_zero_ip6((const uint8_t *)&ip6->ip6_src))
@@ -436,6 +438,7 @@ parse_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt)
 		          len - sizeof(struct ether_header), iface);
 	} else if (etype == ETHERTYPE_IPV6) {
 		parse_ndp(pkt + sizeof(struct ether_header),
-		          len - sizeof(struct ether_header), iface);
+		          len - sizeof(struct ether_header), iface,
+		          eh->ether_shost);
 	}
 }

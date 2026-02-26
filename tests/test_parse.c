@@ -238,6 +238,49 @@ test_ndp_ns(void)
 	feed(pkt, sizeof(pkt));
 }
 
+/* NDP NA without Target LLA option. MAC should fall back to Ethernet src */
+static void
+test_ndp_na_no_tlla(void)
+{
+	uint8_t pkt[78];
+
+	memset(pkt, 0, sizeof(pkt));
+
+	/* Ethernet header */
+	pkt[0] = 0x33; pkt[1] = 0x33; pkt[2] = 0x00;
+	pkt[3] = 0x00; pkt[4] = 0x00; pkt[5] = 0x01;   /* dst: multicast */
+	pkt[6] = 0x02; pkt[7] = 0xcc; pkt[8] = 0xdd;
+	pkt[9] = 0xee; pkt[10] = 0x11; pkt[11] = 0x22;  /* src MAC */
+	pkt[12] = 0x86; pkt[13] = 0xdd;                  /* ethertype: IPv6 */
+
+	/* IPv6 header */
+	pkt[14] = 0x60;                                  /* version 6 */
+	/* payload length: 24 (ICMPv6 NA, no options) */
+	pkt[18] = 0x00; pkt[19] = 24;
+	pkt[20] = 58;                                    /* next header: ICMPv6 */
+	pkt[21] = 255;                                   /* hop limit */
+
+	/* src: 2001:db8::3 */
+	pkt[22] = 0x20; pkt[23] = 0x01; pkt[24] = 0x0d; pkt[25] = 0xb8;
+	pkt[37] = 0x03;
+
+	/* dst: ff02::1 */
+	pkt[38] = 0xff; pkt[39] = 0x02;
+	pkt[53] = 0x01;
+
+	/* ICMPv6 NA: type=136, code=0 */
+	pkt[54] = 136;
+	pkt[58] = 0x60;                                  /* flags: S=1, O=1 */
+
+	/* target: 2001:db8::3 */
+	pkt[62] = 0x20; pkt[63] = 0x01; pkt[64] = 0x0d; pkt[65] = 0xb8;
+	pkt[77] = 0x03;
+
+	/* no NDP options */
+
+	feed(pkt, sizeof(pkt));
+}
+
 static void
 test_truncated(void)
 {
@@ -253,6 +296,7 @@ test_multiple_then_cleanup(void)
 	test_arp_request();
 	test_arp_reply();
 	test_ndp_na();
+	test_ndp_na_no_tlla();
 	test_ndp_ns();
 	test_truncated();
 }
@@ -267,6 +311,7 @@ main(void)
 	test_arp_request();
 	test_arp_reply();
 	test_ndp_na();
+	test_ndp_na_no_tlla();
 	test_ndp_ns();
 	test_truncated();
 

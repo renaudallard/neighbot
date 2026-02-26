@@ -20,7 +20,7 @@ jobs:
       - name: Run under valgrind
         run: |
           rc=0
-          for t in tests/test_parse tests/test_dbload tests/test_ouiload tests/test_probe; do
+          for t in tests/test_parse tests/test_dbload tests/test_ouiload tests/test_probe tests/test_capture; do
             name=$(basename "$t")
             echo "=== $name ==="
             if ! valgrind --leak-check=full --errors-for-leak-kinds=all \

@@ -40,5 +40,8 @@ struct iface {
 int  capture_open_all(struct iface *ifaces, int max);
 void capture_close_all(struct iface *ifaces, int count);
 int  capture_is_local(const char *iface, int af, const uint8_t *ip);
+void capture_add_subnet(const char *iface, int af,
+                        const uint8_t *addr, const uint8_t *mask);
+void capture_reset_subnets(void);
 
 #endif

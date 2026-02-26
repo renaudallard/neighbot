@@ -276,6 +276,7 @@ tests/test_parse                       # run parser tests
 tests/test_dbload                      # run database loader tests
 tests/test_ouiload                     # run OUI loader tests
 tests/test_probe                       # run probe builder and state machine tests
+tests/test_capture                     # run capture_is_local subnet tests
 make test-clean                        # remove test binaries
 ```
 
@@ -286,6 +287,7 @@ valgrind --leak-check=full --error-exitcode=1 tests/test_parse
 valgrind --leak-check=full --error-exitcode=1 tests/test_dbload
 valgrind --leak-check=full --error-exitcode=1 tests/test_ouiload
 valgrind --leak-check=full --error-exitcode=1 tests/test_probe
+valgrind --leak-check=full --error-exitcode=1 tests/test_capture
 ```
 
 A CI workflow (`.github/workflows/valgrind.yml`) runs all tests under valgrind

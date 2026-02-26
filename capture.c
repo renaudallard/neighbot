@@ -164,6 +164,32 @@ fill_local_subnets(struct iface *ifaces, int count)
 	freeifaddrs(ifap);
 }
 
+void
+capture_add_subnet(const char *iface, int af,
+                   const uint8_t *addr, const uint8_t *mask)
+{
+	int alen = ip_len(af);
+	struct subnet *s;
+
+	if (subnet_count >= MAX_SUBNETS)
+		return;
+
+	s = &subnets[subnet_count];
+	snprintf(s->iface, sizeof(s->iface), "%s", iface);
+	s->af = af;
+	memset(s->addr, 0, sizeof(s->addr));
+	memset(s->mask, 0, sizeof(s->mask));
+	memcpy(s->addr, addr, alen);
+	memcpy(s->mask, mask, alen);
+	subnet_count++;
+}
+
+void
+capture_reset_subnets(void)
+{
+	subnet_count = 0;
+}
+
 int
 capture_is_local(const char *iface, int af, const uint8_t *ip)
 {

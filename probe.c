@@ -60,7 +60,7 @@ static struct probe probes[PROBE_MAX_SLOTS];
 /* Build ARP request: 42 bytes total.
  * spa=0.0.0.0 (RFC 5227 probe), tpa=target IP.
  * src_mac is the interface's local MAC. */
-static int
+int
 build_arp_request(uint8_t *buf, size_t buflen,
                   const uint8_t *src_mac, const uint8_t *target_ip)
 {
@@ -97,7 +97,7 @@ build_arp_request(uint8_t *buf, size_t buflen,
 }
 
 /* ICMPv6 checksum over pseudo-header + payload */
-static uint16_t
+uint16_t
 icmp6_checksum(const uint8_t *src6, const uint8_t *dst6,
                const uint8_t *icmp, size_t icmplen)
 {
@@ -126,7 +126,7 @@ icmp6_checksum(const uint8_t *src6, const uint8_t *dst6,
 /* Build NDP Neighbor Solicitation: ~78 bytes.
  * src=::, dst=solicited-node multicast of target.
  * No Source LLA option (src is ::). */
-static int
+int
 build_ndp_ns(uint8_t *buf, size_t buflen,
              const uint8_t *src_mac, const uint8_t *target_ip6)
 {
@@ -375,4 +375,10 @@ probe_dump(void)
 	}
 
 	log_msg("probe: %d/%d slots active", active, PROBE_MAX_SLOTS);
+}
+
+void
+probe_reset(void)
+{
+	memset(probes, 0, sizeof(probes));
 }

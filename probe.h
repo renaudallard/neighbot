@@ -35,11 +35,18 @@
 #define PROBE_MAX_TRIES   3
 #define PROBE_TIMEOUT     5   /* seconds per attempt */
 
+int  build_arp_request(uint8_t *buf, size_t buflen,
+                       const uint8_t *src_mac, const uint8_t *target_ip);
+uint16_t icmp6_checksum(const uint8_t *src6, const uint8_t *dst6,
+                        const uint8_t *icmp, size_t icmplen);
+int  build_ndp_ns(uint8_t *buf, size_t buflen,
+                  const uint8_t *src_mac, const uint8_t *target_ip6);
 void probe_schedule(int af, const uint8_t *ip, const uint8_t *mac,
                     int new_af, const uint8_t *new_ip,
                     const char *iface);
 void probe_mark_seen(int af, const uint8_t *ip, const uint8_t *mac);
 void probe_tick(struct iface *ifaces, int nifaces);
 void probe_dump(void);
+void probe_reset(void);
 
 #endif

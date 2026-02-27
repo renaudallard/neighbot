@@ -1,5 +1,5 @@
 Name: neighbot
-Version: 0.5.0
+Version: 0.5.3
 Release: 1%{?dist}
 Summary: Network neighbor monitoring daemon
 
@@ -57,6 +57,13 @@ if [ -x /usr/bin/systemctl ]; then
 fi
 
 %changelog
+* Thu Feb 27 2026 Renaud Allard <renaud@allard.it> 0.5.3-1
+- Skip probing the local host's own IPs to prevent false moved alerts
+- Fix false moved alerts for NDP packets without link-layer address option
+- Fix zombie leak in notify_report_open error path
+- Add -B flag for bogon notification rate limiting
+- Add test_probe, test_capture, test_notify harnesses
+
 * Wed Feb 25 2026 Renaud Allard <renaud@allard.it> 0.5.0-1
 - Add -r report mode to print database summary
 

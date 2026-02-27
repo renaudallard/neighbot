@@ -1,6 +1,6 @@
 # Maintainer: Renaud Allard <renaud@allard.it>
 pkgname=neighbot
-pkgver=0.5.0
+pkgver=0.5.3
 pkgrel=0
 pkgdesc="Network neighbor monitoring daemon"
 url="https://github.com/renaudallard/neighbot"

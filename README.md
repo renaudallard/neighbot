@@ -155,6 +155,9 @@ This avoids polluting the target's neighbor cache.
 
 Link-local addresses (fe80::/10, 169.254/16) are excluded from probing
 since every IPv6 interface has one alongside its global address.
+IPs assigned to the local host's own interfaces are also excluded,
+preventing false "moved" alerts when the host has multiple IPs across
+VLANs or other interfaces.
 
 **IPv6 temporary addresses (RFC 4941):** When a device using privacy
 extensions rotates its temporary address, neighbot detects that the same

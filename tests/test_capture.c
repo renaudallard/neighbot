@@ -91,6 +91,43 @@ test_no_subnet_for_af(void)
 }
 
 static int
+test_own_ip(void)
+{
+	uint8_t ip4[4] = { 192, 168, 1, 1 };
+	uint8_t ip4_other[4] = { 10, 0, 0, 1 };
+	uint8_t ip6[16] = { 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0,
+	                     0, 0, 0, 0, 0, 0, 0, 0x01 };
+	uint8_t ip6_other[16] = { 0x20, 0x01, 0x0d, 0xb9, 0, 0, 0, 0,
+	                           0, 0, 0, 0, 0, 0, 0, 0x01 };
+
+	capture_reset_own_ips();
+
+	/* no own IPs configured. should return 0 */
+	ASSERT(capture_is_own_ip(AF_INET, ip4) == 0,
+	       "no own IPs, should not match");
+
+	capture_add_own_ip(AF_INET, ip4);
+	capture_add_own_ip(AF_INET6, ip6);
+
+	ASSERT(capture_is_own_ip(AF_INET, ip4) == 1,
+	       "192.168.1.1 should be own IP");
+	ASSERT(capture_is_own_ip(AF_INET, ip4_other) == 0,
+	       "10.0.0.1 should not be own IP");
+	ASSERT(capture_is_own_ip(AF_INET6, ip6) == 1,
+	       "2001:db8::1 should be own IP");
+	ASSERT(capture_is_own_ip(AF_INET6, ip6_other) == 0,
+	       "2001:db9::1 should not be own IP");
+
+	/* reset clears all */
+	capture_reset_own_ips();
+	ASSERT(capture_is_own_ip(AF_INET, ip4) == 0,
+	       "after reset, should not match");
+
+	printf("  own_ip: ok\n");
+	return 0;
+}
+
+static int
 test_ipv6_subnet(void)
 {
 	/* 2001:db8::/32 */
@@ -128,6 +165,7 @@ main(void)
 	rc |= test_ipv4_subnet();
 	rc |= test_no_subnet_for_af();
 	rc |= test_ipv6_subnet();
+	rc |= test_own_ip();
 
 	if (rc == 0)
 		printf("test_capture: all tests passed\n");

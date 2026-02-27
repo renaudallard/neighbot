@@ -53,6 +53,14 @@ struct subnet {
 static struct subnet subnets[MAX_SUBNETS];
 static int subnet_count;
 
+struct local_ip {
+	int     af;
+	uint8_t ip[16];
+};
+
+static struct local_ip own_ips[MAX_LOCAL_IPS];
+static int own_ip_count;
+
 static void
 fill_local_macs(struct iface *ifaces, int count)
 {
@@ -188,6 +196,96 @@ void
 capture_reset_subnets(void)
 {
 	subnet_count = 0;
+}
+
+static void
+fill_local_ips(struct iface *ifaces, int count)
+{
+	struct ifaddrs *ifap, *ifa;
+
+	own_ip_count = 0;
+
+	if (getifaddrs(&ifap) < 0)
+		return;
+
+	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+		int af, alen;
+		const uint8_t *addr;
+		int found = 0;
+
+		if (!ifa->ifa_addr)
+			continue;
+
+		af = ifa->ifa_addr->sa_family;
+		if (af == AF_INET) {
+			struct sockaddr_in *sin =
+			    (struct sockaddr_in *)ifa->ifa_addr;
+			addr = (const uint8_t *)&sin->sin_addr;
+			alen = 4;
+		} else if (af == AF_INET6) {
+			struct sockaddr_in6 *sin6 =
+			    (struct sockaddr_in6 *)ifa->ifa_addr;
+			addr = (const uint8_t *)&sin6->sin6_addr;
+			alen = 16;
+		} else {
+			continue;
+		}
+
+		for (int i = 0; i < count; i++) {
+			if (strcmp(ifaces[i].name, ifa->ifa_name) == 0) {
+				found = 1;
+				break;
+			}
+		}
+		if (!found)
+			continue;
+
+		if (own_ip_count >= MAX_LOCAL_IPS)
+			break;
+
+		struct local_ip *l = &own_ips[own_ip_count];
+		l->af = af;
+		memset(l->ip, 0, sizeof(l->ip));
+		memcpy(l->ip, addr, alen);
+		own_ip_count++;
+	}
+
+	freeifaddrs(ifap);
+}
+
+void
+capture_add_own_ip(int af, const uint8_t *ip)
+{
+	int alen = ip_len(af);
+	struct local_ip *l;
+
+	if (own_ip_count >= MAX_LOCAL_IPS)
+		return;
+
+	l = &own_ips[own_ip_count];
+	l->af = af;
+	memset(l->ip, 0, sizeof(l->ip));
+	memcpy(l->ip, ip, alen);
+	own_ip_count++;
+}
+
+void
+capture_reset_own_ips(void)
+{
+	own_ip_count = 0;
+}
+
+int
+capture_is_own_ip(int af, const uint8_t *ip)
+{
+	int alen = ip_len(af);
+
+	for (int i = 0; i < own_ip_count; i++) {
+		if (own_ips[i].af == af &&
+		    memcmp(own_ips[i].ip, ip, alen) == 0)
+			return 1;
+	}
+	return 0;
 }
 
 int
@@ -327,6 +425,7 @@ capture_open_all(struct iface *ifaces, int max)
 	pcap_freealldevs(alldevs);
 	fill_local_macs(ifaces, count);
 	fill_local_subnets(ifaces, count);
+	fill_local_ips(ifaces, count);
 	return count;
 }
 

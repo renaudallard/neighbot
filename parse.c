@@ -125,9 +125,13 @@ handle_event(int event, int af, const uint8_t *ip, const uint8_t *mac,
 			struct db_entry_info others[PROBE_MAX_SLOTS];
 			int n = db_find_other_entries(mac, af, ip,
 			    others, PROBE_MAX_SLOTS);
-			for (int i = 0; i < n; i++)
+			for (int i = 0; i < n; i++) {
+				if (capture_is_own_ip(others[i].af,
+				    others[i].ip))
+					continue;
 				probe_schedule(others[i].af, others[i].ip,
 				    mac, af, ip, others[i].iface);
+			}
 		}
 	} else if (event == EVENT_CHANGED) {
 		format_mac(old_mac, oldmacstr, sizeof(oldmacstr));

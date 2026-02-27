@@ -29,6 +29,13 @@ capture_is_local(const char *iface, int af, const uint8_t *ip)
 	return 1;
 }
 
+int
+capture_is_own_ip(int af, const uint8_t *ip)
+{
+	(void)af; (void)ip;
+	return 0;
+}
+
 void probe_schedule(int af, const uint8_t *ip, const uint8_t *mac,
     int new_af, const uint8_t *new_ip, const char *iface)
 { (void)af; (void)ip; (void)mac; (void)new_af; (void)new_ip; (void)iface; }

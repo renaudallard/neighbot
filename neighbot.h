@@ -48,6 +48,7 @@
 #define SNAP_LEN         128
 #define POLL_TIMEOUT_MS  1000
 #define MAX_SUBNETS      256
+#define MAX_LOCAL_IPS    256
 #define REAPPEAR_SECS    (180 * 24 * 3600)  /* 6 months */
 #define DEFAULT_BOGON_COOLDOWN 1800         /* 30 minutes */
 

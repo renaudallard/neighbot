@@ -68,7 +68,8 @@ of the same address family to determine whether the device moved
 (old IP dead) or has multiple addresses (both active).
 Dual-stack hosts are not probed across IPv4/IPv6.
 Probes use a zero source address to avoid polluting ARP/NDP caches.
-Link-local addresses are excluded from probing.
+Link-local addresses and IPs assigned to the local host's own
+interfaces are excluded from probing.
 .Pp
 When an IPv6 temporary address (RFC 4941) rotates, the new address
 is not reported as a new station; instead the old temporary address

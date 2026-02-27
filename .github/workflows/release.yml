@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write
     steps:
       - uses: actions/checkout@v4
 
@@ -45,5 +46,14 @@ jobs:
             --title "neighbot ${{ steps.version.outputs.version }}" \
             --generate-notes \
             "neighbot-${{ steps.version.outputs.version }}.tar.gz"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Trigger package builds
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          gh workflow run release-packages.yml \
+            -f ref="${{ steps.version.outputs.tag }}" \
+            -f release_tag="${{ steps.version.outputs.tag }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

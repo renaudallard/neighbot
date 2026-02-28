@@ -38,13 +38,13 @@ test_format_delta(void)
 	ASSERT(strcmp(buf, "30 seconds") == 0, "delta 30s");
 
 	format_delta(61, buf, sizeof(buf));
-	ASSERT(strcmp(buf, "1 minutes") == 0, "delta 61s");
+	ASSERT(strcmp(buf, "1 minute") == 0, "delta 61s");
 
 	format_delta(3601, buf, sizeof(buf));
-	ASSERT(strcmp(buf, "1 hours") == 0, "delta 3601s");
+	ASSERT(strcmp(buf, "1 hour") == 0, "delta 3601s");
 
 	format_delta(86401, buf, sizeof(buf));
-	ASSERT(strcmp(buf, "1 days") == 0, "delta 86401s");
+	ASSERT(strcmp(buf, "1 day") == 0, "delta 86401s");
 
 	format_delta(-5, buf, sizeof(buf));
 	ASSERT(strcmp(buf, "0 seconds") == 0, "delta negative clamp");

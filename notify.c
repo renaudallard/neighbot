@@ -103,13 +103,16 @@ format_delta(time_t delta, char *buf, size_t len)
 	}
 
 	if (d < 60)
-		snprintf(buf, len, "%ld seconds", d);
+		snprintf(buf, len, "%ld second%s", d, d == 1 ? "" : "s");
 	else if (d < 3600)
-		snprintf(buf, len, "%ld minutes", d / 60);
+		snprintf(buf, len, "%ld minute%s", d / 60,
+		    d / 60 == 1 ? "" : "s");
 	else if (d < 86400)
-		snprintf(buf, len, "%ld hours", d / 3600);
+		snprintf(buf, len, "%ld hour%s", d / 3600,
+		    d / 3600 == 1 ? "" : "s");
 	else
-		snprintf(buf, len, "%ld days", d / 86400);
+		snprintf(buf, len, "%ld day%s", d / 86400,
+		    d / 86400 == 1 ? "" : "s");
 }
 
 static void

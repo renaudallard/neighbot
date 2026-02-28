@@ -113,5 +113,5 @@ test-clean:
 	rm -f tests/test_parse tests/test_dbload tests/test_ouiload tests/test_probe tests/test_capture tests/test_notify
 
 .PHONY: all clean install install-systemd install-rcd oui-update uninstall
-.PHONY: fuzz fuzz_parse fuzz_dbload fuzz_ouiload fuzz-clean
+.PHONY: fuzz fuzz-clean
 .PHONY: test test-clean

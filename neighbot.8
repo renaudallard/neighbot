@@ -46,6 +46,16 @@ Default:
 .Pa /var/neighbot/neighbot.csv .
 .It Fl i Ar iface
 Monitor only the specified interface instead of all Ethernet interfaces.
+When monitoring all interfaces (no
+.Fl i
+specified), trunk interfaces that have VLAN subinterfaces and no
+IP addresses of their own are automatically skipped.
+Only the VLAN subinterfaces are monitored.
+Trunks with IP addresses are kept since they carry native VLAN traffic.
+On Linux, this requires the 8021q kernel module to be loaded.
+Use
+.Fl i
+to explicitly monitor a trunk interface.
 .It Fl m Ar mailto
 Email recipient for notifications.
 Default:

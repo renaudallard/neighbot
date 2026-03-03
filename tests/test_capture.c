@@ -6,8 +6,10 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <signal.h>
+#include <unistd.h>
 #include <arpa/inet.h>
 
 #include "../neighbot.h"
@@ -153,6 +155,100 @@ test_ipv6_subnet(void)
 	return 0;
 }
 
+#if defined(__linux__)
+
+#define VLAN_TMP "/tmp/test_vlan_parents.tmp"
+
+static void
+write_file(const char *path, const char *data)
+{
+	FILE *fp = fopen(path, "w");
+
+	if (!fp) {
+		perror(path);
+		exit(1);
+	}
+	fputs(data, fp);
+	fclose(fp);
+}
+
+static int
+test_vlan_parents_basic(void)
+{
+	char parents[64][32];
+	int n;
+
+	write_file(VLAN_TMP,
+	    "VLAN Dev name    | VLAN ID\n"
+	    "Name-Type: VLAN_NAME_TYPE_RAW_PLUS_VID_NO_PAD\n"
+	    "eth0.100       | 100  | eth0\n"
+	    "eth0.200       | 200  | eth0\n");
+
+	n = capture_parse_vlan_parents(VLAN_TMP, parents, 64);
+	unlink(VLAN_TMP);
+
+	ASSERT(n == 1, "should find 1 unique parent");
+	ASSERT(strcmp(parents[0], "eth0") == 0,
+	       "parent should be eth0");
+
+	printf("  vlan_parents_basic: ok\n");
+	return 0;
+}
+
+static int
+test_vlan_parents_multi(void)
+{
+	char parents[64][32];
+	int n;
+
+	write_file(VLAN_TMP,
+	    "VLAN Dev name    | VLAN ID\n"
+	    "Name-Type: VLAN_NAME_TYPE_RAW_PLUS_VID_NO_PAD\n"
+	    "eth0.100       | 100  | eth0\n"
+	    "eth1.200       | 200  | eth1\n");
+
+	n = capture_parse_vlan_parents(VLAN_TMP, parents, 64);
+	unlink(VLAN_TMP);
+
+	ASSERT(n == 2, "should find 2 unique parents");
+
+	printf("  vlan_parents_multi: ok\n");
+	return 0;
+}
+
+static int
+test_vlan_parents_empty(void)
+{
+	char parents[64][32];
+	int n;
+
+	write_file(VLAN_TMP, "");
+
+	n = capture_parse_vlan_parents(VLAN_TMP, parents, 64);
+	unlink(VLAN_TMP);
+
+	ASSERT(n == 0, "empty file should return 0");
+
+	printf("  vlan_parents_empty: ok\n");
+	return 0;
+}
+
+static int
+test_vlan_parents_nofile(void)
+{
+	char parents[64][32];
+	int n;
+
+	n = capture_parse_vlan_parents("/nonexistent/path", parents, 64);
+
+	ASSERT(n == 0, "nonexistent path should return 0");
+
+	printf("  vlan_parents_nofile: ok\n");
+	return 0;
+}
+
+#endif /* __linux__ */
+
 int
 main(void)
 {
@@ -166,6 +262,13 @@ main(void)
 	rc |= test_no_subnet_for_af();
 	rc |= test_ipv6_subnet();
 	rc |= test_own_ip();
+
+#if defined(__linux__)
+	rc |= test_vlan_parents_basic();
+	rc |= test_vlan_parents_multi();
+	rc |= test_vlan_parents_empty();
+	rc |= test_vlan_parents_nofile();
+#endif
 
 	if (rc == 0)
 		printf("test_capture: all tests passed\n");

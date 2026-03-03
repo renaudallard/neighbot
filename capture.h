@@ -47,4 +47,9 @@ void capture_reset_subnets(void);
 void capture_add_own_ip(int af, const uint8_t *ip);
 void capture_reset_own_ips(void);
 
+#if defined(__linux__)
+int  capture_parse_vlan_parents(const char *path,
+                                char parents[][32], int max);
+#endif
+
 #endif

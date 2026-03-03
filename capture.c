@@ -34,8 +34,17 @@
 
 #if defined(__linux__)
 #include <linux/if_packet.h>
-#else
+#include <stdio.h>
+#elif defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__NetBSD__)
 #include <net/if_dl.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
+#include <unistd.h>
+#if defined(__FreeBSD__)
+#include <net/if_vlan_var.h>
+#elif defined(__NetBSD__)
+#include <net/if_vlanvar.h>
+#endif
 #endif
 
 #include "neighbot.h"
@@ -326,6 +335,206 @@ capture_is_local(const char *iface, int af, const uint8_t *ip)
 	return 0;
 }
 
+#if defined(__linux__)
+int
+capture_parse_vlan_parents(const char *path,
+    char parents[][32], int max)
+{
+	FILE *f;
+	char line[256];
+	int count = 0;
+
+	f = fopen(path, "r");
+	if (!f)
+		return 0;
+
+	while (fgets(line, sizeof(line), f) && count < max) {
+		char dev[32], parent[32];
+		int vid;
+
+		if (sscanf(line, "%31s | %d | %31s",
+		    dev, &vid, parent) != 3)
+			continue;
+
+		/* deduplicate */
+		int dup = 0;
+		for (int i = 0; i < count; i++) {
+			if (strcmp(parents[i], parent) == 0) {
+				dup = 1;
+				break;
+			}
+		}
+		if (!dup) {
+			snprintf(parents[count], 32, "%s", parent);
+			count++;
+		}
+	}
+
+	fclose(f);
+	return count;
+}
+#endif
+
+static int
+find_vlan_parents(const pcap_if_t *alldevs, char parents[][32], int max)
+{
+#if defined(__linux__)
+	(void)alldevs;
+	return capture_parse_vlan_parents("/proc/net/vlan/config",
+	    parents, max);
+#elif defined(__OpenBSD__)
+	const pcap_if_t *dev;
+	int sock, count = 0;
+
+	sock = socket(AF_INET, SOCK_DGRAM, 0);
+	if (sock < 0)
+		return 0;
+
+	for (dev = alldevs; dev && count < max; dev = dev->next) {
+		struct if_parent ifp;
+
+		/* only consider actual VLAN interfaces */
+		if (strncmp(dev->name, "vlan", 4) != 0)
+			continue;
+
+		memset(&ifp, 0, sizeof(ifp));
+		snprintf(ifp.ifp_name, sizeof(ifp.ifp_name),
+		    "%s", dev->name);
+		if (ioctl(sock, SIOCGIFPARENT, &ifp) < 0)
+			continue;
+		if (ifp.ifp_parent[0] == '\0')
+			continue;
+
+		int dup = 0;
+		for (int i = 0; i < count; i++) {
+			if (strcmp(parents[i], ifp.ifp_parent) == 0) {
+				dup = 1;
+				break;
+			}
+		}
+		if (!dup) {
+			snprintf(parents[count], 32, "%s",
+			    ifp.ifp_parent);
+			count++;
+		}
+	}
+
+	close(sock);
+	return count;
+#elif defined(__FreeBSD__) || defined(__NetBSD__)
+	const pcap_if_t *dev;
+	int sock, count = 0;
+
+	sock = socket(AF_INET, SOCK_DGRAM, 0);
+	if (sock < 0)
+		return 0;
+
+	for (dev = alldevs; dev && count < max; dev = dev->next) {
+		struct ifreq ifr;
+		struct vlanreq vreq;
+
+		memset(&ifr, 0, sizeof(ifr));
+		memset(&vreq, 0, sizeof(vreq));
+		snprintf(ifr.ifr_name, sizeof(ifr.ifr_name),
+		    "%s", dev->name);
+		ifr.ifr_data = (caddr_t)&vreq;
+
+		if (ioctl(sock, SIOCGETVLAN, &ifr) < 0)
+			continue;
+		if (vreq.vlr_parent[0] == '\0')
+			continue;
+
+		int dup = 0;
+		for (int i = 0; i < count; i++) {
+			if (strcmp(parents[i], vreq.vlr_parent) == 0) {
+				dup = 1;
+				break;
+			}
+		}
+		if (!dup) {
+			snprintf(parents[count], 32, "%s",
+			    vreq.vlr_parent);
+			count++;
+		}
+	}
+
+	close(sock);
+	return count;
+#else
+	(void)alldevs;
+	(void)parents;
+	(void)max;
+	return 0;
+#endif
+}
+
+/*
+ * Remove parents that have non-link-local IP addresses.
+ * Those interfaces carry their own untagged traffic and must be monitored.
+ */
+static int
+filter_assigned_parents(char parents[][32], int count)
+{
+	struct ifaddrs *ifap, *ifa;
+	int assigned[64] = {0};
+	int out = 0;
+
+	if (count <= 0 || count > 64)
+		return count;
+
+	if (getifaddrs(&ifap) < 0)
+		return count;
+
+	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+		const uint8_t *ip;
+
+		if (!ifa->ifa_addr)
+			continue;
+
+		if (ifa->ifa_addr->sa_family == AF_INET) {
+			struct sockaddr_in *sin =
+			    (struct sockaddr_in *)ifa->ifa_addr;
+			ip = (const uint8_t *)&sin->sin_addr;
+			if (IS_LINKLOCAL4(ip))
+				continue;
+		} else if (ifa->ifa_addr->sa_family == AF_INET6) {
+			struct sockaddr_in6 *sin6 =
+			    (struct sockaddr_in6 *)ifa->ifa_addr;
+			ip = (const uint8_t *)&sin6->sin6_addr;
+			if (IS_LINKLOCAL6(ip))
+				continue;
+		} else {
+			continue;
+		}
+
+		for (int i = 0; i < count; i++) {
+			if (strcmp(parents[i], ifa->ifa_name) == 0)
+				assigned[i] = 1;
+		}
+	}
+
+	freeifaddrs(ifap);
+
+	for (int i = 0; i < count; i++) {
+		if (!assigned[i]) {
+			if (out != i)
+				memcpy(parents[out], parents[i], 32);
+			out++;
+		}
+	}
+	return out;
+}
+
+static int
+is_vlan_parent(const char *name, char parents[][32], int count)
+{
+	for (int i = 0; i < count; i++) {
+		if (strcmp(name, parents[i]) == 0)
+			return 1;
+	}
+	return 0;
+}
+
 int
 capture_open_all(struct iface *ifaces, int max)
 {
@@ -338,6 +547,13 @@ capture_open_all(struct iface *ifaces, int max)
 		return -1;
 	}
 
+	char vlan_parents[64][32];
+	int nparents = 0;
+	if (!cfg.iface) {
+		nparents = find_vlan_parents(alldevs, vlan_parents, 64);
+		nparents = filter_assigned_parents(vlan_parents, nparents);
+	}
+
 	for (dev = alldevs; dev && count < max; dev = dev->next) {
 		pcap_t *p;
 		struct bpf_program bpf;
@@ -346,6 +562,14 @@ capture_open_all(struct iface *ifaces, int max)
 		/* skip loopback */
 		if (dev->flags & PCAP_IF_LOOPBACK)
 			continue;
+
+		/* skip VLAN trunk parents when monitoring all interfaces */
+		if (nparents > 0 &&
+		    is_vlan_parent(dev->name, vlan_parents, nparents)) {
+			log_msg("skipping %s (has VLAN subinterfaces)",
+			    dev->name);
+			continue;
+		}
 
 		/* filter by interface name if specified */
 		if (cfg.iface && strcmp(dev->name, cfg.iface) != 0)

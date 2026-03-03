@@ -30,6 +30,13 @@ capture_is_local(const char *iface, int af, const uint8_t *ip)
 }
 
 int
+capture_is_local_any(int af, const uint8_t *ip)
+{
+	(void)af; (void)ip;
+	return 1;
+}
+
+int
 capture_is_own_ip(int af, const uint8_t *ip)
 {
 	(void)af; (void)ip;

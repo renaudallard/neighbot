@@ -150,9 +150,12 @@ or ARP spoofing.
 A known MAC/IP pair is seen again after more than 6 months of silence.
 .It bogon
 An IP address is seen that does not belong to any subnet configured
-on the receiving interface.
+on any monitored interface.
 This may indicate ARP or NDP spoofing.
 Bogon packets are not added to the database.
+IPs that are foreign to the receiving interface but match another
+monitored interface's subnet are silently ignored (common with
+access points on VLAN trunks).
 .It moved
 A MAC address is seen at a new IP address while its old IP no longer
 responds to probes (requires active probing).

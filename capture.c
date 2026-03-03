@@ -298,6 +298,42 @@ capture_is_own_ip(int af, const uint8_t *ip)
 }
 
 int
+capture_is_local_any(int af, const uint8_t *ip)
+{
+	int alen = ip_len(af);
+	int has_subnet = 0;
+
+	if (af == AF_INET6 && IS_LINKLOCAL6(ip))
+		return 1;
+	if (af == AF_INET && IS_LINKLOCAL4(ip))
+		return 1;
+
+	for (int i = 0; i < subnet_count; i++) {
+		struct subnet *s = &subnets[i];
+
+		if (s->af != af)
+			continue;
+		has_subnet = 1;
+
+		int match = 1;
+		for (int j = 0; j < alen; j++) {
+			if ((ip[j] & s->mask[j]) !=
+			    (s->addr[j] & s->mask[j])) {
+				match = 0;
+				break;
+			}
+		}
+		if (match)
+			return 1;
+	}
+
+	if (!has_subnet)
+		return 1;
+
+	return 0;
+}
+
+int
 capture_is_local(const char *iface, int af, const uint8_t *ip)
 {
 	int alen = ip_len(af);

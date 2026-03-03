@@ -155,6 +155,42 @@ test_ipv6_subnet(void)
 	return 0;
 }
 
+static int
+test_is_local_any(void)
+{
+	uint8_t addr1[4] = { 192, 168, 1, 0 };
+	uint8_t mask1[4] = { 255, 255, 255, 0 };
+	uint8_t addr2[4] = { 172, 20, 0, 0 };
+	uint8_t mask2[4] = { 255, 255, 0, 0 };
+
+	uint8_t ip_eth0[4] = { 192, 168, 1, 100 };
+	uint8_t ip_eth1[4] = { 172, 20, 0, 240 };
+	uint8_t ip_bogon[4] = { 10, 0, 0, 1 };
+
+	capture_reset_subnets();
+	capture_add_subnet("eth0", AF_INET, addr1, mask1);
+	capture_add_subnet("eth1", AF_INET, addr2, mask2);
+
+	/* 172.20.0.240 is not local to eth0 but is local to any */
+	ASSERT(capture_is_local("eth0", AF_INET, ip_eth1) == 0,
+	       "172.20.0.240 should not be local to eth0");
+	ASSERT(capture_is_local_any(AF_INET, ip_eth1) == 1,
+	       "172.20.0.240 should be local to some interface");
+
+	/* 192.168.1.100 is local to eth0 and local to any */
+	ASSERT(capture_is_local("eth0", AF_INET, ip_eth0) == 1,
+	       "192.168.1.100 should be local to eth0");
+	ASSERT(capture_is_local_any(AF_INET, ip_eth0) == 1,
+	       "192.168.1.100 should be local to some interface");
+
+	/* 10.0.0.1 is not local to any */
+	ASSERT(capture_is_local_any(AF_INET, ip_bogon) == 0,
+	       "10.0.0.1 should not be local to any interface");
+
+	printf("  is_local_any: ok\n");
+	return 0;
+}
+
 #if defined(__linux__)
 
 #define VLAN_TMP "/tmp/test_vlan_parents.tmp"
@@ -262,6 +298,7 @@ main(void)
 	rc |= test_no_subnet_for_af();
 	rc |= test_ipv6_subnet();
 	rc |= test_own_ip();
+	rc |= test_is_local_any();
 
 #if defined(__linux__)
 	rc |= test_vlan_parents_basic();

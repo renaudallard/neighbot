@@ -296,7 +296,8 @@ parse_arp(const u_char *pkt, size_t len, const char *iface)
 		return;
 
 	if (!capture_is_local(iface, AF_INET, arp->spa)) {
-		handle_bogon(AF_INET, arp->spa, arp->sha, iface);
+		if (!capture_is_local_any(AF_INET, arp->spa))
+			handle_bogon(AF_INET, arp->spa, arp->sha, iface);
 		return;
 	}
 
@@ -409,7 +410,8 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 		return;
 
 	if (!capture_is_local(iface, AF_INET6, ip_addr)) {
-		handle_bogon(AF_INET6, ip_addr, mac, iface);
+		if (!capture_is_local_any(AF_INET6, ip_addr))
+			handle_bogon(AF_INET6, ip_addr, mac, iface);
 		return;
 	}
 

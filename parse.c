@@ -129,6 +129,13 @@ handle_event(int event, int af, const uint8_t *ip, const uint8_t *mac,
 				if (capture_is_own_ip(others[i].af,
 				    others[i].ip))
 					continue;
+				/* temp rotation: skip probing other
+				 * temp addresses in the same /64 */
+				if (temp_rotate &&
+				    others[i].af == AF_INET6 &&
+				    memcmp(others[i].ip, ip, 8) == 0 &&
+				    !is_eui64(others[i].ip, mac))
+					continue;
 				probe_schedule(others[i].af, others[i].ip,
 				    mac, af, ip, others[i].iface);
 			}

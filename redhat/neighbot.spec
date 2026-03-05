@@ -1,5 +1,5 @@
 Name: neighbot
-Version: 0.5.5
+Version: 0.5.6
 Release: 1%{?dist}
 Summary: Network neighbor monitoring daemon
 
@@ -57,6 +57,9 @@ if [ -x /usr/bin/systemctl ]; then
 fi
 
 %changelog
+* Fri Mar 06 2026 Renaud Allard <renaud@allard.it> 0.5.6-1
+- Fix false moved alerts on IPv6 temporary address rotation
+
 * Tue Mar 03 2026 Renaud Allard <renaud@allard.it> 0.5.5-1
 - Auto-skip VLAN trunk parents when subinterfaces exist
 - Suppress cross-VLAN bogon alerts for known subnets

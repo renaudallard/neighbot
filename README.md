@@ -164,7 +164,8 @@ VLANs or other interfaces.
 extensions rotates its temporary address, neighbot detects that the same
 MAC already has a non-EUI-64 address in the same /64 prefix and suppresses
 the "new station" email.  The old temporary address is probed, and if it no
-longer responds, a "moved" notification is sent instead.
+longer responds, a "moved" notification is sent instead.  This also covers
+link-local address rotation (common on devices with randomized MACs).
 
 Disable with `-p` for purely passive monitoring.
 

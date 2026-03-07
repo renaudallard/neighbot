@@ -84,6 +84,8 @@ interfaces are excluded from probing.
 When an IPv6 temporary address (RFC 4941) rotates, the new address
 is not reported as a new station; instead the old temporary address
 is probed and reported as moved if it no longer responds.
+This also covers link-local address rotation on devices with
+randomized MACs.
 .Pp
 This flag makes
 .Nm

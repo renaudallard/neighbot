@@ -102,7 +102,6 @@ handle_event(int event, int af, const uint8_t *ip, const uint8_t *mac,
 		 * non-EUI-64 entry for this MAC, suppress "new
 		 * station" and let probing report "moved" instead */
 		int temp_rotate = (af == AF_INET6 &&
-		    !IS_LINKLOCAL6(ip) &&
 		    !is_eui64(ip, mac) &&
 		    db_has_temp_in_prefix(mac, ip));
 

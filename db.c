@@ -441,8 +441,9 @@ db_find_other_entries(const uint8_t *mac, int exclude_af,
 	return count;
 }
 
-/* Check if MAC already has a non-EUI-64 routable IPv6 in the same /64.
- * Used to detect temporary address rotation (RFC 4941). */
+/* Check if MAC already has a non-EUI-64 IPv6 in the same /64.
+ * Used to detect temporary address rotation (RFC 4941)
+ * and link-local address rotation. */
 int
 db_has_temp_in_prefix(const uint8_t *mac, const uint8_t *ip6)
 {
@@ -457,9 +458,6 @@ db_has_temp_in_prefix(const uint8_t *mac, const uint8_t *ip6)
 				continue;
 			/* skip the IP itself */
 			if (memcmp(e->ip, ip6, 16) == 0)
-				continue;
-			/* skip link-local */
-			if (IS_LINKLOCAL6(e->ip))
 				continue;
 			/* skip EUI-64 derived addresses */
 			if (is_eui64(e->ip, mac))

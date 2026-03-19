@@ -459,6 +459,59 @@ notify_reappeared(int af, const uint8_t *ip, const uint8_t *mac,
 }
 
 void
+notify_storm(int af, const uint8_t *ip, const uint8_t *mac_a,
+             const uint8_t *mac_b, const char *iface)
+{
+	if (notify_fork() != 0)
+		return;
+
+	char subject[256];
+	char body[2048];
+	char ipstr[INET6_ADDRSTRLEN];
+	char macstr_a[18], macstr_b[18];
+	char host[256];
+	char timebuf[128];
+	const char *vendor_a, *vendor_b;
+
+	inet_ntop(af, ip, ipstr, sizeof(ipstr));
+	format_mac(mac_a, macstr_a, sizeof(macstr_a));
+	format_mac(mac_b, macstr_b, sizeof(macstr_b));
+	resolve_hostname(af, ip, host, sizeof(host));
+	format_timestamp(time(NULL), timebuf, sizeof(timebuf));
+	vendor_a = oui_lookup(mac_a);
+	vendor_b = oui_lookup(mac_b);
+
+	snprintf(subject, sizeof(subject),
+	    "neighbot: address conflict storm %s on %s", ipstr, iface);
+	snprintf(body, sizeof(body),
+	    "An address conflict storm has been detected.\n"
+	    "Two devices are claiming the same IP address,\n"
+	    "generating a flood of flip-flop events.\n"
+	    "\n"
+	    "Further flip-flop notifications for this IP will\n"
+	    "be suppressed until the conflict is resolved.\n"
+	    "\n"
+	    "            hostname: %s\n"
+	    "          ip address: %s\n"
+	    "           interface: %s\n"
+	    "           timestamp: %s\n"
+	    "\n"
+	    "  device A:\n"
+	    "    ethernet address: %s\n"
+	    "     ethernet vendor: %s\n"
+	    "\n"
+	    "  device B:\n"
+	    "    ethernet address: %s\n"
+	    "     ethernet vendor: %s\n",
+	    host, ipstr, iface, timebuf,
+	    macstr_a, vendor_a ? vendor_a : "<unknown>",
+	    macstr_b, vendor_b ? vendor_b : "<unknown>");
+
+	send_mail(subject, body);
+	_exit(0);
+}
+
+void
 notify_moved(int new_af, const uint8_t *new_ip, const uint8_t *mac,
              int old_af, const uint8_t *old_ip, const char *iface)
 {

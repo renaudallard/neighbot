@@ -133,7 +133,7 @@ neighbot -r -m admin@example.com
 |-------|-------------|-------|
 | **new** | Previously unknown IP address seen for the first time | yes (suppressed for IPv6 temporary address rotations) |
 | **changed** | IP seen with a different MAC than previously recorded | yes |
-| **flip-flop** | IP alternates between two known MACs (VRRP/HSRP, dual-homing, or spoofing) | yes |
+| **flip-flop** | IP alternates between two known MACs (VRRP/HSRP, dual-homing, or spoofing). Storm detection suppresses rapid repeats | yes |
 | **reappeared** | Known MAC/IP pair seen again after 6+ months of silence | yes |
 | **bogon** | IP outside any local subnet on the receiving interface (possible spoofing) | yes |
 | **moved** | MAC seen at a new IP while old IP no longer responds to probes | yes |
@@ -249,7 +249,7 @@ Saves are atomic (write to temp file + rename). The entry limit is
 
 | Signal | Action |
 |--------|--------|
-| `SIGHUP` | Save database to disk |
+| `SIGHUP` | Save database to disk and clear storm suppression |
 | `SIGTERM` / `SIGINT` | Save database and exit |
 | `SIGUSR1` | Dump active probe state to the log |
 | `SIGPIPE` | Ignored |

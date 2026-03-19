@@ -85,6 +85,130 @@ is_multicast_mac(const uint8_t *mac)
 }
 
 
+#define STORM_CACHE_SIZE 32
+
+struct storm_slot {
+	int     af;
+	uint8_t ip[16];
+	char    iface[32];
+	uint8_t mac_a[6];
+	uint8_t mac_b[6];
+	time_t  first_flip;
+	time_t  last_flip;
+	int     count;
+	int     suppressed;
+};
+
+static struct storm_slot storm_cache[STORM_CACHE_SIZE];
+
+void
+storm_reset(void)
+{
+	memset(storm_cache, 0, sizeof(storm_cache));
+}
+
+/*
+ * Check if a flip-flop event is part of an address conflict storm.
+ * Returns 1 if the event should be suppressed, 0 otherwise.
+ */
+static int
+storm_check(int af, const uint8_t *ip, const uint8_t *mac,
+            const uint8_t *old_mac, const char *iface)
+{
+	int ilen = ip_len(af);
+	time_t now = time(NULL);
+	int found = -1;
+	int empty = -1;
+	int oldest = 0;
+	time_t oldest_time = 0;
+
+	for (int i = 0; i < STORM_CACHE_SIZE; i++) {
+		if (storm_cache[i].count == 0) {
+			if (empty < 0)
+				empty = i;
+			continue;
+		}
+		if (storm_cache[i].af == af &&
+		    memcmp(storm_cache[i].ip, ip, ilen) == 0) {
+			found = i;
+			break;
+		}
+		if (oldest_time == 0 ||
+		    storm_cache[i].last_flip < oldest_time) {
+			oldest_time = storm_cache[i].last_flip;
+			oldest = i;
+		}
+	}
+
+	if (found >= 0) {
+		struct storm_slot *s = &storm_cache[found];
+
+		if (s->suppressed) {
+			if (now - s->last_flip >= STORM_RECOVER) {
+				char ipstr[INET6_ADDRSTRLEN];
+
+				inet_ntop(af, ip, ipstr, sizeof(ipstr));
+				log_msg("address conflict storm for %s "
+				    "appears resolved", ipstr);
+				memset(s, 0, sizeof(*s));
+				empty = found;
+				found = -1;
+			} else {
+				s->last_flip = now;
+				return 1;
+			}
+		}
+	}
+
+	if (found >= 0) {
+		struct storm_slot *s = &storm_cache[found];
+
+		if (now - s->first_flip > STORM_WINDOW) {
+			s->first_flip = now;
+			s->count = 1;
+		} else {
+			s->count++;
+		}
+		s->last_flip = now;
+		memcpy(s->mac_a, mac, 6);
+		memcpy(s->mac_b, old_mac, 6);
+		snprintf(s->iface, sizeof(s->iface), "%s", iface);
+
+		if (s->count >= STORM_THRESHOLD) {
+			char ipstr[INET6_ADDRSTRLEN];
+			char macstr_a[18], macstr_b[18];
+
+			s->suppressed = 1;
+			inet_ntop(af, ip, ipstr, sizeof(ipstr));
+			format_mac(mac, macstr_a, sizeof(macstr_a));
+			format_mac(old_mac, macstr_b, sizeof(macstr_b));
+			log_msg("address conflict storm detected "
+			    "for %s (%s <-> %s) on %s, suppressing",
+			    ipstr, macstr_a, macstr_b, iface);
+			if (!cfg.quiet)
+				notify_storm(af, ip, mac, old_mac,
+				    iface);
+			return 1;
+		}
+		return 0;
+	}
+
+	/* not found, create new entry */
+	int slot = (empty >= 0) ? empty : oldest;
+	struct storm_slot *s = &storm_cache[slot];
+
+	memset(s, 0, sizeof(*s));
+	s->af = af;
+	memcpy(s->ip, ip, ilen);
+	memcpy(s->mac_a, mac, 6);
+	memcpy(s->mac_b, old_mac, 6);
+	snprintf(s->iface, sizeof(s->iface), "%s", iface);
+	s->first_flip = now;
+	s->last_flip = now;
+	s->count = 1;
+	return 0;
+}
+
 static void
 handle_event(int event, int af, const uint8_t *ip, const uint8_t *mac,
              const uint8_t *old_mac, const char *iface,
@@ -147,12 +271,14 @@ handle_event(int event, int af, const uint8_t *ip, const uint8_t *mac,
 			notify_changed(af, ip, mac, old_mac, iface,
 			               old_last_seen);
 	} else if (event == EVENT_FLIPFLOP) {
-		format_mac(old_mac, oldmacstr, sizeof(oldmacstr));
-		log_msg("flip-flop station %s %s <-> %s on %s",
-		        ipstr, oldmacstr, macstr, iface);
-		if (!cfg.quiet)
-			notify_flipflop(af, ip, mac, old_mac, iface,
-			                old_last_seen);
+		if (!storm_check(af, ip, mac, old_mac, iface)) {
+			format_mac(old_mac, oldmacstr, sizeof(oldmacstr));
+			log_msg("flip-flop station %s %s <-> %s on %s",
+			    ipstr, oldmacstr, macstr, iface);
+			if (!cfg.quiet)
+				notify_flipflop(af, ip, mac, old_mac,
+				    iface, old_last_seen);
+		}
 	} else if (event == EVENT_REAPPEARED) {
 		log_msg("reappeared station %s %s on %s", ipstr, macstr,
 		        iface);

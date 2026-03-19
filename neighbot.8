@@ -148,6 +148,12 @@ previously recorded.
 An IP address alternates between two previously seen MAC addresses.
 This typically indicates VRRP/HSRP failover, dual-homed hosts,
 or ARP spoofing.
+If the same IP flips more than 5 times within 60 seconds, an
+address conflict storm is declared: a single warning email is sent
+and further flip-flop notifications are suppressed until the storm
+subsides (no flips for 30 minutes) or a
+.Dv SIGHUP
+is received.
 .It reappeared
 A known MAC/IP pair is seen again after more than 6 months of silence.
 .It bogon
@@ -180,7 +186,7 @@ memory exhaustion from spoofed traffic.
 .Sh SIGNALS
 .Bl -tag -width SIGTERM
 .It Dv SIGHUP
-Save the database to disk.
+Save the database to disk and clear any active storm suppression.
 .It Dv SIGTERM , Dv SIGINT
 Save the database and exit.
 .It Dv SIGUSR1

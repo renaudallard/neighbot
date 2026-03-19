@@ -51,6 +51,9 @@
 #define MAX_LOCAL_IPS    256
 #define REAPPEAR_SECS    (180 * 24 * 3600)  /* 6 months */
 #define DEFAULT_BOGON_COOLDOWN 1800         /* 30 minutes */
+#define STORM_THRESHOLD  5                   /* flips within window */
+#define STORM_WINDOW     60                  /* seconds */
+#define STORM_RECOVER    1800                /* seconds of quiet */
 
 #define BPF_FILTER "arp or (icmp6 and (ip6[40] == 136 or ip6[40] == 135))"
 

@@ -74,6 +74,10 @@ void notify_moved(int new_af, const uint8_t *new_ip, const uint8_t *mac,
     int old_af, const uint8_t *old_ip, const char *iface)
 { (void)new_af; (void)new_ip; (void)mac; (void)old_af; (void)old_ip; (void)iface; }
 
+void notify_storm(int af, const uint8_t *ip, const uint8_t *mac_a,
+    const uint8_t *mac_b, const char *iface)
+{ (void)af; (void)ip; (void)mac_a; (void)mac_b; (void)iface; }
+
 int
 LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {

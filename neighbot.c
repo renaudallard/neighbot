@@ -61,14 +61,17 @@ struct config cfg = {
 volatile sig_atomic_t quit;
 volatile sig_atomic_t save;
 static volatile sig_atomic_t dump_probes;
+static volatile sig_atomic_t storm_clear;
 
 static void
 sig_handler(int sig)
 {
 	if (sig == SIGTERM || sig == SIGINT)
 		quit = 1;
-	else if (sig == SIGHUP)
+	else if (sig == SIGHUP) {
 		save = 1;
+		storm_clear = 1;
+	}
 	else if (sig == SIGUSR1)
 		dump_probes = 1;
 }
@@ -370,6 +373,11 @@ check_signals:
 		if (dump_probes) {
 			dump_probes = 0;
 			probe_dump();
+		}
+		if (storm_clear) {
+			storm_clear = 0;
+			storm_reset();
+			log_msg("storm suppression cleared");
 		}
 		if (save) {
 			save = 0;

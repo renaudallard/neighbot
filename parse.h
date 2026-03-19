@@ -37,5 +37,6 @@ void handle_moved(int new_af, const uint8_t *new_ip,
 void handle_multiple_ips(int af, const uint8_t *ip, const uint8_t *mac,
                          int other_af, const uint8_t *other_ip,
                          const char *iface);
+void storm_reset(void);
 
 #endif

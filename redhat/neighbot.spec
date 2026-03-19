@@ -1,5 +1,5 @@
 Name: neighbot
-Version: 0.5.6
+Version: 0.5.7
 Release: 1%{?dist}
 Summary: Network neighbor monitoring daemon
 
@@ -57,6 +57,9 @@ if [ -x /usr/bin/systemctl ]; then
 fi
 
 %changelog
+* Wed Mar 19 2026 Renaud Allard <renaud@allard.it> 0.5.7-1
+- Detect flip-flop storms and suppress notification flood
+
 * Fri Mar 06 2026 Renaud Allard <renaud@allard.it> 0.5.6-1
 - Fix false moved alerts on IPv6 temporary address rotation
 

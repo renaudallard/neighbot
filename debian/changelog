@@ -1,3 +1,9 @@
+neighbot (0.5.7-1) unstable; urgency=low
+
+  * Detect flip-flop storms and suppress notification flood
+
+ -- Renaud Allard <renaud@allard.it>  Wed, 19 Mar 2026 00:00:00 +0000
+
 neighbot (0.5.6-1) unstable; urgency=low
 
   * Fix false moved alerts on IPv6 temporary address rotation

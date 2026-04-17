@@ -1,5 +1,5 @@
 Name: neighbot
-Version: 0.5.7
+Version: 0.5.8
 Release: 1%{?dist}
 Summary: Network neighbor monitoring daemon
 
@@ -57,6 +57,9 @@ if [ -x /usr/bin/systemctl ]; then
 fi
 
 %changelog
+* Fri Apr 17 2026 Renaud Allard <renaud@allard.it> 0.5.8-1
+- Learn on-link IPv6 prefixes from Router Advertisements
+
 * Wed Mar 19 2026 Renaud Allard <renaud@allard.it> 0.5.7-1
 - Detect flip-flop storms and suppress notification flood
 

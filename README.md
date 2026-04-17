@@ -136,6 +136,7 @@ neighbot -r -m admin@example.com
 | **flip-flop** | IP alternates between two known MACs (VRRP/HSRP, dual-homing, or spoofing). Storm detection suppresses rapid repeats | yes |
 | **reappeared** | Known MAC/IP pair seen again after 6+ months of silence | yes |
 | **bogon** | IP outside any local subnet on the receiving interface (possible spoofing) | yes |
+| **ra-learned** | IPv6 on-link prefix announced by a Router Advertisement | yes (first time only) |
 | **moved** | MAC seen at a new IP while old IP no longer responds to probes | yes |
 
 ## Active Probing
@@ -168,6 +169,24 @@ longer responds, a "moved" notification is sent instead.  This also covers
 link-local address rotation (common on devices with randomized MACs).
 
 Disable with `-p` for purely passive monitoring.
+
+## IPv6 Prefix Learning (Router Advertisements)
+
+neighbot listens for ICMPv6 Router Advertisements and records every on-link
+prefix announced by a router on each interface (Prefix Information Option
+with the L flag set, RFC 4861). Addresses that match a learned prefix are
+treated as local and no longer produce bogon alerts, even when the host
+itself has no IPv6 address configured on that interface.
+
+The first time a new prefix is learned on an interface, neighbot sends an
+**ra-learned** notification so the operator is aware of the new subnet.
+Subsequent refreshes of the same prefix are silent. Prefix entries expire
+after the RA valid-lifetime (capped at 7 days).
+
+Because the mechanism trusts Router Advertisements, a rogue RA on the
+local link can suppress bogon alerts for the advertised prefix. The
+first-learn notification surfaces that event. Deployments that already
+run RA-Guard or similar L2 filtering retain protection.
 
 ## Service Setup
 

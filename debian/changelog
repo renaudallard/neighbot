@@ -1,3 +1,9 @@
+neighbot (0.5.8-1) unstable; urgency=low
+
+  * Learn on-link IPv6 prefixes from Router Advertisements
+
+ -- Renaud Allard <renaud@allard.it>  Fri, 17 Apr 2026 00:00:00 +0000
+
 neighbot (0.5.7-1) unstable; urgency=low
 
   * Detect flip-flop storms and suppress notification flood

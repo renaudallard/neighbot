@@ -43,6 +43,14 @@ capture_is_own_ip(int af, const uint8_t *ip)
 	return 0;
 }
 
+int
+capture_add_learned_subnet(const char *iface, int af,
+    const uint8_t *addr, int prefix_len, uint32_t lifetime_sec)
+{
+	(void)iface; (void)af; (void)addr; (void)prefix_len; (void)lifetime_sec;
+	return 0;
+}
+
 void probe_schedule(int af, const uint8_t *ip, const uint8_t *mac,
     int new_af, const uint8_t *new_ip, const char *iface)
 { (void)af; (void)ip; (void)mac; (void)new_af; (void)new_ip; (void)iface; }
@@ -77,6 +85,10 @@ void notify_moved(int new_af, const uint8_t *new_ip, const uint8_t *mac,
 void notify_storm(int af, const uint8_t *ip, const uint8_t *mac_a,
     const uint8_t *mac_b, const char *iface)
 { (void)af; (void)ip; (void)mac_a; (void)mac_b; (void)iface; }
+
+void notify_ra_learned(const char *iface, const uint8_t *prefix,
+    int prefix_len, const uint8_t *router, uint32_t lifetime)
+{ (void)iface; (void)prefix; (void)prefix_len; (void)router; (void)lifetime; }
 
 int
 LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)

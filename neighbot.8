@@ -1,4 +1,4 @@
-.Dd February 25, 2026
+.Dd April 17, 2026
 .Dt NEIGHBOT 8
 .Os
 .Sh NAME
@@ -164,6 +164,19 @@ Bogon packets are not added to the database.
 IPs that are foreign to the receiving interface but match another
 monitored interface's subnet are silently ignored (common with
 access points on VLAN trunks).
+.It ra-learned
+A Router Advertisement announced a new on-link IPv6 prefix on an
+interface.
+The prefix is added to the per-interface list of known subnets so
+that addresses within it are no longer reported as bogons.
+A single email is sent the first time a given prefix is learned on
+an interface; refreshes and re-advertisements are silent.
+Prefixes expire after the RA valid-lifetime (capped at 7 days).
+.Pp
+This mechanism trusts incoming Router Advertisements: a rogue RA on
+the local link can suppress bogon alerts for the prefix it announces.
+The first-learn notification is intended to surface that event so the
+operator can investigate.
 .It moved
 A MAC address is seen at a new IP address while its old IP no longer
 responds to probes (requires active probing).

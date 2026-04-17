@@ -31,6 +31,7 @@
 #include <netinet/in.h>
 #include <pcap.h>
 #include <string.h>
+#include <time.h>
 
 #if defined(__linux__)
 #include <linux/if_packet.h>
@@ -69,6 +70,134 @@ struct local_ip {
 
 static struct local_ip own_ips[MAX_LOCAL_IPS];
 static int own_ip_count;
+
+struct learned_subnet {
+	char    iface[32];
+	int     af;
+	uint8_t addr[16];
+	uint8_t mask[16];
+	time_t  expires;
+};
+
+static struct learned_subnet learned[MAX_LEARNED_SUBNETS];
+static int learned_count;
+
+static void
+prefix_to_mask(int af, int prefix_len, uint8_t *mask)
+{
+	int alen = ip_len(af);
+	int bits = prefix_len;
+
+	memset(mask, 0, 16);
+	for (int i = 0; i < alen && bits > 0; i++) {
+		if (bits >= 8) {
+			mask[i] = 0xff;
+			bits -= 8;
+		} else {
+			mask[i] = (uint8_t)(0xff << (8 - bits));
+			bits = 0;
+		}
+	}
+}
+
+static int
+learned_match(const struct learned_subnet *s, int af, const uint8_t *ip)
+{
+	int alen = ip_len(af);
+
+	for (int j = 0; j < alen; j++) {
+		if ((ip[j] & s->mask[j]) != (s->addr[j] & s->mask[j]))
+			return 0;
+	}
+	return 1;
+}
+
+int
+capture_add_learned_subnet(const char *iface, int af,
+                           const uint8_t *addr, int prefix_len,
+                           uint32_t lifetime_sec)
+{
+	int alen = ip_len(af);
+	uint8_t mask[16];
+	uint8_t netaddr[16];
+	time_t now = time(NULL);
+	time_t exp;
+	int oldest = -1;
+	time_t oldest_exp = 0;
+	int slot;
+
+	if (prefix_len < 0 || prefix_len > alen * 8)
+		return -1;
+
+	prefix_to_mask(af, prefix_len, mask);
+
+	memset(netaddr, 0, sizeof(netaddr));
+	for (int i = 0; i < alen; i++)
+		netaddr[i] = addr[i] & mask[i];
+
+	if (lifetime_sec == 0)
+		return -1;
+	if (lifetime_sec > LEARNED_MAX_LIFETIME)
+		lifetime_sec = LEARNED_MAX_LIFETIME;
+	exp = now + (time_t)lifetime_sec;
+
+	/* look for an existing matching entry to refresh */
+	for (int i = 0; i < learned_count; i++) {
+		struct learned_subnet *s = &learned[i];
+
+		if (s->af == af && strcmp(s->iface, iface) == 0 &&
+		    memcmp(s->addr, netaddr, alen) == 0 &&
+		    memcmp(s->mask, mask, alen) == 0) {
+			s->expires = exp;
+			return 0;
+		}
+	}
+
+	/* prefer an expired slot */
+	for (int i = 0; i < learned_count; i++) {
+		if (learned[i].expires <= now) {
+			slot = i;
+			goto fill;
+		}
+	}
+
+	if (learned_count < MAX_LEARNED_SUBNETS) {
+		slot = learned_count++;
+		goto fill;
+	}
+
+	/* evict the slot closest to expiry */
+	for (int i = 0; i < learned_count; i++) {
+		if (oldest < 0 || learned[i].expires < oldest_exp) {
+			oldest = i;
+			oldest_exp = learned[i].expires;
+		}
+	}
+	if (oldest < 0)
+		return -1;
+	slot = oldest;
+
+fill:
+	{
+		struct learned_subnet *s = &learned[slot];
+
+		snprintf(s->iface, sizeof(s->iface), "%s", iface);
+		s->af = af;
+		memset(s->addr, 0, sizeof(s->addr));
+		memset(s->mask, 0, sizeof(s->mask));
+		memcpy(s->addr, netaddr, alen);
+		memcpy(s->mask, mask, alen);
+		s->expires = exp;
+	}
+	return 1;
+}
+
+void
+capture_reset_learned_subnets(void)
+{
+	learned_count = 0;
+	memset(learned, 0, sizeof(learned));
+}
 
 static void
 fill_local_macs(struct iface *ifaces, int count)
@@ -302,6 +431,7 @@ capture_is_local_any(int af, const uint8_t *ip)
 {
 	int alen = ip_len(af);
 	int has_subnet = 0;
+	time_t now = time(NULL);
 
 	if (af == AF_INET6 && IS_LINKLOCAL6(ip))
 		return 1;
@@ -327,6 +457,16 @@ capture_is_local_any(int af, const uint8_t *ip)
 			return 1;
 	}
 
+	for (int i = 0; i < learned_count; i++) {
+		struct learned_subnet *s = &learned[i];
+
+		if (s->af != af || s->expires <= now)
+			continue;
+		has_subnet = 1;
+		if (learned_match(s, af, ip))
+			return 1;
+	}
+
 	if (!has_subnet)
 		return 1;
 
@@ -338,6 +478,7 @@ capture_is_local(const char *iface, int af, const uint8_t *ip)
 {
 	int alen = ip_len(af);
 	int has_subnet = 0;
+	time_t now = time(NULL);
 
 	/* link-local addresses are always valid on the local link */
 	if (af == AF_INET6 && IS_LINKLOCAL6(ip))
@@ -361,6 +502,17 @@ capture_is_local(const char *iface, int af, const uint8_t *ip)
 			}
 		}
 		if (match)
+			return 1;
+	}
+
+	for (int i = 0; i < learned_count; i++) {
+		struct learned_subnet *s = &learned[i];
+
+		if (s->af != af || s->expires <= now ||
+		    strcmp(s->iface, iface) != 0)
+			continue;
+		has_subnet = 1;
+		if (learned_match(s, af, ip))
 			return 1;
 	}
 

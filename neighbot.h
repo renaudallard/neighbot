@@ -33,7 +33,7 @@
 #include <stdint.h>
 #include <time.h>
 
-#define NEIGHBOT_VERSION "0.5.7"
+#define NEIGHBOT_VERSION "0.5.8"
 
 #define DEFAULT_DBFILE  "/var/neighbot/neighbot.csv"
 #define DEFAULT_MAILTO  "root"
@@ -45,17 +45,20 @@
 #define HT_BUCKETS      1024
 #define MAX_ENTRIES      100000
 #define MAX_IFACES       64
-#define SNAP_LEN         128
+#define SNAP_LEN         256
 #define POLL_TIMEOUT_MS  1000
 #define MAX_SUBNETS      256
+#define MAX_LEARNED_SUBNETS 64
 #define MAX_LOCAL_IPS    256
 #define REAPPEAR_SECS    (180 * 24 * 3600)  /* 6 months */
 #define DEFAULT_BOGON_COOLDOWN 1800         /* 30 minutes */
+#define LEARNED_MAX_LIFETIME   (7 * 24 * 3600) /* cap RA lifetime at 7 days */
 #define STORM_THRESHOLD  5                   /* flips within window */
 #define STORM_WINDOW     60                  /* seconds */
 #define STORM_RECOVER    1800                /* seconds of quiet */
 
-#define BPF_FILTER "arp or (icmp6 and (ip6[40] == 136 or ip6[40] == 135))"
+#define BPF_FILTER "arp or (icmp6 and " \
+	"(ip6[40] == 136 or ip6[40] == 135 or ip6[40] == 134))"
 
 #define IS_LINKLOCAL6(ip) ((ip)[0] == 0xfe && ((ip)[1] & 0xc0) == 0x80)
 #define IS_LINKLOCAL4(ip) ((ip)[0] == 169 && (ip)[1] == 254)

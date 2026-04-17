@@ -156,6 +156,53 @@ test_ipv6_subnet(void)
 }
 
 static int
+test_learned_subnet(void)
+{
+	uint8_t pfx[16] = { 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0,
+	                    0, 0, 0, 0, 0, 0, 0, 0 };
+	uint8_t ip_in[16] = { 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0,
+	                      0, 0, 0, 0, 0, 0, 0, 0x01 };
+	uint8_t ip_out[16] = { 0x20, 0x01, 0x0d, 0xb9, 0, 0, 0, 0,
+	                       0, 0, 0, 0, 0, 0, 0, 0x01 };
+	int r;
+
+	capture_reset_subnets();
+	capture_reset_learned_subnets();
+
+	/* no subnets at all: safe default is local */
+	ASSERT(capture_is_local("eth0", AF_INET6, ip_in) == 1,
+	    "safe default before any learn");
+
+	/* first add returns 1 (new), refresh returns 0 */
+	r = capture_add_learned_subnet("eth0", AF_INET6, pfx, 64, 3600);
+	ASSERT(r == 1, "first add should return 1");
+	r = capture_add_learned_subnet("eth0", AF_INET6, pfx, 64, 3600);
+	ASSERT(r == 0, "refresh should return 0");
+
+	/* learned prefix: in-prefix is local, out-of-prefix is bogon */
+	ASSERT(capture_is_local("eth0", AF_INET6, ip_in) == 1,
+	    "learned prefix should match");
+	ASSERT(capture_is_local("eth0", AF_INET6, ip_out) == 0,
+	    "out-of-prefix should be bogon");
+	ASSERT(capture_is_local_any(AF_INET6, ip_in) == 1,
+	    "learned prefix should match _any");
+
+	/* wrong iface must NOT match a learned prefix scoped to eth0 */
+	ASSERT(capture_is_local("eth1", AF_INET6, ip_in) == 1,
+	    "eth1 has no subnets, safe default");
+
+	/* zero/invalid lifetime is rejected */
+	r = capture_add_learned_subnet("eth0", AF_INET6, pfx, 64, 0);
+	ASSERT(r == -1, "zero lifetime should be rejected");
+	r = capture_add_learned_subnet("eth0", AF_INET6, pfx, 200, 60);
+	ASSERT(r == -1, "prefix_len > 128 should be rejected");
+
+	capture_reset_learned_subnets();
+	printf("  learned_subnet: ok\n");
+	return 0;
+}
+
+static int
 test_is_local_any(void)
 {
 	uint8_t addr1[4] = { 192, 168, 1, 0 };
@@ -299,6 +346,7 @@ main(void)
 	rc |= test_ipv6_subnet();
 	rc |= test_own_ip();
 	rc |= test_is_local_any();
+	rc |= test_learned_subnet();
 
 #if defined(__linux__)
 	rc |= test_vlan_parents_basic();

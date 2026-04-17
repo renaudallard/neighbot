@@ -469,6 +469,82 @@ ndp_find_lladdr_opt(const u_char *opts, size_t opts_len, uint8_t want_type)
 	return NULL;
 }
 
+static uint32_t
+read_u32_be(const uint8_t *p)
+{
+	return ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16) |
+	       ((uint32_t)p[2] << 8)  | ((uint32_t)p[3]);
+}
+
+static void
+parse_ra(const uint8_t *icmp, size_t icmp_len, const char *iface,
+         const uint8_t *router_src)
+{
+	/* RA fixed part is 16 bytes */
+	if (icmp_len < 16)
+		return;
+
+	const u_char *opts = icmp + 16;
+	size_t opts_len = icmp_len - 16;
+	size_t off = 0;
+
+	while (off + 2 <= opts_len) {
+		uint8_t otype = opts[off];
+		uint8_t olen8 = opts[off + 1];
+		size_t olen = (size_t)olen8 * 8;
+
+		if (olen == 0 || off + olen > opts_len)
+			break;
+
+		/* Prefix Information Option (type 3, length 4 -> 32 bytes) */
+		if (otype == 3 && olen >= 32) {
+			uint8_t prefix_len = opts[off + 2];
+			uint8_t flags      = opts[off + 3];
+			uint32_t valid     = read_u32_be(opts + off + 4);
+			const uint8_t *prefix = opts + off + 16;
+
+			/* require on-link (L) flag and non-zero lifetime */
+			if (!(flags & 0x80))
+				goto next;
+			if (valid == 0)
+				goto next;
+			if (prefix_len == 0 || prefix_len > 128)
+				goto next;
+
+			/* skip link-local, multicast, unspecified */
+			if (IS_LINKLOCAL6(prefix))
+				goto next;
+			if (prefix[0] == 0xff)
+				goto next;
+			if (is_zero_ip6(prefix))
+				goto next;
+
+			int added = capture_add_learned_subnet(iface,
+			    AF_INET6, prefix, prefix_len, valid);
+
+			if (added == 1) {
+				char pfxstr[INET6_ADDRSTRLEN];
+				char rtrstr[INET6_ADDRSTRLEN];
+
+				inet_ntop(AF_INET6, prefix, pfxstr,
+				    sizeof(pfxstr));
+				inet_ntop(AF_INET6, router_src, rtrstr,
+				    sizeof(rtrstr));
+				log_msg("learned prefix %s/%u on %s "
+				    "(router %s, lifetime %us)",
+				    pfxstr, prefix_len, iface, rtrstr,
+				    (unsigned)valid);
+				if (!cfg.quiet)
+					notify_ra_learned(iface, prefix,
+					    prefix_len, router_src, valid);
+			}
+		}
+
+next:
+		off += olen;
+	}
+}
+
 static void
 parse_ndp(const u_char *pkt, size_t len, const char *iface,
           const uint8_t *eth_src)
@@ -501,6 +577,12 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 	icmp = pkt + icmp_off;
 	icmp_len = len - icmp_off;
 	type = icmp[0];
+
+	if (type == ND_ROUTER_ADVERT) {
+		parse_ra(icmp, icmp_len, iface,
+		    (const uint8_t *)&ip6->ip6_src);
+		return;
+	}
 
 	if (type == ND_NEIGHBOR_ADVERT) {
 		/* NA: type(1) + code(1) + cksum(2) + flags(4) + target(16) + opts */

@@ -512,6 +512,46 @@ notify_storm(int af, const uint8_t *ip, const uint8_t *mac_a,
 }
 
 void
+notify_ra_learned(const char *iface, const uint8_t *prefix, int prefix_len,
+                  const uint8_t *router, uint32_t lifetime)
+{
+	if (notify_fork() != 0)
+		return;
+
+	char subject[256];
+	char body[2048];
+	char pfxstr[INET6_ADDRSTRLEN];
+	char rtrstr[INET6_ADDRSTRLEN];
+	char timebuf[128];
+
+	inet_ntop(AF_INET6, prefix, pfxstr, sizeof(pfxstr));
+	inet_ntop(AF_INET6, router, rtrstr, sizeof(rtrstr));
+	format_timestamp(time(NULL), timebuf, sizeof(timebuf));
+
+	snprintf(subject, sizeof(subject),
+	    "neighbot: learned IPv6 prefix %s/%d on %s",
+	    pfxstr, prefix_len, iface);
+	snprintf(body, sizeof(body),
+	    "A Router Advertisement announced a new on-link IPv6 prefix.\n"
+	    "Further addresses in this prefix will no longer be reported\n"
+	    "as bogons on this interface.\n"
+	    "\n"
+	    "         interface: %s\n"
+	    "            prefix: %s/%d\n"
+	    "            router: %s\n"
+	    "    valid lifetime: %u seconds\n"
+	    "         timestamp: %s\n"
+	    "\n"
+	    "If this prefix was not expected, a rogue Router Advertisement\n"
+	    "may have been sent on this network.\n",
+	    iface, pfxstr, prefix_len, rtrstr,
+	    (unsigned)lifetime, timebuf);
+
+	send_mail(subject, body);
+	_exit(0);
+}
+
+void
 notify_moved(int new_af, const uint8_t *new_ip, const uint8_t *mac,
              int old_af, const uint8_t *old_ip, const char *iface)
 {

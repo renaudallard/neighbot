@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <signal.h>
 #include <arpa/inet.h>
@@ -43,6 +44,27 @@ capture_is_own_ip(int af, const uint8_t *ip)
 	return 0;
 }
 
+/* RA-capture stub: record the most recent learned prefix for assertions */
+int      ra_learned_calls;
+char     ra_learned_iface[32];
+int      ra_learned_af;
+uint8_t  ra_learned_addr[16];
+int      ra_learned_prefix_len;
+uint32_t ra_learned_lifetime;
+
+int
+capture_add_learned_subnet(const char *iface, int af,
+    const uint8_t *addr, int prefix_len, uint32_t lifetime_sec)
+{
+	ra_learned_calls++;
+	snprintf(ra_learned_iface, sizeof(ra_learned_iface), "%s", iface);
+	ra_learned_af = af;
+	memcpy(ra_learned_addr, addr, 16);
+	ra_learned_prefix_len = prefix_len;
+	ra_learned_lifetime = lifetime_sec;
+	return 1;
+}
+
 void probe_schedule(int af, const uint8_t *ip, const uint8_t *mac,
     int new_af, const uint8_t *new_ip, const char *iface)
 { (void)af; (void)ip; (void)mac; (void)new_af; (void)new_ip; (void)iface; }
@@ -77,6 +99,10 @@ void notify_moved(int new_af, const uint8_t *new_ip, const uint8_t *mac,
 void notify_storm(int af, const uint8_t *ip, const uint8_t *mac_a,
     const uint8_t *mac_b, const char *iface)
 { (void)af; (void)ip; (void)mac_a; (void)mac_b; (void)iface; }
+
+void notify_ra_learned(const char *iface, const uint8_t *prefix,
+    int prefix_len, const uint8_t *router, uint32_t lifetime)
+{ (void)iface; (void)prefix; (void)prefix_len; (void)router; (void)lifetime; }
 
 static void
 feed(const uint8_t *pkt, size_t len)
@@ -299,6 +325,137 @@ test_ndp_na_no_tlla(void)
 	feed(pkt, sizeof(pkt));
 }
 
+/* valid Router Advertisement with one Prefix Information Option.
+ * Router source fe80::1, prefix 2001:db8::/64, L flag, 3600s lifetime. */
+static void
+test_ndp_ra(void)
+{
+	uint8_t pkt[102];
+
+	memset(pkt, 0, sizeof(pkt));
+
+	/* Ethernet */
+	pkt[0]  = 0x33; pkt[1]  = 0x33; pkt[2]  = 0x00;
+	pkt[3]  = 0x00; pkt[4]  = 0x00; pkt[5]  = 0x01;
+	pkt[6]  = 0x02; pkt[7]  = 0x11; pkt[8]  = 0x22;
+	pkt[9]  = 0x33; pkt[10] = 0x44; pkt[11] = 0x55;
+	pkt[12] = 0x86; pkt[13] = 0xdd;
+
+	/* IPv6 header */
+	pkt[14] = 0x60;
+	pkt[18] = 0x00; pkt[19] = 48;   /* payload: 16 RA + 32 PIO */
+	pkt[20] = 58;                    /* next: ICMPv6 */
+	pkt[21] = 255;                   /* hop limit */
+
+	/* src: fe80::1 */
+	pkt[22] = 0xfe; pkt[23] = 0x80;
+	pkt[37] = 0x01;
+	/* dst: ff02::1 */
+	pkt[38] = 0xff; pkt[39] = 0x02;
+	pkt[53] = 0x01;
+
+	/* ICMPv6 RA fixed part */
+	pkt[54] = 134;                   /* type */
+	pkt[55] = 0;                     /* code */
+	/* cksum (56..57), hop_limit (58), flags (59) */
+	pkt[58] = 64;
+	/* router lifetime (60..61) */
+	pkt[60] = 0x07; pkt[61] = 0x08;  /* 1800s */
+	/* reachable (62..65), retrans (66..69) zero */
+
+	/* Prefix Information Option starts at pkt[70] */
+	pkt[70] = 3;                     /* type */
+	pkt[71] = 4;                     /* length (4 * 8 = 32 bytes) */
+	pkt[72] = 64;                    /* prefix length */
+	pkt[73] = 0x80;                  /* flags: L=1 */
+	/* valid lifetime 3600 (big-endian) */
+	pkt[74] = 0x00; pkt[75] = 0x00; pkt[76] = 0x0e; pkt[77] = 0x10;
+	/* preferred lifetime 1800 */
+	pkt[78] = 0x00; pkt[79] = 0x00; pkt[80] = 0x07; pkt[81] = 0x08;
+	/* reserved (82..85) */
+	/* prefix 2001:db8:: */
+	pkt[86] = 0x20; pkt[87] = 0x01; pkt[88] = 0x0d; pkt[89] = 0xb8;
+
+	int before = ra_learned_calls;
+	feed(pkt, sizeof(pkt));
+	if (ra_learned_calls != before + 1) {
+		fprintf(stderr, "FAIL: RA did not trigger learned subnet\n");
+		exit(1);
+	}
+	if (ra_learned_af != AF_INET6 ||
+	    ra_learned_prefix_len != 64 ||
+	    ra_learned_lifetime != 3600 ||
+	    ra_learned_addr[0] != 0x20 || ra_learned_addr[3] != 0xb8 ||
+	    strcmp(ra_learned_iface, "test0") != 0) {
+		fprintf(stderr, "FAIL: RA learned subnet fields mismatch\n");
+		exit(1);
+	}
+}
+
+/* RA with L flag cleared should NOT trigger learning */
+static void
+test_ndp_ra_no_l_flag(void)
+{
+	uint8_t pkt[102];
+
+	memset(pkt, 0, sizeof(pkt));
+	pkt[0]  = 0x33; pkt[1]  = 0x33; pkt[5]  = 0x01;
+	pkt[6]  = 0x02; pkt[11] = 0x55;
+	pkt[12] = 0x86; pkt[13] = 0xdd;
+	pkt[14] = 0x60;
+	pkt[19] = 48;
+	pkt[20] = 58;
+	pkt[21] = 255;
+	pkt[22] = 0xfe; pkt[23] = 0x80; pkt[37] = 0x01;
+	pkt[38] = 0xff; pkt[39] = 0x02; pkt[53] = 0x01;
+	pkt[54] = 134;
+	pkt[70] = 3;
+	pkt[71] = 4;
+	pkt[72] = 64;
+	pkt[73] = 0x00;                  /* flags: L=0 */
+	pkt[77] = 0x3c;                  /* valid lifetime 60 */
+	pkt[86] = 0x20; pkt[87] = 0x01; pkt[88] = 0x0d; pkt[89] = 0xb9;
+
+	int before = ra_learned_calls;
+	feed(pkt, sizeof(pkt));
+	if (ra_learned_calls != before) {
+		fprintf(stderr, "FAIL: RA without L flag triggered learn\n");
+		exit(1);
+	}
+}
+
+/* RA with zero valid-lifetime should NOT trigger learning */
+static void
+test_ndp_ra_zero_lifetime(void)
+{
+	uint8_t pkt[102];
+
+	memset(pkt, 0, sizeof(pkt));
+	pkt[0]  = 0x33; pkt[1]  = 0x33; pkt[5]  = 0x01;
+	pkt[6]  = 0x02; pkt[11] = 0x55;
+	pkt[12] = 0x86; pkt[13] = 0xdd;
+	pkt[14] = 0x60;
+	pkt[19] = 48;
+	pkt[20] = 58;
+	pkt[21] = 255;
+	pkt[22] = 0xfe; pkt[23] = 0x80; pkt[37] = 0x01;
+	pkt[38] = 0xff; pkt[39] = 0x02; pkt[53] = 0x01;
+	pkt[54] = 134;
+	pkt[70] = 3;
+	pkt[71] = 4;
+	pkt[72] = 64;
+	pkt[73] = 0x80;                  /* L=1 */
+	/* valid lifetime 0 */
+	pkt[86] = 0x20; pkt[87] = 0x01; pkt[88] = 0x0d; pkt[89] = 0xba;
+
+	int before = ra_learned_calls;
+	feed(pkt, sizeof(pkt));
+	if (ra_learned_calls != before) {
+		fprintf(stderr, "FAIL: RA with zero lifetime triggered learn\n");
+		exit(1);
+	}
+}
+
 static void
 test_truncated(void)
 {
@@ -316,6 +473,9 @@ test_multiple_then_cleanup(void)
 	test_ndp_na();
 	test_ndp_na_no_tlla();
 	test_ndp_ns();
+	test_ndp_ra();
+	test_ndp_ra_no_l_flag();
+	test_ndp_ra_zero_lifetime();
 	test_truncated();
 }
 
@@ -331,6 +491,9 @@ main(void)
 	test_ndp_na();
 	test_ndp_na_no_tlla();
 	test_ndp_ns();
+	test_ndp_ra();
+	test_ndp_ra_no_l_flag();
+	test_ndp_ra_zero_lifetime();
 	test_truncated();
 
 	/* reset and run batch */

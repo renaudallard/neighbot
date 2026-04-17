@@ -48,6 +48,15 @@ void capture_reset_subnets(void);
 void capture_add_own_ip(int af, const uint8_t *ip);
 void capture_reset_own_ips(void);
 
+/*
+ * Register or refresh a prefix learned from a Router Advertisement.
+ * Returns 1 if newly added, 0 if refreshed, -1 on error or full table.
+ */
+int  capture_add_learned_subnet(const char *iface, int af,
+                                const uint8_t *addr, int prefix_len,
+                                uint32_t lifetime_sec);
+void capture_reset_learned_subnets(void);
+
 #if defined(__linux__)
 int  capture_parse_vlan_parents(const char *path,
                                 char parents[][32], int max);

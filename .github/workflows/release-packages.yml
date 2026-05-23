@@ -216,15 +216,25 @@ jobs:
               return "15.6"
 
           def latest_alpine_release():
+              # The Alpine CDN lists a new branch before Docker Hub
+              # publishes the matching alpine:X.Y tag, which breaks the
+              # container build.  Query Docker Hub directly so the
+              # answer is always pullable.
               try:
-                  data = fetch_text("https://dl-cdn.alpinelinux.org/alpine/")
-                  versions = []
-                  for line in data.splitlines():
-                      match = re.search(r'href="v([0-9]+\.[0-9]+)/"', line)
-                      if match:
-                          versions.append(match.group(1))
+                  data = fetch_text(
+                      "https://registry.hub.docker.com/v2/repositories"
+                      "/library/alpine/tags?page_size=100")
+                  results = json.loads(data).get("results", [])
+                  versions = set()
+                  for item in results:
+                      m = re.match(r"^([0-9]+\.[0-9]+)$",
+                                   item.get("name", ""))
+                      if m:
+                          versions.add(m.group(1))
                   if versions:
-                      versions_sorted = sorted(versions, key=lambda v: [int(x) for x in v.split(".")])
+                      versions_sorted = sorted(
+                          versions,
+                          key=lambda v: [int(x) for x in v.split(".")])
                       return versions_sorted[-1]
               except Exception:
                   pass

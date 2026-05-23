@@ -25,9 +25,12 @@ make %{?_smp_mflags} CFLAGS="%{optflags}"
 
 %install
 rm -rf $RPM_BUILD_ROOT
-make install PREFIX=/usr DESTDIR=$RPM_BUILD_ROOT
+# %{_sbindir} resolves to /usr/sbin on older RPM distros and /usr/bin
+# on Fedora 42+ (UsrMove).  Defer to the macro so the install path
+# matches the %files spec on either layout.
+make install PREFIX=/usr DESTDIR=$RPM_BUILD_ROOT BINDIR=%{_sbindir}
 install -D -m 0644 neighbot.service $RPM_BUILD_ROOT%{_unitdir}/neighbot.service
-sed -i 's|/usr/local/sbin|/usr/sbin|' $RPM_BUILD_ROOT%{_unitdir}/neighbot.service
+sed -i 's|/usr/local/sbin|%{_sbindir}|' $RPM_BUILD_ROOT%{_unitdir}/neighbot.service
 
 %clean
 rm -rf $RPM_BUILD_ROOT

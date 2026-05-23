@@ -128,21 +128,25 @@ jobs:
               return track
 
           def latest_fedora_release():
+              # The releases.json schema changed: it is now a flat
+              # array of variant entries with only version/arch/variant
+              # fields — no status/edition.  The list only contains GA
+              # releases, so the highest version is the latest stable.
+              # (URL also moved to fedoraproject.org; urllib follows the
+              # 302 from getfedora.org transparently.)
               try:
-                  data = fetch_text("https://getfedora.org/releases.json")
+                  data = fetch_text("https://fedoraproject.org/releases.json")
                   releases = json.loads(data)
                   versions = []
-                  for entry in releases.get("fedora", []):
-                      ver = entry.get("version")
-                      status = entry.get("status")
-                      edition = entry.get("edition")
-                      if edition == "Everything" and status == "Active" and ver is not None:
+                  for entry in releases:
+                      ver = entry.get("version", "")
+                      if ver.isdigit():
                           versions.append(int(ver))
                   if versions:
                       return str(max(versions))
               except Exception:
                   pass
-              return "39"
+              return "43"
 
           def rocky_version_list():
               versions = []

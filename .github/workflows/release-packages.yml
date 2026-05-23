@@ -1030,16 +1030,20 @@ jobs:
           run: |
             set -e
             ver=$(grep '#define NEIGHBOT_VERSION' neighbot.h | sed 's/.*"\(.*\)"/\1/')
+            osver="${{ matrix.version }}"
+            # pkg_create rejects names where the flavor starts with a
+            # digit or contains dots (it parses '7.8' as a version
+            # component), and pkg_add later checks that the .tgz
+            # filename matches the package's internal @name.  Use a
+            # dot-free flavor like 'openbsd78' so the same name works
+            # for both.
+            osflavor="openbsd${osver//./}"
             make
             mkdir -p stage/usr/local/sbin stage/usr/local/share/man/man8 stage/etc/rc.d
             install -m 755 neighbot stage/usr/local/sbin/neighbot
             install -m 644 neighbot.8 stage/usr/local/share/man/man8/neighbot.8
             install -m 755 neighbot.rc stage/etc/rc.d/neighbot
             mkdir -p artifacts
-            # pkg_create derives the @name from the output filename and
-            # rejects anything that doesn't parse as name-version, so
-            # build with the canonical name then rename to embed the
-            # OS version only in the release-asset filename.
             pkg_create \
               -B "$(pwd)/stage" \
               -p /usr/local \
@@ -1050,9 +1054,7 @@ jobs:
               -D HOMEPAGE="https://github.com/renaudallard/neighbot" \
               -D CATEGORIES="net security" \
               -f openbsd/PLIST \
-              "neighbot-${ver}.tgz"
-            mv "neighbot-${ver}.tgz" \
-               "artifacts/neighbot-${ver}-openbsd${{ matrix.version }}.tgz"
+              "artifacts/neighbot-${ver}-${osflavor}.tgz"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

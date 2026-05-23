@@ -1018,6 +1018,10 @@ jobs:
             install -m 644 neighbot.8 stage/usr/local/share/man/man8/neighbot.8
             install -m 755 neighbot.rc stage/etc/rc.d/neighbot
             mkdir -p artifacts
+            # pkg_create derives the @name from the output filename and
+            # rejects anything that doesn't parse as name-version, so
+            # build with the canonical name then rename to embed the
+            # OS version only in the release-asset filename.
             pkg_create \
               -B "$(pwd)/stage" \
               -p /usr/local \
@@ -1028,7 +1032,9 @@ jobs:
               -D HOMEPAGE="https://github.com/renaudallard/neighbot" \
               -D CATEGORIES="net security" \
               -f openbsd/PLIST \
-              "artifacts/neighbot-${ver}.openbsd-${{ matrix.version }}.tgz"
+              "neighbot-${ver}.tgz"
+            mv "neighbot-${ver}.tgz" \
+               "artifacts/neighbot-${ver}-openbsd${{ matrix.version }}.tgz"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

@@ -230,8 +230,14 @@ handle_event(int event, int af, const uint8_t *ip, const uint8_t *mac,
 		    db_has_temp_in_prefix(mac, ip));
 
 		if (temp_rotate) {
-			log_msg("new temporary %s %s on %s",
-			    ipstr, macstr, iface);
+			int dropped = db_drop_temp_in_prefix(mac, ip);
+
+			log_msg("new temporary %s %s on %s", ipstr, macstr,
+			    iface);
+			if (dropped > 0)
+				log_msg("dropped %d obsolete temporary "
+				    "address(es) for %s on %s",
+				    dropped, macstr, iface);
 		} else {
 			log_msg("new station %s %s on %s",
 			    ipstr, macstr, iface);
@@ -251,13 +257,6 @@ handle_event(int event, int af, const uint8_t *ip, const uint8_t *mac,
 			for (int i = 0; i < n; i++) {
 				if (capture_is_own_ip(others[i].af,
 				    others[i].ip))
-					continue;
-				/* temp rotation: skip probing other
-				 * temp addresses in the same /64 */
-				if (temp_rotate &&
-				    others[i].af == AF_INET6 &&
-				    memcmp(others[i].ip, ip, 8) == 0 &&
-				    !is_eui64(others[i].ip, mac))
 					continue;
 				probe_schedule(others[i].af, others[i].ip,
 				    mac, af, ip, others[i].iface);
@@ -307,6 +306,10 @@ handle_moved(int new_af, const uint8_t *new_ip, const uint8_t *mac,
 	        macstr, oldstr, newstr, iface);
 	if (!cfg.quiet)
 		notify_moved(new_af, new_ip, mac, old_af, old_ip, iface);
+
+	if (db_delete(old_af, old_ip, mac))
+		log_msg("dropped obsolete %s %s on %s",
+		        oldstr, macstr, iface);
 
 	save = 1;
 }

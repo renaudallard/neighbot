@@ -80,9 +80,9 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: neighbot [-B seconds] [-d] [-f dbfile] [-i iface] "
-	    "[-m mailto] [-o ouifile] [-p] [-q] [-r] [-s sendmail] "
-	    "[-u user] [-V]\n");
+	    "usage: neighbot [-B seconds] [-d] [-e days] [-f dbfile] "
+	    "[-i iface] [-m mailto] [-o ouifile] [-p] [-q] [-r] "
+	    "[-s sendmail] [-u user] [-V]\n");
 	exit(1);
 }
 
@@ -121,7 +121,7 @@ main(int argc, char *argv[])
 	cfg.user           = DEFAULT_USER;
 	cfg.bogon_cooldown = DEFAULT_BOGON_COOLDOWN;
 
-	while ((ch = getopt(argc, argv, "B:df:i:m:o:pqrs:u:V")) != -1) {
+	while ((ch = getopt(argc, argv, "B:de:f:i:m:o:pqrs:u:V")) != -1) {
 		switch (ch) {
 		case 'B': {
 			char *end;
@@ -140,6 +140,20 @@ main(int argc, char *argv[])
 		case 'd':
 			cfg.daemonize = 1;
 			break;
+		case 'e': {
+			char *end;
+			long val;
+
+			errno = 0;
+			val = strtol(optarg, &end, 10);
+			if (*end != '\0' || errno != 0 ||
+			    val < 0 || val > INT_MAX / 86400) {
+				fprintf(stderr, "invalid expire days\n");
+				return 1;
+			}
+			cfg.expire_secs = (int)val * 86400;
+			break;
+		}
 		case 'f':
 			cfg.dbfile = optarg;
 			break;
@@ -301,6 +315,9 @@ main(int argc, char *argv[])
 	log_msg("neighbot %s started, monitoring %d interface(s)",
 	        NEIGHBOT_VERSION, nifaces);
 	log_msg("active probing %s", cfg.probe ? "enabled" : "disabled");
+	if (cfg.expire_secs > 0)
+		log_msg("idle expiration enabled (%d days)",
+		    cfg.expire_secs / 86400);
 
 	/* build pollfd array */
 	for (int i = 0; i < nifaces; i++) {
@@ -329,6 +346,8 @@ main(int argc, char *argv[])
 		return 1;
 	}
 #endif
+
+	time_t last_expire = time(NULL);
 
 	while (!quit) {
 		int ret = poll(pfds, nifaces, POLL_TIMEOUT_MS);
@@ -378,6 +397,20 @@ check_signals:
 			storm_clear = 0;
 			storm_reset();
 			log_msg("storm suppression cleared");
+		}
+		if (cfg.expire_secs > 0) {
+			time_t now = time(NULL);
+
+			if (now - last_expire >= EXPIRE_CHECK_INTERVAL) {
+				int n = db_expire(cfg.expire_secs);
+
+				last_expire = now;
+				if (n > 0) {
+					log_msg("expired %d idle entr%s",
+					    n, n == 1 ? "y" : "ies");
+					save = 1;
+				}
+			}
 		}
 		if (save) {
 			save = 0;

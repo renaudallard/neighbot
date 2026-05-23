@@ -441,6 +441,107 @@ db_find_other_entries(const uint8_t *mac, int exclude_af,
 	return count;
 }
 
+/* Remove the entry at (af, ip) if its current MAC matches.
+ * Returns 1 if removed, 0 otherwise. */
+int
+db_delete(int af, const uint8_t *ip, const uint8_t *mac)
+{
+	unsigned idx = hash_key(af, ip);
+	int ilen = ip_len(af);
+	struct entry *prev = NULL;
+
+	for (struct entry *e = buckets[idx]; e; prev = e, e = e->next) {
+		if (e->af != af)
+			continue;
+		if (memcmp(e->ip, ip, ilen) != 0)
+			continue;
+		if (memcmp(e->mac, mac, 6) != 0)
+			return 0;
+		if (prev)
+			prev->next = e->next;
+		else
+			buckets[idx] = e->next;
+		free(e);
+		entry_count--;
+		return 1;
+	}
+	return 0;
+}
+
+/* Remove same-MAC non-EUI-64 IPv6 entries that share the /64 with ip6,
+ * excluding ip6 itself.  Returns the number of entries removed. */
+int
+db_drop_temp_in_prefix(const uint8_t *mac, const uint8_t *ip6)
+{
+	int removed = 0;
+
+	for (unsigned i = 0; i < HT_BUCKETS; i++) {
+		struct entry *prev = NULL;
+		struct entry *e = buckets[i];
+
+		while (e) {
+			struct entry *next = e->next;
+
+			if (e->af != AF_INET6 ||
+			    memcmp(e->mac, mac, 6) != 0 ||
+			    memcmp(e->ip, ip6, 8) != 0 ||
+			    memcmp(e->ip, ip6, 16) == 0 ||
+			    is_eui64(e->ip, mac)) {
+				prev = e;
+				e = next;
+				continue;
+			}
+
+			if (prev)
+				prev->next = next;
+			else
+				buckets[i] = next;
+			free(e);
+			entry_count--;
+			removed++;
+			e = next;
+		}
+	}
+	return removed;
+}
+
+/* Remove entries whose last_seen is older than idle_secs.
+ * Returns the number of entries removed. */
+int
+db_expire(time_t idle_secs)
+{
+	time_t now = time(NULL);
+	int removed = 0;
+
+	if (idle_secs <= 0)
+		return 0;
+
+	for (unsigned i = 0; i < HT_BUCKETS; i++) {
+		struct entry *prev = NULL;
+		struct entry *e = buckets[i];
+
+		while (e) {
+			struct entry *next = e->next;
+
+			if (now - e->last_seen <= idle_secs) {
+				prev = e;
+				e = next;
+				continue;
+			}
+
+			if (prev)
+				prev->next = next;
+			else
+				buckets[i] = next;
+			free(e);
+			entry_count--;
+			removed++;
+			e = next;
+		}
+	}
+	return removed;
+}
+
 /* Check if MAC already has a non-EUI-64 IPv6 in the same /64.
  * Used to detect temporary address rotation (RFC 4941)
  * and link-local address rotation. */

@@ -90,13 +90,14 @@ sudo apk add --allow-untrusted neighbot-*.apk  # Alpine
 ## Usage
 
 ```
-neighbot [-B seconds] [-d] [-f dbfile] [-i iface] [-m mailto] [-o ouifile] [-p] [-q] [-r] [-s sendmail] [-u user] [-V]
+neighbot [-B seconds] [-d] [-e days] [-f dbfile] [-i iface] [-m mailto] [-o ouifile] [-p] [-q] [-r] [-s sendmail] [-u user] [-V]
 ```
 
 | Flag | Description |
 |------|-------------|
 | `-B seconds` | Bogon notification cooldown in seconds (default: 1800). Set to 0 for no rate limiting |
 | `-d` | Daemonize (log to syslog instead of stderr) |
+| `-e days` | Drop entries unseen for more than `days` days (checked hourly). 0 disables (default) |
 | `-f path` | Database file (default: `/var/neighbot/neighbot.csv`) |
 | `-i iface` | Monitor only this interface (default: all Ethernet interfaces) |
 | `-m addr` | Email recipient (default: `root`) |
@@ -137,7 +138,7 @@ neighbot -r -m admin@example.com
 | **reappeared** | Known MAC/IP pair seen again after 6+ months of silence | yes |
 | **bogon** | IP outside any local subnet on the receiving interface (possible spoofing) | yes |
 | **ra-learned** | IPv6 on-link prefix announced by a Router Advertisement | yes (first time only) |
-| **moved** | MAC seen at a new IP while old IP no longer responds to probes | yes |
+| **moved** | MAC seen at a new IP while old IP no longer responds to probes. The obsolete entry is dropped | yes |
 
 ## Active Probing
 
@@ -164,11 +165,24 @@ VLANs or other interfaces.
 **IPv6 temporary addresses (RFC 4941):** When a device using privacy
 extensions rotates its temporary address, neighbot detects that the same
 MAC already has a non-EUI-64 address in the same /64 prefix and suppresses
-the "new station" email.  The old temporary address is probed, and if it no
-longer responds, a "moved" notification is sent instead.  This also covers
-link-local address rotation (common on devices with randomized MACs).
+the "new station" email. The prior non-EUI-64 entries in that /64 are
+silently dropped from the database. This also covers link-local address
+rotation (common on devices with randomized MACs).
 
 Disable with `-p` for purely passive monitoring.
+
+## Obsolete Address Cleanup
+
+neighbot removes entries it knows are no longer valid:
+
+| Source | Trigger | Notification |
+|--------|---------|--------------|
+| Probe timeout | Old IP no longer responds at the recorded MAC after a probe fires | "moved" email |
+| Temp address rotation | New non-EUI-64 IPv6 address arrives in a /64 prefix the MAC already uses | silent (logged only) |
+| Idle expiration (`-e days`) | `last_seen` older than `days` days, checked once per hour | silent (logged only) |
+
+Idle expiration is opt-in. Without `-e`, entries are kept indefinitely
+unless a probe confirms the IP is gone.
 
 ## IPv6 Prefix Learning (Router Advertisements)
 

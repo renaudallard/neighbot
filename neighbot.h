@@ -52,6 +52,7 @@
 #define MAX_LOCAL_IPS    256
 #define REAPPEAR_SECS    (180 * 24 * 3600)  /* 6 months */
 #define DEFAULT_BOGON_COOLDOWN 1800         /* 30 minutes */
+#define EXPIRE_CHECK_INTERVAL 3600          /* 1 hour */
 #define LEARNED_MAX_LIFETIME   (7 * 24 * 3600) /* cap RA lifetime at 7 days */
 #define STORM_THRESHOLD  5                   /* flips within window */
 #define STORM_WINDOW     60                  /* seconds */
@@ -70,6 +71,7 @@ struct config {
 	int    report;
 	int    oui_explicit;
 	int    bogon_cooldown;
+	int    expire_secs;
 	char  *dbfile;
 	char  *iface;
 	char  *mailto;

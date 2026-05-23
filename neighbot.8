@@ -8,6 +8,7 @@
 .Nm
 .Op Fl B Ar seconds
 .Op Fl d
+.Op Fl e Ar days
 .Op Fl f Ar dbfile
 .Op Fl i Ar iface
 .Op Fl m Ar mailto
@@ -40,6 +41,14 @@ Set to 0 to notify on every bogon (no rate limiting).
 .It Fl d
 Daemonize.
 Detach from the terminal and log to syslog instead of stderr.
+.It Fl e Ar days
+Drop entries that have not been seen for more than
+.Ar days
+days.
+The check runs once per hour.
+Set to 0 (default) to keep entries indefinitely.
+This is independent of probe-driven cleanup, which always removes
+entries whose IP no longer responds at the recorded MAC.
 .It Fl f Ar dbfile
 Path to the database file.
 Default:
@@ -180,6 +189,28 @@ operator can investigate.
 .It moved
 A MAC address is seen at a new IP address while its old IP no longer
 responds to probes (requires active probing).
+The obsolete IP entry is removed from the database after the
+notification is sent.
+.El
+.Sh OBSOLETE ADDRESS CLEANUP
+.Nm
+removes database entries it knows are no longer valid:
+.Bl -tag -width Ds
+.It Em probe-confirmed
+When a probe times out, the obsolete entry is dropped (see the
+.Em moved
+event).
+.It Em IPv6 temporary address rotation
+When a host's new temporary address arrives in a /64 prefix it
+already uses, prior non-EUI-64 entries in the same /64 for the
+same MAC are dropped silently.
+.It Em idle expiration
+With
+.Fl e Ar days ,
+entries unseen for more than
+.Ar days
+days are dropped on the next hourly sweep.
+Disabled by default.
 .El
 .Sh DATABASE FORMAT
 The database is a CSV file with the following fields:

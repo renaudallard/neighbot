@@ -1,5 +1,5 @@
 Name: neighbot
-Version: 0.5.8
+Version: 0.5.9
 Release: 1%{?dist}
 Summary: Network neighbor monitoring daemon
 
@@ -57,6 +57,9 @@ if [ -x /usr/bin/systemctl ]; then
 fi
 
 %changelog
+* Sat May 23 2026 Renaud Allard <renaud@allard.it> 0.5.9-1
+- Drop obsolete addresses from the database
+
 * Fri Apr 17 2026 Renaud Allard <renaud@allard.it> 0.5.8-1
 - Learn on-link IPv6 prefixes from Router Advertisements
 

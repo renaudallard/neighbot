@@ -358,7 +358,7 @@ jobs:
             name=$(dpkg-deb -f "$pkg" Package)
             ver=$(dpkg-deb -f "$pkg" Version)
             arch=$(dpkg-deb -f "$pkg" Architecture)
-            cp "$pkg" "artifacts/deb/ubuntu-stable/${name}_${ver}~ubuntu-${{ needs.detect-versions.outputs.ubuntu_stable }}_${arch}.deb"
+            cp "$pkg" "artifacts/deb/ubuntu-stable/${name}_${ver}.ubuntu-${{ needs.detect-versions.outputs.ubuntu_stable }}_${arch}.deb"
           done
 
       - name: Upload artifacts
@@ -414,7 +414,7 @@ jobs:
             name=$(dpkg-deb -f "$pkg" Package)
             ver=$(dpkg-deb -f "$pkg" Version)
             arch=$(dpkg-deb -f "$pkg" Architecture)
-            cp "$pkg" "artifacts/deb/ubuntu-lts/${name}_${ver}~ubuntu-${{ needs.detect-versions.outputs.ubuntu_lts }}_${arch}.deb"
+            cp "$pkg" "artifacts/deb/ubuntu-lts/${name}_${ver}.ubuntu-${{ needs.detect-versions.outputs.ubuntu_lts }}_${arch}.deb"
           done
 
       - name: Upload artifacts
@@ -470,7 +470,7 @@ jobs:
             name=$(dpkg-deb -f "$pkg" Package)
             ver=$(dpkg-deb -f "$pkg" Version)
             arch=$(dpkg-deb -f "$pkg" Architecture)
-            cp "$pkg" "artifacts/deb/debian-stable/${name}_${ver}~debian-${{ needs.detect-versions.outputs.debian_stable }}_${arch}.deb"
+            cp "$pkg" "artifacts/deb/debian-stable/${name}_${ver}.debian-${{ needs.detect-versions.outputs.debian_stable }}_${arch}.deb"
           done
 
       - name: Upload artifacts
@@ -526,7 +526,7 @@ jobs:
             name=$(dpkg-deb -f "$pkg" Package)
             ver=$(dpkg-deb -f "$pkg" Version)
             arch=$(dpkg-deb -f "$pkg" Architecture)
-            cp "$pkg" "artifacts/deb/debian-oldstable/${name}_${ver}~debian-${{ needs.detect-versions.outputs.debian_oldstable }}_${arch}.deb"
+            cp "$pkg" "artifacts/deb/debian-oldstable/${name}_${ver}.debian-${{ needs.detect-versions.outputs.debian_oldstable }}_${arch}.deb"
           done
 
       - name: Upload artifacts

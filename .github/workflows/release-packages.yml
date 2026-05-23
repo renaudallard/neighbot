@@ -1037,7 +1037,7 @@ jobs:
             # filename matches the package's internal @name.  Use a
             # dot-free flavor like 'openbsd78' so the same name works
             # for both.
-            osflavor="openbsd${osver//./}"
+            osflavor="openbsd$(echo "$osver" | tr -d .)"
             make
             mkdir -p stage/usr/local/sbin stage/usr/local/share/man/man8 stage/etc/rc.d
             install -m 755 neighbot stage/usr/local/sbin/neighbot

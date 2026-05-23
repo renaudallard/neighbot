@@ -76,45 +76,45 @@ jobs:
               with urllib.request.urlopen(url, timeout=10) as resp:
                   return resp.read().decode()
 
-          def latest_ubuntu_non_lts():
+          # The Ubuntu meta-release files don't carry an explicit Lts
+          # field — LTS-ness is encoded as a " LTS" suffix on Version.
+          # Strip it and return major.minor (which is what Docker Hub
+          # tags by; patch-level tags aren't always present).
+          def _ubuntu_pick(url, want_lts):
               try:
-                  data = fetch_text("https://changelogs.ubuntu.com/meta-release")
+                  data = fetch_text(url)
                   versions = []
                   block = {}
                   for line in data.splitlines() + [""]:
                       if not line.strip():
-                          if block.get("Supported") == "1" and block.get("Lts", "0") == "0" and "Version" in block:
-                              versions.append(block["Version"])
+                          v = block.get("Version", "")
+                          is_lts = "LTS" in v
+                          if (block.get("Supported") == "1" and v and
+                                  is_lts == want_lts):
+                              m = re.match(r"^(\d+\.\d+)", v)
+                              if m:
+                                  versions.append(m.group(1))
                           block = {}
                           continue
                       if ":" in line:
-                          k, v = line.split(":", 1)
-                          block[k.strip()] = v.strip()
+                          k, val = line.split(":", 1)
+                          block[k.strip()] = val.strip()
                   if versions:
                       return versions[-1]
               except Exception:
                   pass
-              return "latest"
+              return None
+
+          def latest_ubuntu_non_lts():
+              v = _ubuntu_pick("https://changelogs.ubuntu.com/meta-release",
+                               want_lts=False)
+              return v if v else "latest"
 
           def latest_ubuntu_lts():
-              try:
-                  data = fetch_text("https://changelogs.ubuntu.com/meta-release-lts")
-                  versions = []
-                  block = {}
-                  for line in data.splitlines() + [""]:
-                      if not line.strip():
-                          if block.get("Supported") == "1" and block.get("Lts") == "1" and "Version" in block:
-                              versions.append(block["Version"])
-                          block = {}
-                          continue
-                      if ":" in line:
-                          k, v = line.split(":", 1)
-                          block[k.strip()] = v.strip()
-                  if versions:
-                      return versions[-1]
-              except Exception:
-                  pass
-              return "22.04"
+              v = _ubuntu_pick(
+                  "https://changelogs.ubuntu.com/meta-release-lts",
+                  want_lts=True)
+              return v if v else "24.04"
 
           def debian_codename(track):
               url = f"https://deb.debian.org/debian/dists/{track}/Release"

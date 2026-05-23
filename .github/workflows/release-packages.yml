@@ -60,6 +60,7 @@ jobs:
       opensuse_leap: ${{ steps.detect.outputs.opensuse_leap }}
       suse_bci: ${{ steps.detect.outputs.suse_bci }}
       alpine_release: ${{ steps.detect.outputs.alpine_release }}
+      openbsd_releases: ${{ steps.detect.outputs.openbsd_releases }}
     steps:
       - name: Fetch latest distro versions
         id: detect
@@ -229,6 +230,41 @@ jobs:
                   pass
               return "3.21"
 
+          def latest_openbsd_releases(count=2):
+              # OpenBSD officially supports the last `count` releases.
+              # cdn.openbsd.org is the source of truth for "what's
+              # released", but vmactions/openbsd-vm needs a per-version
+              # conf to actually boot one.  Intersect the two: if a
+              # supported release isn't (yet) in the action, skip it.
+              try:
+                  cdn = fetch_text("https://cdn.openbsd.org/pub/OpenBSD/")
+                  versions = set()
+                  for line in cdn.splitlines():
+                      m = re.search(r'href="([0-9]+\.[0-9]+)/"', line)
+                      if m:
+                          versions.add(m.group(1))
+                  supported = sorted(
+                      versions,
+                      key=lambda v: [int(x) for x in v.split(".")]
+                  )[-count:]
+
+                  vma = fetch_text(
+                      "https://api.github.com/repos/vmactions/openbsd-vm"
+                      "/contents/conf?ref=v1")
+                  available = set()
+                  for item in json.loads(vma):
+                      m = re.match(r"^([0-9]+\.[0-9]+)\.conf$",
+                                   item.get("name", ""))
+                      if m:
+                          available.add(m.group(1))
+
+                  buildable = [v for v in supported if v in available]
+                  if buildable:
+                      return buildable
+              except Exception:
+                  pass
+              return ["7.7", "7.8"][-count:]
+
           ubuntu_stable = latest_ubuntu_non_lts()
           ubuntu_lts = latest_ubuntu_lts()
           debian_stable = debian_codename("stable")
@@ -242,6 +278,7 @@ jobs:
           opensuse_leap = latest_opensuse_leap()
           suse_bci = latest_suse_bci()
           alpine_release = latest_alpine_release()
+          openbsd_releases = latest_openbsd_releases()
 
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
               fh.write(f"ubuntu_stable={ubuntu_stable}\n")
@@ -258,6 +295,7 @@ jobs:
               fh.write(f"opensuse_leap={opensuse_leap}\n")
               fh.write(f"suse_bci={suse_bci}\n")
               fh.write(f"alpine_release={alpine_release}\n")
+              fh.write(f"openbsd_releases={json.dumps(openbsd_releases)}\n")
           PY
 
   build-deb-ubuntu-stable:
@@ -947,6 +985,58 @@ jobs:
           path: artifacts/apk/
           if-no-files-found: error
 
+  build-tgz-openbsd:
+    name: Build .tgz (OpenBSD ${{ matrix.version }})
+    runs-on: ubuntu-latest
+    needs:
+      - detect-versions
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ${{ fromJson(needs.detect-versions.outputs.openbsd_releases) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.ref }}
+
+      - name: Build .tgz in OpenBSD VM
+        uses: vmactions/openbsd-vm@v1
+        with:
+          release: ${{ matrix.version }}
+          usesh: true
+          copyback: true
+          prepare: |
+            # libpcap is in base; pkg_create is in base
+          run: |
+            set -e
+            ver=$(grep '#define NEIGHBOT_VERSION' neighbot.h | sed 's/.*"\(.*\)"/\1/')
+            make
+            mkdir -p stage/usr/local/sbin stage/usr/local/share/man/man8 stage/etc/rc.d
+            install -m 755 neighbot stage/usr/local/sbin/neighbot
+            install -m 644 neighbot.8 stage/usr/local/share/man/man8/neighbot.8
+            install -m 755 neighbot.rc stage/etc/rc.d/neighbot
+            mkdir -p artifacts
+            pkg_create \
+              -B "$(pwd)/stage" \
+              -p /usr/local \
+              -A "*" \
+              -d openbsd/DESCR \
+              -D COMMENT="network neighbor monitoring daemon" \
+              -D MAINTAINER="Renaud Allard <renaud@allard.it>" \
+              -D HOMEPAGE="https://github.com/renaudallard/neighbot" \
+              -D CATEGORIES="net security" \
+              -f openbsd/PLIST \
+              "artifacts/neighbot-${ver}.openbsd-${{ matrix.version }}.tgz"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: openbsd-packages-${{ matrix.version }}
+          path: artifacts/
+          if-no-files-found: error
+
   publish:
     name: Upload Release Assets
     if: ${{ !failure() && !cancelled() }}
@@ -964,6 +1054,7 @@ jobs:
       - build-rpm-opensuse
       - build-rpm-suse
       - build-apk-alpine
+      - build-tgz-openbsd
     steps:
       - name: Download .deb artifacts
         uses: actions/download-artifact@v4
@@ -986,6 +1077,13 @@ jobs:
           path: release-assets/apk
           merge-multiple: true
 
+      - name: Download OpenBSD artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: openbsd-packages-*
+          path: release-assets/openbsd
+          merge-multiple: true
+
       - name: Upload release assets
         uses: softprops/action-gh-release@v1
         with:
@@ -994,3 +1092,4 @@ jobs:
             release-assets/deb/*.deb
             release-assets/rpm/*.rpm
             release-assets/apk/*.apk
+            release-assets/openbsd/*.tgz

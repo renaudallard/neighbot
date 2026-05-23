@@ -1,0 +1,8 @@
+@comment $OpenBSD$
+@pkgpath net/neighbot
+@cwd /usr/local
+sbin/neighbot
+share/man/man8/neighbot.8
+@cwd /etc/rc.d
+@mode 0755
+neighbot

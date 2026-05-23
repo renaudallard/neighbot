@@ -1,0 +1,5 @@
+neighbot is a network neighbor monitoring daemon that passively
+watches ARP (IPv4) and NDP (IPv6) traffic on Ethernet interfaces.
+It maintains a database of IP-to-MAC mappings and emits email
+alerts on new stations, MAC changes, flip-flops, address conflicts
+and moves. Uses pledge(2) and unveil(2).

@@ -78,13 +78,15 @@ and attached as release assets. Supported distributions:
 | `.deb` | Ubuntu (stable, LTS), Debian (stable, oldstable) |
 | `.rpm` | Fedora, Rocky Linux (2 versions), openSUSE Leap, SUSE BCI |
 | `.apk` | Alpine Linux |
+| `.tgz` | OpenBSD (2 latest supported releases) |
 
 Install with your package manager:
 
 ```sh
-sudo dpkg -i neighbot_*.deb        # Debian/Ubuntu
-sudo rpm -i neighbot-*.rpm         # Fedora/RHEL/SUSE
-sudo apk add --allow-untrusted neighbot-*.apk  # Alpine
+sudo dpkg -i neighbot_*.deb                      # Debian/Ubuntu
+sudo rpm -i neighbot-*.rpm                       # Fedora/RHEL/SUSE
+sudo apk add --allow-untrusted neighbot-*.apk    # Alpine
+doas pkg_add -D unsigned ./neighbot-*.tgz        # OpenBSD
 ```
 
 ## Usage

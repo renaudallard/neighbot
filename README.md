@@ -382,11 +382,12 @@ Crashes and slow inputs are written to the current directory.
 1. Enumerates non-loopback Ethernet interfaces via `pcap_findalldevs()`,
    skipping VLAN trunk parents when subinterfaces exist
 2. Opens one pcap handle per interface with BPF filter:
-   `arp or (icmp6 and (ip6[40] == 136 or ip6[40] == 135))`
+   `arp or (icmp6 and (ip6[40] == 136 or ip6[40] == 135 or ip6[40] == 134))`
 3. Main loop: `poll()` on all handles (1s timeout)
 4. **ARP**: extracts sender IP + MAC from requests/replies (skips probes)
 5. **NDP**: parses Neighbor Advertisements (type 136) and Solicitations
-   (type 135) for link-layer address options (skips DAD)
+   (type 135) for link-layer address options (skips DAD); Router
+   Advertisements (type 134) feed on-link prefixes to the bogon filter
 6. Updates an in-memory hash table; on new/changed entries, logs and
    optionally emails via `fork()`/`exec()` of sendmail
 

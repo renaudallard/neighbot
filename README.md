@@ -1,8 +1,34 @@
-# neighbot
+<h1 align="center">neighbot</h1>
 
-**Network neighbor monitoring daemon.**
-Passively watches ARP and NDP traffic on all Ethernet interfaces, records
-IP-to-MAC mappings, and alerts you when something changes.
+<p align="center">
+  <b>Network neighbor monitoring daemon</b><br/>
+  Passively watches ARP and NDP traffic on all Ethernet interfaces,<br/>
+  records IP-to-MAC mappings, and alerts you when something changes.
+</p>
+
+<p align="center">
+  <a href="https://github.com/renaudallard/neighbot/releases/latest">
+    <img src="https://img.shields.io/github/v/release/renaudallard/neighbot?label=version&style=flat-square&sort=semver" alt="Latest release"/>
+  </a>
+  <a href="https://github.com/renaudallard/neighbot/releases">
+    <img src="https://img.shields.io/github/downloads/renaudallard/neighbot/total?style=flat-square&label=downloads" alt="Downloads"/>
+  </a>
+  <a href="https://github.com/renaudallard/neighbot/actions/workflows/valgrind.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/renaudallard/neighbot/valgrind.yml?style=flat-square&label=valgrind" alt="Valgrind"/>
+  </a>
+  <a href="https://github.com/renaudallard/neighbot/actions/workflows/fuzz.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/renaudallard/neighbot/fuzz.yml?style=flat-square&label=fuzz" alt="Fuzz"/>
+  </a>
+  <img src="https://img.shields.io/badge/platforms-Linux%20%7C%20FreeBSD%20%7C%20OpenBSD%20%7C%20NetBSD-blue?style=flat-square" alt="Platforms"/>
+  <a href="./LICENSE">
+    <img src="https://img.shields.io/github/license/renaudallard/neighbot?style=flat-square" alt="License"/>
+  </a>
+  <a href="https://www.paypal.me/RenaudAllard">
+    <img src="https://img.shields.io/badge/PayPal-Donate-blue.svg?logo=paypal&style=flat-square" alt="PayPal"/>
+  </a>
+</p>
+
+---
 
 Like [arpwatch](https://ee.lbl.gov/), but also handles IPv6 and runs on
 Linux, FreeBSD, OpenBSD, and NetBSD.

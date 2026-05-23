@@ -37,7 +37,7 @@ jobs:
           echo "tag=v${tag}" >> "$GITHUB_OUTPUT"
 
       - name: Verify release exists
-        run: gh release view "${{ steps.tag.outputs.tag }}"
+        run: gh release view --repo "${{ github.repository }}" "${{ steps.tag.outputs.tag }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

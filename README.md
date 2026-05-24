@@ -1,9 +1,5 @@
-<h1 align="center">neighbot</h1>
-
 <p align="center">
-  <b>Network neighbor monitoring daemon</b><br/>
-  Passively watches ARP and NDP traffic on all Ethernet interfaces,<br/>
-  records IP-to-MAC mappings, and alerts you when something changes.
+  <img src="neighbot-banner-dark.svg" alt="neighbot — network neighbor monitoring daemon" width="640"/>
 </p>
 
 <p align="center">

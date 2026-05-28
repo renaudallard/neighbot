@@ -398,18 +398,28 @@ check_signals:
 			storm_reset();
 			log_msg("storm suppression cleared");
 		}
-		if (cfg.expire_secs > 0) {
+		{
 			time_t now = time(NULL);
 
 			if (now - last_expire >= EXPIRE_CHECK_INTERVAL) {
-				int n = db_expire(cfg.expire_secs);
+				int n = db_expire_temp(TEMP_IDLE_EXPIRE);
 
-				last_expire = now;
 				if (n > 0) {
-					log_msg("expired %d idle entr%s",
-					    n, n == 1 ? "y" : "ies");
+					log_msg("expired %d stale "
+					    "temporary IPv6 address%s",
+					    n, n == 1 ? "" : "es");
 					save = 1;
 				}
+				if (cfg.expire_secs > 0) {
+					n = db_expire(cfg.expire_secs);
+					if (n > 0) {
+						log_msg("expired %d idle "
+						    "entr%s", n,
+						    n == 1 ? "y" : "ies");
+						save = 1;
+					}
+				}
+				last_expire = now;
 			}
 		}
 		if (save) {

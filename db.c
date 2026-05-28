@@ -542,6 +542,48 @@ db_expire(time_t idle_secs)
 	return removed;
 }
 
+/* Remove non-EUI-64, non-link-local IPv6 entries idle for longer than
+ * idle_secs.  Reaps stale RFC 4941 temporary addresses left behind when
+ * db_drop_temp_in_prefix has no chance to fire (device offline, prefix
+ * change, or probing disabled).  Returns the number of entries removed. */
+int
+db_expire_temp(time_t idle_secs)
+{
+	time_t now = time(NULL);
+	int removed = 0;
+
+	if (idle_secs <= 0)
+		return 0;
+
+	for (unsigned i = 0; i < HT_BUCKETS; i++) {
+		struct entry *prev = NULL;
+		struct entry *e = buckets[i];
+
+		while (e) {
+			struct entry *next = e->next;
+
+			if (e->af != AF_INET6 ||
+			    IS_LINKLOCAL6(e->ip) ||
+			    is_eui64(e->ip, e->mac) ||
+			    now - e->last_seen <= idle_secs) {
+				prev = e;
+				e = next;
+				continue;
+			}
+
+			if (prev)
+				prev->next = next;
+			else
+				buckets[i] = next;
+			free(e);
+			entry_count--;
+			removed++;
+			e = next;
+		}
+	}
+	return removed;
+}
+
 /* Check if MAC already has a non-EUI-64 IPv6 in the same /64.
  * Used to detect temporary address rotation (RFC 4941)
  * and link-local address rotation. */

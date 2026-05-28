@@ -204,6 +204,12 @@ event).
 When a host's new temporary address arrives in a /64 prefix it
 already uses, prior non-EUI-64 entries in the same /64 for the
 same MAC are dropped silently.
+.It Em stale temporary address
+Non-EUI-64, non-link-local IPv6 entries unseen for more than 7 days
+are dropped on the hourly sweep.
+Always on, regardless of
+.Fl e .
+Stable addresses (EUI-64, link-local, IPv4) are not affected.
 .It Em idle expiration
 With
 .Fl e Ar days ,

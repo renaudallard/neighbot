@@ -53,6 +53,7 @@
 #define REAPPEAR_SECS    (180 * 24 * 3600)  /* 6 months */
 #define DEFAULT_BOGON_COOLDOWN 1800         /* 30 minutes */
 #define EXPIRE_CHECK_INTERVAL 3600          /* 1 hour */
+#define TEMP_IDLE_EXPIRE (7 * 24 * 3600)    /* RFC 4941 default valid_lft */
 #define LEARNED_MAX_LIFETIME   (7 * 24 * 3600) /* cap RA lifetime at 7 days */
 #define STORM_THRESHOLD  5                   /* flips within window */
 #define STORM_WINDOW     60                  /* seconds */

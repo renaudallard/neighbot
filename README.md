@@ -203,10 +203,15 @@ neighbot removes entries it knows are no longer valid:
 |--------|---------|--------------|
 | Probe timeout | Old IP no longer responds at the recorded MAC after a probe fires | "moved" email |
 | Temp address rotation | New non-EUI-64 IPv6 address arrives in a /64 prefix the MAC already uses | silent (logged only) |
+| Stale temporary address | Non-EUI-64, non-link-local IPv6 entry unseen for more than 7 days, checked once per hour | silent (logged only) |
 | Idle expiration (`-e days`) | `last_seen` older than `days` days, checked once per hour | silent (logged only) |
 
-Idle expiration is opt-in. Without `-e`, entries are kept indefinitely
-unless a probe confirms the IP is gone.
+Stale temporary address reaping is always on so that RFC 4941 privacy
+addresses left behind by an offline device or a prefix change do not
+linger in the `also known as` line of later notifications. Stable
+addresses (EUI-64 and link-local) are never reaped this way. The broader
+`-e` idle expiration remains opt-in: without `-e`, non-temporary entries
+are kept indefinitely unless a probe confirms the IP is gone.
 
 ## IPv6 Prefix Learning (Router Advertisements)
 

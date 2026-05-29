@@ -181,6 +181,9 @@ that addresses within it are no longer reported as bogons.
 A single email is sent the first time a given prefix is learned on
 an interface; refreshes and re-advertisements are silent.
 Prefixes expire after the RA valid-lifetime (capped at 7 days).
+Prefixes shorter than /48 are ignored and logged: real on-link
+prefixes are /64, and a short prefix would whitelist an implausibly
+wide slice of the address space.
 .Pp
 This mechanism trusts incoming Router Advertisements: a rogue RA on
 the local link can suppress bogon alerts for the prefix it announces.

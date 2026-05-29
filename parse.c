@@ -514,6 +514,22 @@ parse_ra(const uint8_t *icmp, size_t icmp_len, const char *iface,
 			if (prefix_len == 0 || prefix_len > 128)
 				goto next;
 
+			/* ignore implausibly short on-link prefixes. real
+			 * prefixes are /64 (SLAAC) or a site prefix at most.
+			 * a rogue RA could otherwise suppress bogon detection
+			 * across a huge slice of the address space */
+			if (prefix_len < LEARNED_MIN_PREFIX6) {
+				char pfxstr[INET6_ADDRSTRLEN];
+
+				inet_ntop(AF_INET6, prefix, pfxstr,
+				    sizeof(pfxstr));
+				log_msg("ignoring RA prefix %s/%u on %s: "
+				    "shorter than /%d",
+				    pfxstr, prefix_len, iface,
+				    LEARNED_MIN_PREFIX6);
+				goto next;
+			}
+
 			/* skip link-local, multicast, unspecified */
 			if (IS_LINKLOCAL6(prefix))
 				goto next;

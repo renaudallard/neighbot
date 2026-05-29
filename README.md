@@ -234,7 +234,9 @@ after the RA valid-lifetime (capped at 7 days).
 Because the mechanism trusts Router Advertisements, a rogue RA on the
 local link can suppress bogon alerts for the advertised prefix. The
 first-learn notification surfaces that event. Deployments that already
-run RA-Guard or similar L2 filtering retain protection.
+run RA-Guard or similar L2 filtering retain protection. Prefixes shorter
+than /48 are ignored (and logged), so a rogue RA cannot whitelist a wide
+slice of the address space with a single short prefix.
 
 ## Service Setup
 

@@ -10,6 +10,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "../neighbot.h"
@@ -20,8 +21,8 @@ struct config          cfg;
 volatile sig_atomic_t  quit;
 volatile sig_atomic_t  save;
 
-#define TEST_TMP  "/tmp/test_dbload.tmp"
-#define TEST_TMP2 "/tmp/test_dbload2.tmp"
+#define TEST_TMP  "tmp/test_dbload.tmp"
+#define TEST_TMP2 "tmp/test_dbload2.tmp"
 
 static void
 write_file(const char *path, const char *data)
@@ -110,7 +111,7 @@ static void
 test_nonexistent(void)
 {
 	db_init();
-	db_load("/tmp/test_dbload_no_such_file.csv");
+	db_load("tmp/test_dbload_no_such_file.csv");
 	db_free();
 }
 
@@ -118,6 +119,7 @@ int
 main(void)
 {
 	cfg.quiet = 1;
+	mkdir("tmp", 0755);
 
 	test_valid_csv();
 	test_empty_file();

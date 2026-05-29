@@ -10,6 +10,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "../neighbot.h"
@@ -20,7 +21,7 @@ struct config          cfg;
 volatile sig_atomic_t  quit;
 volatile sig_atomic_t  save;
 
-#define TEST_TMP "/tmp/test_ouiload.tmp"
+#define TEST_TMP "tmp/test_ouiload.tmp"
 
 static void
 write_file(const char *path, const char *data)
@@ -106,7 +107,7 @@ test_empty_file(void)
 static void
 test_nonexistent(void)
 {
-	oui_load("/tmp/test_ouiload_no_such_file.txt");
+	oui_load("tmp/test_ouiload_no_such_file.txt");
 	oui_free();
 }
 
@@ -114,6 +115,7 @@ int
 main(void)
 {
 	cfg.quiet = 1;
+	mkdir("tmp", 0755);
 
 	test_neighbot_format();
 	test_arpscan_format();

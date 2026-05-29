@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "../neighbot.h"
@@ -22,7 +23,7 @@ struct config          cfg;
 volatile sig_atomic_t  quit;
 volatile sig_atomic_t  save;
 
-#define TEST_TMP "/tmp/test_dbexpire.tmp"
+#define TEST_TMP "tmp/test_dbexpire.tmp"
 
 static void
 write_file(const char *path, const char *data)
@@ -202,6 +203,7 @@ int
 main(void)
 {
 	cfg.quiet = 1;
+	mkdir("tmp", 0755);
 
 	test_expire_temp_basic();
 	test_expire_temp_keeps_fresh();

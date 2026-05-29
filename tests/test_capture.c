@@ -10,6 +10,7 @@
 #include <string.h>
 #include <signal.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #include <arpa/inet.h>
 
 #include "../neighbot.h"
@@ -240,7 +241,7 @@ test_is_local_any(void)
 
 #if defined(__linux__)
 
-#define VLAN_TMP "/tmp/test_vlan_parents.tmp"
+#define VLAN_TMP "tmp/test_vlan_parents.tmp"
 
 static void
 write_file(const char *path, const char *data)
@@ -338,6 +339,7 @@ main(void)
 	int rc = 0;
 
 	cfg.quiet = 1;
+	mkdir("tmp", 0755);
 
 	printf("test_capture:\n");
 	rc |= test_linklocal();

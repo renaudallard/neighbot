@@ -264,7 +264,7 @@ main(int argc, char *argv[])
 		if (daemon(1, 0) < 0) {
 			log_err("daemon: %s", strerror(errno));
 			cleanup(ifaces, nifaces);
-		return 1;
+			return 1;
 		}
 		/* re-init logging after daemon() closes stderr */
 		log_init("neighbot", 1);
@@ -276,7 +276,7 @@ main(int argc, char *argv[])
 		if (!pw) {
 			log_err("unknown user: %s", cfg.user);
 			cleanup(ifaces, nifaces);
-		return 1;
+			return 1;
 		}
 
 		/* fix ownership and permissions on DB directory and file */
@@ -296,17 +296,17 @@ main(int argc, char *argv[])
 		if (setgroups(1, &pw->pw_gid) < 0) {
 			log_err("setgroups: %s", strerror(errno));
 			cleanup(ifaces, nifaces);
-		return 1;
+			return 1;
 		}
 		if (setgid(pw->pw_gid) < 0) {
 			log_err("setgid: %s", strerror(errno));
 			cleanup(ifaces, nifaces);
-		return 1;
+			return 1;
 		}
 		if (setuid(pw->pw_uid) < 0) {
 			log_err("setuid: %s", strerror(errno));
 			cleanup(ifaces, nifaces);
-		return 1;
+			return 1;
 		}
 
 		log_msg("dropped privileges to %s", cfg.user);

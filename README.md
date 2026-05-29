@@ -203,15 +203,20 @@ neighbot removes entries it knows are no longer valid:
 |--------|---------|--------------|
 | Probe timeout | Old IP no longer responds at the recorded MAC after a probe fires | "moved" email |
 | Temp address rotation | New non-EUI-64 IPv6 address arrives in a /64 prefix the MAC already uses | silent (logged only) |
-| Stale temporary address | Non-EUI-64, non-link-local IPv6 entry unseen for more than 7 days, checked once per hour | silent (logged only) |
+| Stale non-EUI-64 IPv6 | Non-EUI-64, non-link-local IPv6 entry unseen for more than 7 days, checked once per hour | silent (logged only) |
 | Idle expiration (`-e days`) | `last_seen` older than `days` days, checked once per hour | silent (logged only) |
 
-Stale temporary address reaping is always on so that RFC 4941 privacy
-addresses left behind by an offline device or a prefix change do not
-linger in the `also known as` line of later notifications. Stable
-addresses (EUI-64 and link-local) are never reaped this way. The broader
-`-e` idle expiration remains opt-in: without `-e`, non-temporary entries
-are kept indefinitely unless a probe confirms the IP is gone.
+This reaping is always on so that RFC 4941 privacy addresses left behind
+by an offline device or a prefix change do not linger in the `also known
+as` line of later notifications. The test is purely the address shape:
+any non-EUI-64, non-link-local IPv6 address qualifies. That also covers
+RFC 7217 stable-privacy, DHCPv6, and manually assigned global addresses,
+which cannot be told apart from privacy addresses by inspection. A host
+that keeps such an address but stays silent for more than 7 days has its
+entry dropped and is reported as a new station when it reappears. EUI-64
+and link-local addresses are never reaped this way. The broader `-e` idle
+expiration remains opt-in: without `-e`, non-temporary entries are kept
+indefinitely unless a probe confirms the IP is gone.
 
 ## IPv6 Prefix Learning (Router Advertisements)
 

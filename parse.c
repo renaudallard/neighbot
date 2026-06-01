@@ -601,6 +601,14 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 	type = icmp[0];
 
 	if (type == ND_ROUTER_ADVERT) {
+		/* RFC 4861 6.1.2: a valid Router Advertisement has IPv6
+		 * hop limit 255 and a link-local source. drop anything
+		 * else so a spoofed or off-link RA cannot make us learn
+		 * an attacker-chosen prefix */
+		if (ip6.ip6_hlim != 255)
+			return;
+		if (!IS_LINKLOCAL6((const uint8_t *)&ip6.ip6_src))
+			return;
 		parse_ra(icmp, icmp_len, iface,
 		    (const uint8_t *)&ip6.ip6_src);
 		return;

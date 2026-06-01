@@ -231,12 +231,15 @@ The first time a new prefix is learned on an interface, neighbot sends an
 Subsequent refreshes of the same prefix are silent. Prefix entries expire
 after the RA valid-lifetime (capped at 7 days).
 
-Because the mechanism trusts Router Advertisements, a rogue RA on the
-local link can suppress bogon alerts for the advertised prefix. The
-first-learn notification surfaces that event. Deployments that already
-run RA-Guard or similar L2 filtering retain protection. Prefixes shorter
-than /48 are ignored (and logged), so a rogue RA cannot whitelist a wide
-slice of the address space with a single short prefix.
+Incoming Router Advertisements are validated per RFC 4861: only RAs with
+an IPv6 hop limit of 255 and a link-local source address are accepted, so
+off-link or spoofed advertisements are dropped. A rogue RA sent by an
+on-link attacker can still suppress bogon alerts for the prefix it
+announces. The first-learn notification surfaces that event, and
+deployments that already run RA-Guard or similar L2 filtering retain
+protection. Prefixes shorter than /48 are ignored (and logged), so a
+rogue RA cannot whitelist a wide slice of the address space with a single
+short prefix.
 
 ## Service Setup
 

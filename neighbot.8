@@ -185,8 +185,11 @@ Prefixes shorter than /48 are ignored and logged: real on-link
 prefixes are /64, and a short prefix would whitelist an implausibly
 wide slice of the address space.
 .Pp
-This mechanism trusts incoming Router Advertisements: a rogue RA on
-the local link can suppress bogon alerts for the prefix it announces.
+Router Advertisements are validated per RFC 4861: only RAs with an
+IPv6 hop limit of 255 and a link-local source address are accepted,
+so off-link or spoofed advertisements are dropped.
+A rogue RA sent by an on-link attacker can still suppress bogon alerts
+for the prefix it announces.
 The first-learn notification is intended to surface that event so the
 operator can investigate.
 .It moved

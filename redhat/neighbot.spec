@@ -1,5 +1,5 @@
 Name: neighbot
-Version: 0.5.9
+Version: 0.5.10
 Release: 1%{?dist}
 Summary: Network neighbor monitoring daemon
 
@@ -60,6 +60,11 @@ if [ -x /usr/bin/systemctl ]; then
 fi
 
 %changelog
+* Mon Jun 01 2026 Renaud Allard <renaud@allard.it> 0.5.10-1
+- Cap concurrent notification children to bound event floods
+- Validate Router Advertisement hop limit and source before learning prefixes
+- Harden packet, OUI and database parsing from a code audit
+
 * Sat May 23 2026 Renaud Allard <renaud@allard.it> 0.5.9-1
 - Drop obsolete addresses from the database
 

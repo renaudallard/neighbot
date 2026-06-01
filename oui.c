@@ -102,6 +102,11 @@ oui_load(const char *path)
 				fclose(fp);
 				return oui_count;
 			}
+			if ((size_t)new_alloc > SIZE_MAX / sizeof(*oui_db)) {
+				/* size_t overflow on 32-bit platforms */
+				fclose(fp);
+				return oui_count;
+			}
 			struct oui_entry *tmp = realloc(oui_db,
 			    (size_t)new_alloc * sizeof(*tmp));
 			if (!tmp) {

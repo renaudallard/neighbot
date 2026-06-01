@@ -37,11 +37,42 @@
 #include <time.h>
 #include <unistd.h>
 
+#if defined(__linux__)
+#include <sys/syscall.h>
+#endif
+
 #include "neighbot.h"
 #include "db.h"
 #include "log.h"
 #include "notify.h"
 #include "oui.h"
+
+/*
+ * Close every descriptor above stderr before exec'ing sendmail so the
+ * child does not inherit pcap/BPF handles or the syslog socket. Prefer
+ * the O(1) closefrom()/close_range() where available and fall back to a
+ * portable loop.
+ */
+static void
+close_inherited_fds(void)
+{
+#if defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__NetBSD__) || \
+    defined(__DragonFly__)
+	closefrom(STDERR_FILENO + 1);
+#else
+#if defined(__linux__) && defined(SYS_close_range)
+	if (syscall(SYS_close_range, (unsigned)STDERR_FILENO + 1,
+	    ~0U, 0) == 0)
+		return;
+#endif
+	long maxfd = sysconf(_SC_OPEN_MAX);
+
+	if (maxfd <= 0)
+		maxfd = 256;
+	for (long i = STDERR_FILENO + 1; i < maxfd; i++)
+		close((int)i);
+#endif
+}
 
 /*
  * Number of notification children currently running. Each notify_*
@@ -176,11 +207,7 @@ send_mail(const char *subject, const char *body)
 		close(pfd[0]);
 
 		/* close inherited fds (pcap handles) before exec */
-		long maxfd = sysconf(_SC_OPEN_MAX);
-		if (maxfd <= 0)
-			maxfd = 256;
-		for (long i = STDERR_FILENO + 1; i < maxfd; i++)
-			close((int)i);
+		close_inherited_fds();
 
 		execl(cfg.sendmail, "sendmail", "-t", (char *)NULL);
 		_exit(127);
@@ -235,11 +262,7 @@ notify_report_open(const char *subject)
 		dup2(pfd[0], STDIN_FILENO);
 		close(pfd[0]);
 
-		long maxfd = sysconf(_SC_OPEN_MAX);
-		if (maxfd <= 0)
-			maxfd = 256;
-		for (long i = STDERR_FILENO + 1; i < maxfd; i++)
-			close((int)i);
+		close_inherited_fds();
 
 		execl(cfg.sendmail, "sendmail", "-t", (char *)NULL);
 		_exit(127);

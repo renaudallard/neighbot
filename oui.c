@@ -63,6 +63,10 @@ oui_load(const char *path)
 		return 0;
 	}
 
+	/* start from an empty table so a repeated load replaces the
+	 * previous contents instead of appending duplicates */
+	oui_free();
+
 	while (fgets(line, sizeof(line), fp)) {
 		unsigned a, b, c;
 		char vendor[VENDOR_MAX];

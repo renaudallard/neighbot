@@ -203,7 +203,8 @@ send_mail(const char *subject, const char *body)
 	if (pid == 0) {
 		/* child */
 		close(pfd[1]);
-		dup2(pfd[0], STDIN_FILENO);
+		if (dup2(pfd[0], STDIN_FILENO) < 0)
+			_exit(127);
 		close(pfd[0]);
 
 		/* close inherited fds (pcap handles) before exec */
@@ -259,7 +260,8 @@ notify_report_open(const char *subject)
 
 	if (pid == 0) {
 		close(pfd[1]);
-		dup2(pfd[0], STDIN_FILENO);
+		if (dup2(pfd[0], STDIN_FILENO) < 0)
+			_exit(127);
 		close(pfd[0]);
 
 		close_inherited_fds();

@@ -8,6 +8,9 @@ CFLAGS  ?= -O2 -pipe
 CFLAGS  += -Wall -Wextra -Wpedantic -Wformat=2
 CFLAGS  += -D_FORTIFY_SOURCE=2
 CFLAGS  += -fstack-protector-strong
+# Packet parsers overlay structs on the capture buffer; keep that
+# well-defined regardless of optimization level.
+CFLAGS  += -fno-strict-aliasing
 LDFLAGS += -Wl,-z,relro -Wl,-z,now
 LDFLAGS += -lpcap
 
@@ -71,6 +74,7 @@ uninstall:
 # Fuzz targets (requires clang with libFuzzer support)
 FUZZ_CC      = clang
 FUZZ_CFLAGS  = -std=c11 -g -O1 -fno-omit-frame-pointer $(_GNU_SOURCE)
+FUZZ_CFLAGS += -fno-strict-aliasing
 FUZZ_CFLAGS += -fsanitize=fuzzer,address,undefined
 FUZZ_LDFLAGS = -fsanitize=fuzzer,address,undefined -lpcap
 

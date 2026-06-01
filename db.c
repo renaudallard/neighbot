@@ -106,6 +106,19 @@ db_load(const char *path)
 		int af, ilen;
 		uint8_t ip[16];
 
+		/* a full buffer with no trailing newline means the line was
+		 * longer than the buffer; drain the rest and skip it rather
+		 * than parsing the fragments as two bogus records */
+		size_t llen = strlen(line);
+		if (llen == sizeof(line) - 1 && line[llen - 1] != '\n') {
+			int c;
+
+			while ((c = fgetc(fp)) != EOF && c != '\n')
+				;
+			log_err("db_load: oversized line in %s skipped", path);
+			continue;
+		}
+
 		/* strip newline */
 		line[strcspn(line, "\n")] = '\0';
 		if (line[0] == '\0' || line[0] == '#')

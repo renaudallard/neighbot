@@ -115,6 +115,35 @@ test_nonexistent(void)
 	db_free();
 }
 
+static void
+test_oversized_line(void)
+{
+	char big[800];
+	int r;
+
+	/* an over-long first physical line (no newline within the read
+	 * buffer) must be drained and skipped, not split into bogus
+	 * records, and the following valid line must still load */
+	memset(big, 'x', 511);
+	snprintf(big + 511, sizeof(big) - 511,
+	    "10.9.9.9,aa:bb:cc:dd:ee:ff,eth0,"
+	    "2026-01-01T00:00:00,2026-01-02T00:00:00\n"
+	    "10.9.9.10,aa:bb:cc:dd:ee:01,eth0,"
+	    "2026-01-01T00:00:00,2026-01-02T00:00:00\n");
+	write_file(TEST_TMP, big);
+
+	db_init();
+	r = db_load(TEST_TMP);
+	db_free();
+	unlink(TEST_TMP);
+
+	if (r != 1) {
+		fprintf(stderr,
+		    "FAIL: oversized line not skipped (loaded %d, want 1)\n", r);
+		exit(1);
+	}
+}
+
 int
 main(void)
 {
@@ -126,6 +155,7 @@ main(void)
 	test_malformed();
 	test_roundtrip();
 	test_nonexistent();
+	test_oversized_line();
 
 	printf("test_dbload: all tests passed\n");
 	return 0;

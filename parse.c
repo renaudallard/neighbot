@@ -585,7 +585,7 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 
 	ip6 = (const struct ip6_hdr *)pkt;
 
-	/* require ICMPv6 directly — skip packets with extension headers */
+	/* require ICMPv6 directly, skip packets with extension headers */
 	if (ip6->ip6_nxt != IPPROTO_ICMPV6)
 		return;
 

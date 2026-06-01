@@ -135,8 +135,22 @@ capture_add_learned_subnet(const char *iface, int af,
 	for (int i = 0; i < alen; i++)
 		netaddr[i] = addr[i] & mask[i];
 
-	if (lifetime_sec == 0)
+	if (lifetime_sec == 0) {
+		/* a zero valid lifetime withdraws the prefix: expire any
+		 * matching learned entry now so bogon detection resumes */
+		for (int i = 0; i < learned_count; i++) {
+			struct learned_subnet *s = &learned[i];
+
+			if (s->af == af && strcmp(s->iface, iface) == 0 &&
+			    memcmp(s->addr, netaddr, alen) == 0 &&
+			    memcmp(s->mask, mask, alen) == 0 &&
+			    s->expires > now) {
+				s->expires = now;
+				return 2;
+			}
+		}
 		return -1;
+	}
 	if (lifetime_sec > LEARNED_MAX_LIFETIME)
 		lifetime_sec = LEARNED_MAX_LIFETIME;
 	exp = now + (time_t)lifetime_sec;

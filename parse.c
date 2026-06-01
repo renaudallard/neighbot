@@ -506,10 +506,9 @@ parse_ra(const uint8_t *icmp, size_t icmp_len, const char *iface,
 			uint32_t valid     = read_u32_be(opts + off + 4);
 			const uint8_t *prefix = opts + off + 16;
 
-			/* require on-link (L) flag and non-zero lifetime */
+			/* require the on-link (L) flag. a zero valid
+			 * lifetime is a withdrawal and is handled below */
 			if (!(flags & 0x80))
-				goto next;
-			if (valid == 0)
 				goto next;
 			if (prefix_len == 0 || prefix_len > 128)
 				goto next;
@@ -556,6 +555,13 @@ parse_ra(const uint8_t *icmp, size_t icmp_len, const char *iface,
 				if (!cfg.quiet)
 					notify_ra_learned(iface, prefix,
 					    prefix_len, router_src, valid);
+			} else if (added == 2) {
+				char pfxstr[INET6_ADDRSTRLEN];
+
+				inet_ntop(AF_INET6, prefix, pfxstr,
+				    sizeof(pfxstr));
+				log_msg("withdrawn prefix %s/%u on %s",
+				    pfxstr, prefix_len, iface);
 			}
 		}
 

@@ -46,6 +46,7 @@ capture_is_own_ip(int af, const uint8_t *ip)
 
 /* RA-capture stub: record the most recent learned prefix for assertions */
 int      ra_learned_calls;
+int      ra_withdraw_calls;
 char     ra_learned_iface[32];
 int      ra_learned_af;
 uint8_t  ra_learned_addr[16];
@@ -56,6 +57,12 @@ int
 capture_add_learned_subnet(const char *iface, int af,
     const uint8_t *addr, int prefix_len, uint32_t lifetime_sec)
 {
+	/* mimic the real function: a zero lifetime is a withdrawal,
+	 * which never learns a prefix (here it finds nothing to drop) */
+	if (lifetime_sec == 0) {
+		ra_withdraw_calls++;
+		return -1;
+	}
 	ra_learned_calls++;
 	snprintf(ra_learned_iface, sizeof(ra_learned_iface), "%s", iface);
 	ra_learned_af = af;
@@ -449,9 +456,14 @@ test_ndp_ra_zero_lifetime(void)
 	pkt[86] = 0x20; pkt[87] = 0x01; pkt[88] = 0x0d; pkt[89] = 0xba;
 
 	int before = ra_learned_calls;
+	int wbefore = ra_withdraw_calls;
 	feed(pkt, sizeof(pkt));
 	if (ra_learned_calls != before) {
 		fprintf(stderr, "FAIL: RA with zero lifetime triggered learn\n");
+		exit(1);
+	}
+	if (ra_withdraw_calls != wbefore + 1) {
+		fprintf(stderr, "FAIL: RA with zero lifetime did not withdraw\n");
 		exit(1);
 	}
 }

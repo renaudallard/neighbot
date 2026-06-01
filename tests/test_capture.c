@@ -192,9 +192,16 @@ test_learned_subnet(void)
 	ASSERT(capture_is_local("eth1", AF_INET6, ip_in) == 1,
 	    "eth1 has no subnets, safe default");
 
-	/* zero/invalid lifetime is rejected */
+	/* zero lifetime withdraws a matching learned prefix */
 	r = capture_add_learned_subnet("eth0", AF_INET6, pfx, 64, 0);
-	ASSERT(r == -1, "zero lifetime should be rejected");
+	ASSERT(r == 2, "zero lifetime should withdraw a learned prefix");
+	ASSERT(capture_is_local("eth0", AF_INET6, ip_out) == 1,
+	    "after withdrawal, no subnets, safe default is local");
+	/* withdrawing an unknown prefix has nothing to do */
+	r = capture_add_learned_subnet("eth0", AF_INET6, pfx, 64, 0);
+	ASSERT(r == -1, "withdrawing an unknown prefix should return -1");
+
+	/* prefix_len > 128 is rejected before the lifetime check */
 	r = capture_add_learned_subnet("eth0", AF_INET6, pfx, 200, 60);
 	ASSERT(r == -1, "prefix_len > 128 should be rejected");
 

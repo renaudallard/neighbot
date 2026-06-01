@@ -653,6 +653,10 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 	if (ip_addr[0] == 0xff)
 		return;
 
+	/* skip the unspecified address (e.g. an NA whose target is ::) */
+	if (is_zero_ip6(ip_addr))
+		return;
+
 	if (!capture_is_local(iface, AF_INET6, ip_addr)) {
 		if (!capture_is_local_any(AF_INET6, ip_addr))
 			handle_bogon(AF_INET6, ip_addr, mac, iface);

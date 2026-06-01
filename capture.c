@@ -27,6 +27,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
+#include <errno.h>
+#include <fcntl.h>
 #include <ifaddrs.h>
 #include <netinet/in.h>
 #include <pcap.h>
@@ -836,6 +838,12 @@ capture_open_all(struct iface *ifaces, int max)
 			pcap_close(p);
 			continue;
 		}
+
+		/* keep the capture descriptor out of forked children
+		 * (notifications, sendmail) so they never inherit BPF fds */
+		if (fcntl(fd, F_SETFD, FD_CLOEXEC) < 0)
+			log_err("fcntl(FD_CLOEXEC, %s): %s", dev->name,
+			        strerror(errno));
 
 		snprintf(ifaces[count].name, sizeof(ifaces[count].name),
 		         "%s", dev->name);

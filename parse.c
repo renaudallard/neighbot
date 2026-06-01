@@ -568,7 +568,7 @@ static void
 parse_ndp(const u_char *pkt, size_t len, const char *iface,
           const uint8_t *eth_src)
 {
-	const struct ip6_hdr *ip6;
+	struct ip6_hdr ip6;
 	const uint8_t *icmp;
 	uint8_t type;
 	size_t icmp_off, icmp_len;
@@ -583,10 +583,13 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 	if (len < sizeof(struct ip6_hdr))
 		return;
 
-	ip6 = (const struct ip6_hdr *)pkt;
+	/* copy the IPv6 header into an aligned local: pkt sits at
+	 * Ethernet payload offset 14, so overlaying a struct ip6_hdr
+	 * on it would be misaligned and dereferencing it is undefined */
+	memcpy(&ip6, pkt, sizeof(ip6));
 
 	/* require ICMPv6 directly, skip packets with extension headers */
-	if (ip6->ip6_nxt != IPPROTO_ICMPV6)
+	if (ip6.ip6_nxt != IPPROTO_ICMPV6)
 		return;
 
 	icmp_off = sizeof(struct ip6_hdr);
@@ -599,7 +602,7 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 
 	if (type == ND_ROUTER_ADVERT) {
 		parse_ra(icmp, icmp_len, iface,
-		    (const uint8_t *)&ip6->ip6_src);
+		    (const uint8_t *)&ip6.ip6_src);
 		return;
 	}
 
@@ -617,7 +620,7 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 		if (icmp_len < 24)
 			return;
 		/* use source IP from IPv6 header */
-		ip_addr = (const uint8_t *)&ip6->ip6_src;
+		ip_addr = (const uint8_t *)&ip6.ip6_src;
 		opts = icmp + 24;
 		opts_len = icmp_len - 24;
 		/* look for Source Link-Layer Address (type 1) */
@@ -631,7 +634,7 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 		mac = eth_src;
 
 	/* skip DAD probes (source ::) */
-	if (is_zero_ip6((const uint8_t *)&ip6->ip6_src))
+	if (is_zero_ip6((const uint8_t *)&ip6.ip6_src))
 		return;
 
 	/* skip multicast/broadcast MACs */

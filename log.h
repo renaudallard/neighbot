@@ -27,8 +27,14 @@
 #ifndef LOG_H
 #define LOG_H
 
+#if defined(__GNUC__)
+#define LOG_PRINTF_FMT(a, b) __attribute__((format(printf, a, b)))
+#else
+#define LOG_PRINTF_FMT(a, b)
+#endif
+
 void log_init(const char *name, int use_syslog);
-void log_msg(const char *fmt, ...);
-void log_err(const char *fmt, ...);
+void log_msg(const char *fmt, ...) LOG_PRINTF_FMT(1, 2);
+void log_err(const char *fmt, ...) LOG_PRINTF_FMT(1, 2);
 
 #endif

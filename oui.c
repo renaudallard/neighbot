@@ -24,6 +24,7 @@
  * SUCH DAMAGE.
  */
 
+#include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -75,7 +76,10 @@ oui_load(const char *path)
 			unsigned oui;
 			int pos;
 
-			if (sscanf(line, "%6x%n", &oui, &pos) != 1 ||
+			/* require a hex digit first: %x would otherwise
+			 * accept a leading +/- sign and store a bogus OUI */
+			if (!isxdigit((unsigned char)line[0]) ||
+			    sscanf(line, "%6x%n", &oui, &pos) != 1 ||
 			    pos != 6 || line[6] != '\t')
 				continue;
 			a = (oui >> 16) & 0xff;

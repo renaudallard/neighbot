@@ -59,6 +59,7 @@
 #define STORM_THRESHOLD  5                   /* flips within window */
 #define STORM_WINDOW     60                  /* seconds */
 #define STORM_RECOVER    1800                /* seconds of quiet */
+#define NOTIFY_MAX_INFLIGHT 32               /* cap concurrent notify children */
 
 #define BPF_FILTER "arp or (icmp6 and " \
 	"(ip6[40] == 136 or ip6[40] == 135 or ip6[40] == 134))"

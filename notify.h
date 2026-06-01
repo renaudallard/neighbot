@@ -33,6 +33,7 @@
 
 void format_timestamp(time_t t, char *buf, size_t len);
 void format_delta(time_t delta, char *buf, size_t len);
+void notify_reap_children(void);
 FILE *notify_report_open(const char *subject);
 int   notify_report_close(FILE *fp);
 

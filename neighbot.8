@@ -318,6 +318,14 @@ When combined with
 the pledge is
 .Cm stdio proc exec
 to allow sendmail execution.
+.Pp
+Each notification is delivered by a short-lived child process that
+performs a reverse DNS lookup and execs
+.Xr sendmail 8 .
+To keep a flood of events, such as spoofed in-subnet ARP, from
+spawning children at packet rate, no more than 32 notification
+children run at once; further notifications are suppressed and
+logged until the backlog clears.
 .Sh EXIT STATUS
 .Nm
 exits 0 on clean shutdown or after printing a report, or 1 if no

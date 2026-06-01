@@ -43,19 +43,54 @@
 #include "notify.h"
 #include "oui.h"
 
+/*
+ * Number of notification children currently running. Each notify_*
+ * call forks one child that does reverse DNS and execs sendmail. A
+ * flood of events (e.g. spoofed in-subnet ARP) could otherwise spawn
+ * children at packet rate, so refuse to fork past NOTIFY_MAX_INFLIGHT.
+ */
+static int notify_inflight;
+static int notify_suppressed;
+
 /* Fork a notification child. Returns 0 in child, -1 in parent. */
 static int
 notify_fork(void)
 {
-	pid_t pid = fork();
+	pid_t pid;
 
+	if (notify_inflight >= NOTIFY_MAX_INFLIGHT) {
+		if (!notify_suppressed) {
+			notify_suppressed = 1;
+			log_err("notify: %d notifications in flight, "
+			    "suppressing new ones", notify_inflight);
+		}
+		return -1;
+	}
+
+	pid = fork();
 	if (pid < 0) {
 		log_err("notify: fork: %s", strerror(errno));
 		return -1;
 	}
-	if (pid > 0)
+	if (pid > 0) {
+		notify_inflight++;
 		return -1;
+	}
 	return 0;
+}
+
+/* Reap finished notification children (called from the main loop). */
+void
+notify_reap_children(void)
+{
+	while (waitpid(-1, NULL, WNOHANG) > 0) {
+		if (notify_inflight > 0)
+			notify_inflight--;
+	}
+	if (notify_inflight == 0 && notify_suppressed) {
+		notify_suppressed = 0;
+		log_msg("notify: resuming notifications");
+	}
 }
 
 static void

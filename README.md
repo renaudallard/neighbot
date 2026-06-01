@@ -343,6 +343,12 @@ On OpenBSD, neighbot additionally restricts itself using `pledge(2)` and
 
 All pcap/BPF handles are opened before pledge, so no `bpf` promise is needed.
 
+Each notification is delivered by a short-lived child process (reverse DNS
+plus `sendmail`). To keep a flood of events (for example spoofed in-subnet
+ARP) from spawning children at packet rate, no more than 32 notification
+children run at once; further notifications are suppressed and logged until
+the backlog clears.
+
 ## Testing
 
 Standalone test harnesses exercise the parser, database loader, OUI loader,

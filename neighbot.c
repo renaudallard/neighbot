@@ -385,8 +385,7 @@ main(int argc, char *argv[])
 
 check_signals:
 		/* reap notification children */
-		while (waitpid(-1, NULL, WNOHANG) > 0)
-			;
+		notify_reap_children();
 		if (cfg.probe)
 			probe_tick(ifaces, nifaces);
 		if (dump_probes) {

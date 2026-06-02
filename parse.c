@@ -506,9 +506,10 @@ parse_ra(const uint8_t *icmp, size_t icmp_len, const char *iface,
 			uint32_t valid     = read_u32_be(opts + off + 4);
 			const uint8_t *prefix = opts + off + 16;
 
-			/* require the on-link (L) flag. a zero valid
-			 * lifetime is a withdrawal and is handled below */
-			if (!(flags & 0x80))
+			/* require the on-link (L) flag to learn; a zero valid
+			 * lifetime is a withdrawal and is honored even with
+			 * the L flag cleared */
+			if (valid != 0 && !(flags & 0x80))
 				goto next;
 			if (prefix_len == 0 || prefix_len > 128)
 				goto next;

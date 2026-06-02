@@ -468,6 +468,44 @@ test_ndp_ra_zero_lifetime(void)
 	}
 }
 
+/* RA withdrawal (zero lifetime) is honored even with the L flag cleared */
+static void
+test_ndp_ra_withdraw_no_l_flag(void)
+{
+	uint8_t pkt[102];
+
+	memset(pkt, 0, sizeof(pkt));
+	pkt[0]  = 0x33; pkt[1]  = 0x33; pkt[5]  = 0x01;
+	pkt[6]  = 0x02; pkt[11] = 0x55;
+	pkt[12] = 0x86; pkt[13] = 0xdd;
+	pkt[14] = 0x60;
+	pkt[19] = 48;
+	pkt[20] = 58;
+	pkt[21] = 255;
+	pkt[22] = 0xfe; pkt[23] = 0x80; pkt[37] = 0x01;
+	pkt[38] = 0xff; pkt[39] = 0x02; pkt[53] = 0x01;
+	pkt[54] = 134;
+	pkt[70] = 3;
+	pkt[71] = 4;
+	pkt[72] = 64;
+	pkt[73] = 0x00;                  /* L=0 */
+	/* valid lifetime 0 (withdrawal) */
+	pkt[86] = 0x20; pkt[87] = 0x01; pkt[88] = 0x0d; pkt[89] = 0xba;
+
+	int before = ra_learned_calls;
+	int wbefore = ra_withdraw_calls;
+	feed(pkt, sizeof(pkt));
+	if (ra_learned_calls != before) {
+		fprintf(stderr, "FAIL: zero-lifetime RA without L flag learned\n");
+		exit(1);
+	}
+	if (ra_withdraw_calls != wbefore + 1) {
+		fprintf(stderr,
+		    "FAIL: zero-lifetime RA without L flag did not withdraw\n");
+		exit(1);
+	}
+}
+
 static void
 test_truncated(void)
 {
@@ -488,6 +526,7 @@ test_multiple_then_cleanup(void)
 	test_ndp_ra();
 	test_ndp_ra_no_l_flag();
 	test_ndp_ra_zero_lifetime();
+	test_ndp_ra_withdraw_no_l_flag();
 	test_truncated();
 }
 
@@ -506,6 +545,7 @@ main(void)
 	test_ndp_ra();
 	test_ndp_ra_no_l_flag();
 	test_ndp_ra_zero_lifetime();
+	test_ndp_ra_withdraw_no_l_flag();
 	test_truncated();
 
 	/* reset and run batch */

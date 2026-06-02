@@ -8,17 +8,17 @@ CFLAGS  ?= -O2 -pipe
 CFLAGS  += -Wall -Wextra -Wpedantic -Wformat=2
 CFLAGS  += -D_FORTIFY_SOURCE=2
 CFLAGS  += -fstack-protector-strong
-# Packet parsers overlay structs on the capture buffer; keep that
-# well-defined regardless of optimization level.
-CFLAGS  += -fno-strict-aliasing
 LDFLAGS += -Wl,-z,relro -Wl,-z,now
 LDFLAGS += -lpcap
 
 # Flags that must survive a command-line CFLAGS override (e.g. RPM %{optflags}).
 # GNU Make ignores CFLAGS += when CFLAGS is set on the command line, so these
-# go into internal variables referenced directly in the compile rule.
+# go into internal variables referenced directly in the compile rules.
+# _ALIAS keeps the packet parsers (which overlay structs on the capture
+# buffer) well-defined even when a distro replaces CFLAGS.
 _STD = -std=c11
 _GNU_SOURCE != [ "$$(uname -s)" = Linux ] && echo -D_GNU_SOURCE || true
+_ALIAS = -fno-strict-aliasing
 
 SRCS = neighbot.c log.c db.c parse.c notify.c capture.c oui.c probe.c
 OBJS = $(SRCS:.c=.o)
@@ -31,7 +31,7 @@ $(BIN): $(OBJS)
 	$(CC) $(OBJS) $(LDFLAGS) -o $@
 
 .c.o:
-	$(CC) $(_STD) $(_GNU_SOURCE) $(CFLAGS) -MMD -MP -c $<
+	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(CFLAGS) -MMD -MP -c $<
 
 -include $(DEPS)
 
@@ -96,25 +96,25 @@ fuzz-clean:
 test: tests/test_parse tests/test_dbload tests/test_dbexpire tests/test_ouiload tests/test_probe tests/test_capture tests/test_notify
 
 tests/test_parse: tests/test_parse.c parse.c db.c oui.c log.c
-	$(CC) $(_STD) $(_GNU_SOURCE) $(CFLAGS) -o $@ tests/test_parse.c parse.c db.c oui.c log.c $(LDFLAGS)
+	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(CFLAGS) -o $@ tests/test_parse.c parse.c db.c oui.c log.c $(LDFLAGS)
 
 tests/test_dbload: tests/test_dbload.c db.c oui.c log.c
-	$(CC) $(_STD) $(_GNU_SOURCE) $(CFLAGS) -o $@ tests/test_dbload.c db.c oui.c log.c $(LDFLAGS)
+	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(CFLAGS) -o $@ tests/test_dbload.c db.c oui.c log.c $(LDFLAGS)
 
 tests/test_dbexpire: tests/test_dbexpire.c db.c oui.c log.c
-	$(CC) $(_STD) $(_GNU_SOURCE) $(CFLAGS) -o $@ tests/test_dbexpire.c db.c oui.c log.c $(LDFLAGS)
+	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(CFLAGS) -o $@ tests/test_dbexpire.c db.c oui.c log.c $(LDFLAGS)
 
 tests/test_ouiload: tests/test_ouiload.c oui.c log.c
-	$(CC) $(_STD) $(_GNU_SOURCE) $(CFLAGS) -o $@ tests/test_ouiload.c oui.c log.c $(LDFLAGS)
+	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(CFLAGS) -o $@ tests/test_ouiload.c oui.c log.c $(LDFLAGS)
 
 tests/test_probe: tests/test_probe.c probe.c log.c db.c oui.c
-	$(CC) $(_STD) $(_GNU_SOURCE) $(CFLAGS) -o $@ tests/test_probe.c probe.c log.c db.c oui.c $(LDFLAGS)
+	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(CFLAGS) -o $@ tests/test_probe.c probe.c log.c db.c oui.c $(LDFLAGS)
 
 tests/test_capture: tests/test_capture.c capture.c log.c
-	$(CC) $(_STD) $(_GNU_SOURCE) $(CFLAGS) -o $@ tests/test_capture.c capture.c log.c $(LDFLAGS)
+	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(CFLAGS) -o $@ tests/test_capture.c capture.c log.c $(LDFLAGS)
 
 tests/test_notify: tests/test_notify.c notify.c db.c oui.c log.c
-	$(CC) $(_STD) $(_GNU_SOURCE) $(CFLAGS) -o $@ tests/test_notify.c notify.c db.c oui.c log.c $(LDFLAGS)
+	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(CFLAGS) -o $@ tests/test_notify.c notify.c db.c oui.c log.c $(LDFLAGS)
 
 test-clean:
 	rm -f tests/test_parse tests/test_dbload tests/test_dbexpire tests/test_ouiload tests/test_probe tests/test_capture tests/test_notify

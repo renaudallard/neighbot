@@ -71,8 +71,11 @@ oui_load(const char *path)
 		unsigned a, b, c;
 		char vendor[VENDOR_MAX];
 
-		/* neighbot format: aa:bb:cc Vendor Name */
-		if (sscanf(line, "%x:%x:%x %79[^\n]",
+		/* neighbot format: aa:bb:cc Vendor Name.
+		 * require a hex digit first so %x cannot accept a leading
+		 * +/- sign and store a mis-keyed prefix */
+		if (!isxdigit((unsigned char)line[0]) ||
+		    sscanf(line, "%x:%x:%x %79[^\n]",
 		           &a, &b, &c, vendor) != 4 ||
 		    a > 0xff || b > 0xff || c > 0xff) {
 			/* arp-scan format: AABBCC\tVendor Name

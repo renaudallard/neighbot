@@ -118,7 +118,10 @@ notify_reap_children(void)
 		if (notify_inflight > 0)
 			notify_inflight--;
 	}
-	if (notify_inflight < NOTIFY_MAX_INFLIGHT && notify_suppressed) {
+	/* clear suppression only well below the cap (hysteresis) so the
+	 * suppress/resume log does not flap while a flood holds the
+	 * in-flight count near the cap */
+	if (notify_inflight < NOTIFY_MAX_INFLIGHT / 2 && notify_suppressed) {
 		notify_suppressed = 0;
 		log_msg("notify: resuming notifications");
 	}

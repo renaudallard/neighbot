@@ -1,5 +1,5 @@
 Name: neighbot
-Version: 0.5.10
+Version: 0.5.11
 Release: 1%{?dist}
 Summary: Network neighbor monitoring daemon
 
@@ -60,6 +60,11 @@ if [ -x /usr/bin/systemctl ]; then
 fi
 
 %changelog
+* Tue Jun 02 2026 Renaud Allard <renaud@allard.it> 0.5.11-1
+- Keep -fno-strict-aliasing in RPM builds (was dropped by CFLAGS override)
+- Resume notifications as soon as a child slot frees
+- Robustness fixes from a follow-up code audit (OUI, RA withdrawal, db_load)
+
 * Mon Jun 01 2026 Renaud Allard <renaud@allard.it> 0.5.10-1
 - Cap concurrent notification children to bound event floods
 - Validate Router Advertisement hop limit and source before learning prefixes

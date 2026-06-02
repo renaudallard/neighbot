@@ -105,29 +105,29 @@ db_load(const char *path)
 		unsigned idx;
 		int af, ilen;
 		uint8_t ip[16];
+		size_t len = 0;
+		int c, truncated = 0;
 
-		/* a sentinel in the last writable slot detects a line longer
-		 * than the buffer in a way that is robust to embedded NULs:
-		 * if fgets fills the buffer without reaching a newline it
-		 * overwrites the sentinel with a non-newline byte */
-		line[sizeof(line) - 2] = '\0';
-		if (!fgets(line, sizeof(line), fp))
+		/* read one line by hand and count bytes, so the over-long
+		 * check does not depend on strlen or a sentinel byte (an
+		 * embedded NUL defeats both) */
+		while ((c = getc(fp)) != EOF && c != '\n') {
+			if (len < sizeof(line) - 1)
+				line[len++] = (char)c;
+			else
+				truncated = 1;
+		}
+		if (c == EOF && len == 0)
 			break;
+		line[len] = '\0';
 
-		/* drain and skip an over-long line rather than parsing its
-		 * fragments as two bogus records */
-		if (line[sizeof(line) - 2] != '\0' &&
-		    line[sizeof(line) - 2] != '\n') {
-			int c;
-
-			while ((c = fgetc(fp)) != EOF && c != '\n')
-				;
+		/* skip a line that did not fit the buffer rather than
+		 * parsing a truncated record */
+		if (truncated) {
 			log_err("db_load: oversized line in %s skipped", path);
 			continue;
 		}
 
-		/* strip newline */
-		line[strcspn(line, "\n")] = '\0';
 		if (line[0] == '\0' || line[0] == '#')
 			continue;
 

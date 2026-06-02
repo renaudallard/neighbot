@@ -38,6 +38,19 @@ write_file(const char *path, const char *data)
 }
 
 static void
+write_file_n(const char *path, const char *data, size_t len)
+{
+	FILE *fp = fopen(path, "w");
+
+	if (!fp) {
+		perror(path);
+		exit(1);
+	}
+	fwrite(data, 1, len, fp);
+	fclose(fp);
+}
+
+static void
 test_valid_csv(void)
 {
 	write_file(TEST_TMP,
@@ -144,6 +157,38 @@ test_oversized_line(void)
 	}
 }
 
+static void
+test_embedded_nul_line(void)
+{
+	char buf[700];
+	size_t n = 0;
+	const char *rec = "10.9.9.9,aa:bb:cc:dd:ee:ff,eth0,"
+	    "2026-01-01T00:00:00,2026-01-02T00:00:00\n";
+	int r;
+
+	/* an over-long line carrying a NUL at the old sentinel position
+	 * (index 510) must still be skipped whole; the byte-counting
+	 * reader must not let the bytes after the NUL parse as a record */
+	memset(buf, 'x', 510);
+	n = 510;
+	buf[n++] = '\0';
+	memcpy(buf + n, rec, strlen(rec));
+	n += strlen(rec);
+	write_file_n(TEST_TMP, buf, n);
+
+	db_init();
+	r = db_load(TEST_TMP);
+	db_free();
+	unlink(TEST_TMP);
+
+	if (r != 0) {
+		fprintf(stderr,
+		    "FAIL: embedded-NUL over-long line not skipped "
+		    "(loaded %d, want 0)\n", r);
+		exit(1);
+	}
+}
+
 int
 main(void)
 {
@@ -156,6 +201,7 @@ main(void)
 	test_roundtrip();
 	test_nonexistent();
 	test_oversized_line();
+	test_embedded_nul_line();
 
 	printf("test_dbload: all tests passed\n");
 	return 0;

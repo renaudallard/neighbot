@@ -100,22 +100,14 @@ oui_load(const char *path)
 
 		if (oui_count >= oui_alloc) {
 			int new_alloc = oui_alloc ? oui_alloc * 2 : 1024;
-			if (new_alloc <= oui_alloc) {
-				/* int overflow */
-				fclose(fp);
-				return oui_count;
-			}
-			if ((size_t)new_alloc > SIZE_MAX / sizeof(*oui_db)) {
-				/* size_t overflow on 32-bit platforms */
-				fclose(fp);
-				return oui_count;
-			}
+			if (new_alloc <= oui_alloc)
+				goto done;      /* int overflow */
+			if ((size_t)new_alloc > SIZE_MAX / sizeof(*oui_db))
+				goto done;      /* size_t overflow on 32-bit */
 			struct oui_entry *tmp = realloc(oui_db,
 			    (size_t)new_alloc * sizeof(*tmp));
-			if (!tmp) {
-				fclose(fp);
-				return oui_count;
-			}
+			if (!tmp)
+				goto done;      /* out of memory */
 			oui_db = tmp;
 			oui_alloc = new_alloc;
 		}
@@ -127,6 +119,7 @@ oui_load(const char *path)
 		oui_count++;
 	}
 
+done:
 	fclose(fp);
 
 	if (oui_count > 0)

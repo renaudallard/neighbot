@@ -118,7 +118,7 @@ notify_reap_children(void)
 		if (notify_inflight > 0)
 			notify_inflight--;
 	}
-	if (notify_inflight == 0 && notify_suppressed) {
+	if (notify_inflight < NOTIFY_MAX_INFLIGHT && notify_suppressed) {
 		notify_suppressed = 0;
 		log_msg("notify: resuming notifications");
 	}

@@ -1,5 +1,5 @@
 Name: neighbot
-Version: 0.5.11
+Version: 0.5.12
 Release: 1%{?dist}
 Summary: Network neighbor monitoring daemon
 
@@ -60,6 +60,10 @@ if [ -x /usr/bin/systemctl ]; then
 fi
 
 %changelog
+* Tue Jun 02 2026 Renaud Allard <renaud@allard.it> 0.5.12-1
+- Read database lines by counting bytes so an embedded NUL cannot split a record
+- Add hysteresis to notification suppression to stop log flapping
+
 * Tue Jun 02 2026 Renaud Allard <renaud@allard.it> 0.5.11-1
 - Keep -fno-strict-aliasing in RPM builds (was dropped by CFLAGS override)
 - Resume notifications as soon as a child slot frees

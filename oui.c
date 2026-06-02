@@ -26,6 +26,7 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -99,9 +100,11 @@ oui_load(const char *path)
 		}
 
 		if (oui_count >= oui_alloc) {
-			int new_alloc = oui_alloc ? oui_alloc * 2 : 1024;
-			if (new_alloc <= oui_alloc)
-				goto done;      /* int overflow */
+			int new_alloc;
+
+			if (oui_alloc > INT_MAX / 2)
+				goto done;      /* doubling would overflow int */
+			new_alloc = oui_alloc ? oui_alloc * 2 : 1024;
 			if ((size_t)new_alloc > SIZE_MAX / sizeof(*oui_db))
 				goto done;      /* size_t overflow on 32-bit */
 			struct oui_entry *tmp = realloc(oui_db,

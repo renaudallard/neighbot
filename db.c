@@ -96,7 +96,7 @@ db_load(const char *path)
 		return -1;
 	}
 
-	while (fgets(line, sizeof(line), fp)) {
+	for (;;) {
 		char ipstr[INET6_ADDRSTRLEN];
 		char macstr[18];
 		char iface[32];
@@ -106,11 +106,18 @@ db_load(const char *path)
 		int af, ilen;
 		uint8_t ip[16];
 
-		/* a full buffer with no trailing newline means the line was
-		 * longer than the buffer; drain the rest and skip it rather
-		 * than parsing the fragments as two bogus records */
-		size_t llen = strlen(line);
-		if (llen == sizeof(line) - 1 && line[llen - 1] != '\n') {
+		/* a sentinel in the last writable slot detects a line longer
+		 * than the buffer in a way that is robust to embedded NULs:
+		 * if fgets fills the buffer without reaching a newline it
+		 * overwrites the sentinel with a non-newline byte */
+		line[sizeof(line) - 2] = '\0';
+		if (!fgets(line, sizeof(line), fp))
+			break;
+
+		/* drain and skip an over-long line rather than parsing its
+		 * fragments as two bogus records */
+		if (line[sizeof(line) - 2] != '\0' &&
+		    line[sizeof(line) - 2] != '\n') {
 			int c;
 
 			while ((c = fgetc(fp)) != EOF && c != '\n')

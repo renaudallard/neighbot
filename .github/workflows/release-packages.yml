@@ -332,7 +332,7 @@ jobs:
             libpcap-dev fakeroot dpkg-dev
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ inputs.ref }}
@@ -362,7 +362,7 @@ jobs:
           done
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: deb-packages-ubuntu-stable
           path: artifacts/deb/ubuntu-stable/
@@ -388,7 +388,7 @@ jobs:
             libpcap-dev fakeroot dpkg-dev
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ inputs.ref }}
@@ -418,7 +418,7 @@ jobs:
           done
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: deb-packages-ubuntu-lts
           path: artifacts/deb/ubuntu-lts/
@@ -444,7 +444,7 @@ jobs:
             libpcap-dev fakeroot dpkg-dev
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ inputs.ref }}
@@ -474,7 +474,7 @@ jobs:
           done
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: deb-packages-debian-stable
           path: artifacts/deb/debian-stable/
@@ -500,7 +500,7 @@ jobs:
             libpcap-dev fakeroot dpkg-dev
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ inputs.ref }}
@@ -530,7 +530,7 @@ jobs:
           done
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: deb-packages-debian-oldstable
           path: artifacts/deb/debian-oldstable/
@@ -559,7 +559,7 @@ jobs:
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ inputs.ref }}
@@ -598,7 +598,7 @@ jobs:
           done
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: rpm-packages-fedora-${{ needs.detect-versions.outputs.fedora_release }}
           path: artifacts/rpm/fedora-${{ needs.detect-versions.outputs.fedora_release }}/
@@ -646,7 +646,7 @@ jobs:
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ inputs.ref }}
@@ -685,7 +685,7 @@ jobs:
           done
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: rpm-packages-rocky-${{ needs.detect-versions.outputs.rocky_latest }}
           path: artifacts/rpm/rocky-${{ needs.detect-versions.outputs.rocky_latest }}/
@@ -734,7 +734,7 @@ jobs:
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ inputs.ref }}
@@ -773,7 +773,7 @@ jobs:
           done
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: rpm-packages-rocky-${{ needs.detect-versions.outputs.rocky_previous }}
           path: artifacts/rpm/rocky-${{ needs.detect-versions.outputs.rocky_previous }}/
@@ -807,7 +807,7 @@ jobs:
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ inputs.ref }}
@@ -846,7 +846,7 @@ jobs:
           done
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: rpm-packages-opensuse-${{ needs.detect-versions.outputs.opensuse_leap }}
           path: artifacts/rpm/opensuse-${{ needs.detect-versions.outputs.opensuse_leap }}/
@@ -881,7 +881,7 @@ jobs:
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ inputs.ref }}
@@ -920,7 +920,7 @@ jobs:
           done
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: rpm-packages-suse-${{ needs.detect-versions.outputs.suse_bci }}
           path: artifacts/rpm/suse-${{ needs.detect-versions.outputs.suse_bci }}/
@@ -960,7 +960,7 @@ jobs:
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ inputs.ref }}
@@ -997,7 +997,7 @@ jobs:
           done
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: apk-packages-alpine-${{ needs.detect-versions.outputs.alpine_release }}
           path: artifacts/apk/
@@ -1014,7 +1014,7 @@ jobs:
         version: ${{ fromJson(needs.detect-versions.outputs.openbsd_releases) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ inputs.ref }}
@@ -1057,7 +1057,7 @@ jobs:
               "artifacts/neighbot-${ver}-${osflavor}.tgz"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: openbsd-packages-${{ matrix.version }}
           path: artifacts/
@@ -1083,35 +1083,35 @@ jobs:
       - build-tgz-openbsd
     steps:
       - name: Download .deb artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: deb-packages-*
           path: release-assets/deb
           merge-multiple: true
 
       - name: Download .rpm artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: rpm-packages-*
           path: release-assets/rpm
           merge-multiple: true
 
       - name: Download .apk artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: apk-packages-*
           path: release-assets/apk
           merge-multiple: true
 
       - name: Download OpenBSD artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: openbsd-packages-*
           path: release-assets/openbsd
           merge-multiple: true
 
       - name: Upload release assets
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.resolve-tag.outputs.tag }}
           files: |

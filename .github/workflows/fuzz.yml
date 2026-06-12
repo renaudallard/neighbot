@@ -15,7 +15,7 @@ jobs:
       matrix:
         target: [fuzz_parse, fuzz_dbload, fuzz_ouiload]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y clang libpcap-dev
@@ -35,7 +35,7 @@ jobs:
 
       - name: Upload crash artifacts
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.target }}-crashes
           path: |

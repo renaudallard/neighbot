@@ -45,7 +45,7 @@
 #define HT_BUCKETS      1024
 #define MAX_ENTRIES      100000
 #define MAX_IFACES       64
-#define SNAP_LEN         256
+#define SNAP_LEN         2048               /* full RA option chains fit */
 #define POLL_TIMEOUT_MS  1000
 #define MAX_SUBNETS      256
 #define MAX_LEARNED_SUBNETS 64

@@ -41,6 +41,7 @@
 #include "oui.h"
 
 static struct entry *buckets[HT_BUCKETS];
+static struct entry *mac_buckets[HT_BUCKETS];
 static unsigned     entry_count;
 static int          limit_warned;
 
@@ -74,6 +75,45 @@ hash_key(const char *iface, int af, const uint8_t *ip)
 	return h % HT_BUCKETS;
 }
 
+/*
+ * A second hash chain keyed by MAC only, so lookups of "all entries with
+ * this MAC" (probe target discovery, temp-address detection, and the
+ * "also known as" email list) run in proportion to the matches rather
+ * than scanning the whole table on every new address.
+ */
+static unsigned
+mac_hash(const uint8_t *mac)
+{
+	return fnv1a(2166136261u, mac, 6) % HT_BUCKETS;
+}
+
+static void
+mac_link(struct entry *e)
+{
+	unsigned idx = mac_hash(e->mac);
+
+	e->mac_next = mac_buckets[idx];
+	mac_buckets[idx] = e;
+}
+
+static void
+mac_unlink(struct entry *e)
+{
+	unsigned idx = mac_hash(e->mac);
+	struct entry *prev = NULL;
+
+	for (struct entry *m = mac_buckets[idx]; m; prev = m, m = m->mac_next) {
+		if (m == e) {
+			if (prev)
+				prev->mac_next = m->mac_next;
+			else
+				mac_buckets[idx] = m->mac_next;
+			e->mac_next = NULL;
+			return;
+		}
+	}
+}
+
 
 void
 format_mac(const uint8_t *mac, char *buf, size_t len)
@@ -86,6 +126,7 @@ void
 db_init(void)
 {
 	memset(buckets, 0, sizeof(buckets));
+	memset(mac_buckets, 0, sizeof(mac_buckets));
 }
 
 /* Write the directory component of path into dir. */
@@ -270,6 +311,7 @@ db_load(const char *path)
 
 		e->next = buckets[idx];
 		buckets[idx] = e;
+		mac_link(e);
 		entry_count++;
 		count++;
 	}
@@ -423,8 +465,12 @@ db_update(int af, const uint8_t *ip, const uint8_t *mac,
 					ev = EVENT_FLIPFLOP;
 				else
 					ev = EVENT_CHANGED;
+				/* the MAC changed, so move the entry to its
+				 * new MAC bucket to keep the index consistent */
+				mac_unlink(e);
 				memcpy(e->prev_mac, e->mac, 6);
 				memcpy(e->mac, mac, 6);
+				mac_link(e);
 				return ev;
 			}
 			if (now - prev >= REAPPEAR_SECS) {
@@ -460,6 +506,7 @@ db_update(int af, const uint8_t *ip, const uint8_t *mac,
 	e->last_seen = now;
 	e->next = buckets[idx];
 	buckets[idx] = e;
+	mac_link(e);
 	entry_count++;
 	return EVENT_NEW;
 }
@@ -476,30 +523,29 @@ db_other_ips(const uint8_t *mac, int exclude_af, const uint8_t *exclude_ip,
 
 	buf[0] = '\0';
 
-	for (unsigned i = 0; i < HT_BUCKETS && !full; i++) {
-		for (struct entry *e = buckets[i]; e && !full; e = e->next) {
-			if (memcmp(e->mac, mac, 6) != 0)
-				continue;
-			if (e->af == exclude_af &&
-			    memcmp(e->ip, exclude_ip, ip_len(exclude_af)) == 0)
-				continue;
+	for (struct entry *e = mac_buckets[mac_hash(mac)]; e && !full;
+	     e = e->mac_next) {
+		if (memcmp(e->mac, mac, 6) != 0)
+			continue;
+		if (e->af == exclude_af &&
+		    memcmp(e->ip, exclude_ip, ip_len(exclude_af)) == 0)
+			continue;
 
-			char ipstr[INET6_ADDRSTRLEN];
-			inet_ntop(e->af, e->ip, ipstr, sizeof(ipstr));
+		char ipstr[INET6_ADDRSTRLEN];
+		inet_ntop(e->af, e->ip, ipstr, sizeof(ipstr));
 
-			int n;
-			if (count == 0)
-				n = snprintf(buf + off, len - off, "%s", ipstr);
-			else
-				n = snprintf(buf + off, len - off, ", %s", ipstr);
-			if (n < 0 || (size_t)n >= len - off) {
-				buf[off] = '\0';
-				full = 1;
-			} else {
-				off += n;
-			}
-			count++;
+		int n;
+		if (count == 0)
+			n = snprintf(buf + off, len - off, "%s", ipstr);
+		else
+			n = snprintf(buf + off, len - off, ", %s", ipstr);
+		if (n < 0 || (size_t)n >= len - off) {
+			buf[off] = '\0';
+			full = 1;
+		} else {
+			off += n;
 		}
+		count++;
 	}
 	return count;
 }
@@ -511,28 +557,26 @@ db_find_other_entries(const uint8_t *mac, int exclude_af,
 {
 	int count = 0;
 
-	for (unsigned i = 0; i < HT_BUCKETS && count < max; i++) {
-		for (struct entry *e = buckets[i]; e && count < max;
-		     e = e->next) {
-			if (memcmp(e->mac, mac, 6) != 0)
-				continue;
-			/* only probe same address family */
-			if (e->af != exclude_af)
-				continue;
-			if (memcmp(e->ip, exclude_ip, ip_len(exclude_af)) == 0)
-				continue;
-			/* skip link-local entries */
-			if (e->af == AF_INET6 && IS_LINKLOCAL6(e->ip))
-				continue;
-			if (e->af == AF_INET && IS_LINKLOCAL4(e->ip))
-				continue;
+	for (struct entry *e = mac_buckets[mac_hash(mac)]; e && count < max;
+	     e = e->mac_next) {
+		if (memcmp(e->mac, mac, 6) != 0)
+			continue;
+		/* only probe same address family */
+		if (e->af != exclude_af)
+			continue;
+		if (memcmp(e->ip, exclude_ip, ip_len(exclude_af)) == 0)
+			continue;
+		/* skip link-local entries */
+		if (e->af == AF_INET6 && IS_LINKLOCAL6(e->ip))
+			continue;
+		if (e->af == AF_INET && IS_LINKLOCAL4(e->ip))
+			continue;
 
-			out[count].af = e->af;
-			memcpy(out[count].ip, e->ip, 16);
-			snprintf(out[count].iface, sizeof(out[count].iface),
-			    "%s", e->iface);
-			count++;
-		}
+		out[count].af = e->af;
+		memcpy(out[count].ip, e->ip, 16);
+		snprintf(out[count].iface, sizeof(out[count].iface),
+		    "%s", e->iface);
+		count++;
 	}
 	return count;
 }
@@ -559,6 +603,7 @@ db_delete(int af, const uint8_t *ip, const uint8_t *mac, const char *iface)
 			prev->next = e->next;
 		else
 			buckets[idx] = e->next;
+		mac_unlink(e);
 		free(e);
 		entry_count--;
 		return 1;
@@ -599,6 +644,7 @@ db_drop_temp_in_prefix(const uint8_t *mac, const uint8_t *ip6, time_t idle_secs)
 				prev->next = next;
 			else
 				buckets[i] = next;
+			mac_unlink(e);
 			free(e);
 			entry_count--;
 			removed++;
@@ -636,6 +682,7 @@ db_expire(time_t idle_secs)
 				prev->next = next;
 			else
 				buckets[i] = next;
+			mac_unlink(e);
 			free(e);
 			entry_count--;
 			removed++;
@@ -678,6 +725,7 @@ db_expire_temp(time_t idle_secs)
 				prev->next = next;
 			else
 				buckets[i] = next;
+			mac_unlink(e);
 			free(e);
 			entry_count--;
 			removed++;
@@ -693,23 +741,21 @@ db_expire_temp(time_t idle_secs)
 int
 db_has_temp_in_prefix(const uint8_t *mac, const uint8_t *ip6)
 {
-	for (unsigned i = 0; i < HT_BUCKETS; i++) {
-		for (struct entry *e = buckets[i]; e; e = e->next) {
-			if (e->af != AF_INET6)
-				continue;
-			if (memcmp(e->mac, mac, 6) != 0)
-				continue;
-			/* same /64 prefix */
-			if (memcmp(e->ip, ip6, 8) != 0)
-				continue;
-			/* skip the IP itself */
-			if (memcmp(e->ip, ip6, 16) == 0)
-				continue;
-			/* skip EUI-64 derived addresses */
-			if (is_eui64(e->ip, mac))
-				continue;
-			return 1;
-		}
+	for (struct entry *e = mac_buckets[mac_hash(mac)]; e; e = e->mac_next) {
+		if (e->af != AF_INET6)
+			continue;
+		if (memcmp(e->mac, mac, 6) != 0)
+			continue;
+		/* same /64 prefix */
+		if (memcmp(e->ip, ip6, 8) != 0)
+			continue;
+		/* skip the IP itself */
+		if (memcmp(e->ip, ip6, 16) == 0)
+			continue;
+		/* skip EUI-64 derived addresses */
+		if (is_eui64(e->ip, mac))
+			continue;
+		return 1;
 	}
 	return 0;
 }
@@ -821,6 +867,7 @@ db_free(void)
 		}
 		buckets[i] = NULL;
 	}
+	memset(mac_buckets, 0, sizeof(mac_buckets));
 	entry_count = 0;
 	limit_warned = 0;
 }

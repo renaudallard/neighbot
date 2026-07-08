@@ -47,7 +47,8 @@ struct entry {
 	char           iface[32];
 	time_t         first_seen;
 	time_t         last_seen;
-	struct entry  *next;
+	struct entry  *next;      /* chain within the (iface, af, ip) bucket */
+	struct entry  *mac_next;  /* chain within the MAC bucket */
 };
 
 struct db_entry_info {

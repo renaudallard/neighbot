@@ -227,6 +227,61 @@ test_fifo_rejected(void)
 }
 
 static void
+test_mac_index(void)
+{
+	uint8_t macA[6] = { 0xaa, 0, 0, 0, 0, 1 };
+	uint8_t macB[6] = { 0xbb, 0, 0, 0, 0, 2 };
+	uint8_t ip1[16] = { 10, 0, 0, 1 };
+	uint8_t ip2[16] = { 10, 0, 0, 2 };
+	uint8_t ip3[16] = { 10, 0, 0, 3 };
+	uint8_t old[6];
+	time_t ols;
+	struct db_entry_info others[8];
+	char buf[256];
+	int n;
+
+	db_init();
+
+	/* macA has two IPv4 addresses on eth0, macB has one */
+	db_update(AF_INET, ip1, macA, "eth0", old, &ols);
+	db_update(AF_INET, ip2, macA, "eth0", old, &ols);
+	db_update(AF_INET, ip3, macB, "eth0", old, &ols);
+
+	/* other entries of macA excluding ip1 -> ip2 only */
+	n = db_find_other_entries(macA, AF_INET, ip1, others, 8);
+	if (n != 1) {
+		fprintf(stderr, "FAIL: mac index other-entries got %d, want 1\n",
+		    n);
+		exit(1);
+	}
+	n = db_other_ips(macA, AF_INET, ip1, buf, sizeof(buf));
+	if (n != 1 || strcmp(buf, "10.0.0.2") != 0) {
+		fprintf(stderr, "FAIL: db_other_ips got %d '%s'\n", n, buf);
+		exit(1);
+	}
+
+	/* move ip2 from macA to macB: the index must follow the MAC change */
+	db_update(AF_INET, ip2, macB, "eth0", old, &ols);
+	if (db_find_other_entries(macA, AF_INET, ip1, others, 8) != 0) {
+		fprintf(stderr, "FAIL: macA still lists a moved entry\n");
+		exit(1);
+	}
+	if (db_find_other_entries(macB, AF_INET, ip3, others, 8) != 1) {
+		fprintf(stderr, "FAIL: macB missing the moved entry\n");
+		exit(1);
+	}
+
+	/* delete ip2: macB then has only ip3 */
+	db_delete(AF_INET, ip2, macB, "eth0");
+	if (db_find_other_entries(macB, AF_INET, ip3, others, 8) != 0) {
+		fprintf(stderr, "FAIL: deleted entry still in mac index\n");
+		exit(1);
+	}
+
+	db_free();
+}
+
+static void
 test_nonexistent(void)
 {
 	db_init();
@@ -309,6 +364,7 @@ main(void)
 	test_same_ip_two_ifaces();
 	test_symlink_rejected();
 	test_fifo_rejected();
+	test_mac_index();
 	test_nonexistent();
 	test_oversized_line();
 	test_embedded_nul_line();

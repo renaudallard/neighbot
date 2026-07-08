@@ -86,6 +86,20 @@ db_init(void)
 	memset(buckets, 0, sizeof(buckets));
 }
 
+/* Write the directory component of path into dir. */
+void
+dbdir_from_path(const char *path, char *dir, size_t dirlen)
+{
+	const char *sl = strrchr(path, '/');
+
+	if (sl && sl != path)
+		snprintf(dir, dirlen, "%.*s", (int)(sl - path), path);
+	else if (sl)
+		snprintf(dir, dirlen, "/");
+	else
+		snprintf(dir, dirlen, ".");
+}
+
 int
 db_load(const char *path)
 {
@@ -332,17 +346,9 @@ db_save(const char *path)
 	/* fsync the directory so the rename itself survives a crash */
 	{
 		char dir[PATH_MAX];
-		const char *sl = strrchr(path, '/');
 		int dfd;
 
-		if (sl == path)
-			snprintf(dir, sizeof(dir), "/");
-		else if (sl)
-			snprintf(dir, sizeof(dir), "%.*s",
-			    (int)(sl - path), path);
-		else
-			snprintf(dir, sizeof(dir), ".");
-
+		dbdir_from_path(path, dir, sizeof(dir));
 		dfd = open(dir, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
 		if (dfd >= 0) {
 			if (fsync(dfd) != 0)

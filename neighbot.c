@@ -120,19 +120,6 @@ sanitise_stdfd(void)
 	}
 }
 
-static void
-dbdir_from_path(const char *path, char *dir, size_t dirlen)
-{
-	const char *sl = strrchr(path, '/');
-
-	if (sl && sl != path)
-		snprintf(dir, dirlen, "%.*s", (int)(sl - path), path);
-	else if (sl)
-		snprintf(dir, dirlen, "/");
-	else
-		snprintf(dir, dirlen, ".");
-}
-
 int
 main(int argc, char *argv[])
 {

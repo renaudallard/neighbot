@@ -57,6 +57,7 @@ struct db_entry_info {
 };
 
 void  format_mac(const uint8_t *mac, char *buf, size_t len);
+void  dbdir_from_path(const char *path, char *dir, size_t dirlen);
 void  db_init(void);
 int   db_load(const char *path);
 int   db_save(const char *path);

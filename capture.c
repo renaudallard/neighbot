@@ -46,6 +46,7 @@
 #if defined(__FreeBSD__)
 #include <net/if_vlan_var.h>
 #elif defined(__NetBSD__)
+#include <net/if_ether.h>	/* ETHER_ADDR_LEN, used by if_vlanvar.h */
 #include <net/if_vlanvar.h>
 #endif
 #endif

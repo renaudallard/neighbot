@@ -91,8 +91,8 @@ Link-local addresses and IPs assigned to the local host's own
 interfaces are excluded from probing.
 .Pp
 When an IPv6 temporary address (RFC 4941) rotates, the new address
-is not reported as a new station; instead the old temporary address
-is probed and reported as moved if it no longer responds.
+is not reported as a new station; obsolete temporary addresses in the
+same prefix that have gone idle are dropped from the database silently.
 This also covers link-local address rotation on devices with
 randomized MACs.
 .Pp
@@ -146,10 +146,9 @@ generates the following event types:
 .It new
 A previously unknown IP address is seen for the first time.
 The email notification is suppressed when an IPv6 temporary address
-rotates (same MAC, same /64 prefix, non-EUI-64); in that case the
-old address is probed and a
-.Em moved
-event is generated instead if it no longer responds.
+rotates (same MAC, same /64 prefix, non-EUI-64); obsolete temporary
+addresses in the prefix that have gone idle are dropped silently rather
+than reported.
 .It changed
 An IP address is seen with a different MAC address than the one
 previously recorded.
@@ -209,8 +208,9 @@ When a probe times out, the obsolete entry is dropped (see the
 event).
 .It Em IPv6 temporary address rotation
 When a host's new temporary address arrives in a /64 prefix it
-already uses, prior non-EUI-64 entries in the same /64 for the
-same MAC are dropped silently.
+already uses, prior non-EUI-64 entries in the same /64 for the same
+MAC that have gone idle are dropped silently; an address still in
+active use is kept.
 .It Em stale non-EUI-64 IPv6
 Non-EUI-64, non-link-local IPv6 entries unseen for more than 7 days
 are dropped on the hourly sweep.

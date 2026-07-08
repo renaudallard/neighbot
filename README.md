@@ -189,9 +189,10 @@ VLANs or other interfaces.
 **IPv6 temporary addresses (RFC 4941):** When a device using privacy
 extensions rotates its temporary address, neighbot detects that the same
 MAC already has a non-EUI-64 address in the same /64 prefix and suppresses
-the "new station" email. The prior non-EUI-64 entries in that /64 are
-silently dropped from the database. This also covers link-local address
-rotation (common on devices with randomized MACs).
+the "new station" email. Prior non-EUI-64 entries in that /64 that have
+gone idle are silently dropped from the database, while an address still
+in active use is kept. This also covers link-local address rotation
+(common on devices with randomized MACs).
 
 Disable with `-p` for purely passive monitoring.
 

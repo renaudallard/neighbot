@@ -352,14 +352,16 @@ the backlog clears.
 
 ## Testing
 
-Standalone test harnesses exercise the parser, database loader, OUI loader,
-probe packet builders, subnet matching, and notification formatting with
-known inputs. They link without sanitizers so they can run under valgrind.
+Standalone test harnesses exercise the parser, database loader, database
+expiration, OUI loader, probe packet builders, subnet matching, and
+notification formatting with known inputs. They link without sanitizers so
+they can run under valgrind.
 
 ```sh
 make test                              # build all test binaries
 tests/test_parse                       # run parser tests
 tests/test_dbload                      # run database loader tests
+tests/test_dbexpire                    # run database expiration tests
 tests/test_ouiload                     # run OUI loader tests
 tests/test_probe                       # run probe builder and state machine tests
 tests/test_capture                     # run capture_is_local subnet tests
@@ -372,6 +374,7 @@ With valgrind:
 ```sh
 valgrind --leak-check=full --error-exitcode=1 tests/test_parse
 valgrind --leak-check=full --error-exitcode=1 tests/test_dbload
+valgrind --leak-check=full --error-exitcode=1 tests/test_dbexpire
 valgrind --leak-check=full --error-exitcode=1 tests/test_ouiload
 valgrind --leak-check=full --error-exitcode=1 tests/test_probe
 valgrind --leak-check=full --error-exitcode=1 tests/test_capture

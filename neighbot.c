@@ -28,6 +28,7 @@
 #include <sys/wait.h>
 
 #include <errno.h>
+#include <fcntl.h>
 #include <grp.h>
 #include <limits.h>
 #include <poll.h>
@@ -287,11 +288,25 @@ main(int argc, char *argv[])
 			log_err("chown %s: %s", dbdir, strerror(errno));
 		if (chmod(dbdir, 0750) < 0)
 			log_err("chmod %s: %s", dbdir, strerror(errno));
-		if (chown(cfg.dbfile, pw->pw_uid, pw->pw_gid) < 0 &&
-		    errno != ENOENT)
-			log_err("chown %s: %s", cfg.dbfile, strerror(errno));
-		if (chmod(cfg.dbfile, 0640) < 0 && errno != ENOENT)
-			log_err("chmod %s: %s", cfg.dbfile, strerror(errno));
+
+		/* Fix ownership and mode on the DB file through an
+		 * O_NOFOLLOW handle. The file lives in a directory owned by
+		 * the unprivileged user, so following a symlink here would
+		 * let that user redirect the root chown/chmod onto any file. */
+		int dbfd = open(cfg.dbfile, O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
+		if (dbfd < 0) {
+			if (errno != ENOENT)
+				log_err("open %s: %s", cfg.dbfile,
+				    strerror(errno));
+		} else {
+			if (fchown(dbfd, pw->pw_uid, pw->pw_gid) < 0)
+				log_err("fchown %s: %s", cfg.dbfile,
+				    strerror(errno));
+			if (fchmod(dbfd, 0640) < 0)
+				log_err("fchmod %s: %s", cfg.dbfile,
+				    strerror(errno));
+			close(dbfd);
+		}
 
 		if (setgroups(1, &pw->pw_gid) < 0) {
 			log_err("setgroups: %s", strerror(errno));

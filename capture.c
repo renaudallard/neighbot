@@ -157,15 +157,19 @@ capture_add_learned_subnet(const char *iface, int af,
 		lifetime_sec = LEARNED_MAX_LIFETIME;
 	exp = now + (time_t)lifetime_sec;
 
-	/* look for an existing matching entry to refresh */
+	/* refresh a live entry, or re-learn one whose slot has lapsed
+	 * (expired or withdrawn) so the not-local to local transition is
+	 * surfaced again with a fresh notification */
 	for (int i = 0; i < learned_count; i++) {
 		struct learned_subnet *s = &learned[i];
 
 		if (s->af == af && strcmp(s->iface, iface) == 0 &&
 		    memcmp(s->addr, netaddr, alen) == 0 &&
 		    memcmp(s->mask, mask, alen) == 0) {
+			int lapsed = (s->expires <= now);
+
 			s->expires = exp;
-			return 0;
+			return lapsed ? 1 : 0;
 		}
 	}
 

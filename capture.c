@@ -224,8 +224,10 @@ fill_local_macs(struct iface *ifaces, int count)
 {
 	struct ifaddrs *ifap, *ifa;
 
-	if (getifaddrs(&ifap) < 0)
+	if (getifaddrs(&ifap) < 0) {
+		log_err("getifaddrs: %s", strerror(errno));
 		return;
+	}
 
 	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
 		if (!ifa->ifa_addr)
@@ -272,8 +274,10 @@ fill_local_subnets(struct iface *ifaces, int count)
 
 	subnet_count = 0;
 
-	if (getifaddrs(&ifap) < 0)
+	if (getifaddrs(&ifap) < 0) {
+		log_err("getifaddrs: %s", strerror(errno));
 		return;
+	}
 
 	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
 		int af, alen;
@@ -363,8 +367,10 @@ fill_local_ips(struct iface *ifaces, int count)
 
 	own_ip_count = 0;
 
-	if (getifaddrs(&ifap) < 0)
+	if (getifaddrs(&ifap) < 0) {
+		log_err("getifaddrs: %s", strerror(errno));
 		return;
+	}
 
 	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
 		int af, alen;
@@ -690,8 +696,10 @@ filter_assigned_parents(char parents[][32], int count)
 	if (count <= 0 || count > 64)
 		return count;
 
-	if (getifaddrs(&ifap) < 0)
+	if (getifaddrs(&ifap) < 0) {
+		log_err("getifaddrs: %s", strerror(errno));
 		return count;
+	}
 
 	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
 		const uint8_t *ip;

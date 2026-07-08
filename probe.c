@@ -273,7 +273,7 @@ find_iface(struct iface *ifaces, int nifaces, const char *name)
 	return NULL;
 }
 
-static void
+static int
 send_probe(struct probe *p, struct iface *ifp)
 {
 	uint8_t pkt[128];
@@ -288,12 +288,14 @@ send_probe(struct probe *p, struct iface *ifp)
 	}
 
 	if (len < 0)
-		return;
+		return -1;
 
 	if (pcap_inject(ifp->handle, pkt, len) < 0) {
 		log_err("probe: pcap_inject(%s): %s",
 		    ifp->name, pcap_geterr(ifp->handle));
+		return -1;
 	}
+	return 0;
 }
 
 void
@@ -342,7 +344,13 @@ probe_tick(struct iface *ifaces, int nifaces)
 				continue;
 			}
 
-			send_probe(p, ifp);
+			if (send_probe(p, ifp) < 0) {
+				/* the probe never left the host; cancel it
+				 * rather than counting an undelivered attempt
+				 * that would falsely time out as a move */
+				p->active = 0;
+				continue;
+			}
 			p->tries++;
 			if (p->first_sent == 0)
 				p->first_sent = now;

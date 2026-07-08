@@ -121,6 +121,31 @@ test_roundtrip(void)
 }
 
 static void
+test_bad_timestamp(void)
+{
+	int r;
+
+	/* a row with a valid IP and MAC but an unparseable timestamp must
+	 * be skipped, not kept with an epoch-0 time */
+	write_file(TEST_TMP,
+	    "192.168.5.5,aa:bb:cc:dd:ee:ff,eth0,bad,bad\n"
+	    "192.168.5.6,aa:bb:cc:dd:ee:01,eth0,"
+	    "2026-01-01T00:00:00,2026-01-02T00:00:00\n");
+
+	db_init();
+	r = db_load(TEST_TMP);
+	db_free();
+	unlink(TEST_TMP);
+
+	if (r != 1) {
+		fprintf(stderr,
+		    "FAIL: bad-timestamp row not skipped (loaded %d, want 1)\n",
+		    r);
+		exit(1);
+	}
+}
+
+static void
 test_same_ip_two_ifaces(void)
 {
 	int r;
@@ -225,6 +250,7 @@ main(void)
 	test_empty_file();
 	test_malformed();
 	test_roundtrip();
+	test_bad_timestamp();
 	test_same_ip_two_ifaces();
 	test_nonexistent();
 	test_oversized_line();

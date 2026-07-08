@@ -182,6 +182,24 @@ db_load(const char *path)
 		    m[3] > 0xff || m[4] > 0xff || m[5] > 0xff)
 			continue;
 
+		/* parse timestamps; skip the row if either is malformed, as
+		 * with the other field checks, so a corrupt row is not kept
+		 * with an epoch-0 time that later looks like a long-silent
+		 * station reappearing */
+		struct tm tm;
+		time_t first_seen, last_seen;
+
+		memset(&tm, 0, sizeof(tm));
+		tm.tm_isdst = -1;
+		if (!strptime(first_str, "%Y-%m-%dT%H:%M:%S", &tm))
+			continue;
+		first_seen = mktime(&tm);
+		memset(&tm, 0, sizeof(tm));
+		tm.tm_isdst = -1;
+		if (!strptime(last_str, "%Y-%m-%dT%H:%M:%S", &tm))
+			continue;
+		last_seen = mktime(&tm);
+
 		e = calloc(1, sizeof(*e));
 		if (!e) {
 			log_err("db_load: out of memory");
@@ -210,16 +228,8 @@ db_load(const char *path)
 
 		snprintf(e->iface, sizeof(e->iface), "%s", iface);
 
-		/* parse timestamps */
-		struct tm tm;
-		memset(&tm, 0, sizeof(tm));
-		tm.tm_isdst = -1;
-		if (strptime(first_str, "%Y-%m-%dT%H:%M:%S", &tm))
-			e->first_seen = mktime(&tm);
-		memset(&tm, 0, sizeof(tm));
-		tm.tm_isdst = -1;
-		if (strptime(last_str, "%Y-%m-%dT%H:%M:%S", &tm))
-			e->last_seen = mktime(&tm);
+		e->first_seen = first_seen;
+		e->last_seen = last_seen;
 
 		e->next = buckets[idx];
 		buckets[idx] = e;

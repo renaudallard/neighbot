@@ -121,6 +121,32 @@ test_roundtrip(void)
 }
 
 static void
+test_same_ip_two_ifaces(void)
+{
+	int r;
+
+	/* the same address on two interfaces must be kept as two distinct
+	 * entries, not collapsed into one */
+	write_file(TEST_TMP,
+	    "fe80::1,aa:bb:cc:00:00:01,eth0,"
+	    "2026-01-01T00:00:00,2026-01-02T00:00:00,00:00:00:00:00:00\n"
+	    "fe80::1,aa:bb:cc:00:00:02,eth1,"
+	    "2026-01-01T00:00:00,2026-01-02T00:00:00,00:00:00:00:00:00\n");
+
+	db_init();
+	r = db_load(TEST_TMP);
+	db_free();
+	unlink(TEST_TMP);
+
+	if (r != 2) {
+		fprintf(stderr,
+		    "FAIL: same IP on two interfaces not kept separate "
+		    "(loaded %d, want 2)\n", r);
+		exit(1);
+	}
+}
+
+static void
 test_nonexistent(void)
 {
 	db_init();
@@ -199,6 +225,7 @@ main(void)
 	test_empty_file();
 	test_malformed();
 	test_roundtrip();
+	test_same_ip_two_ifaces();
 	test_nonexistent();
 	test_oversized_line();
 	test_embedded_nul_line();

@@ -307,7 +307,7 @@ handle_moved(int new_af, const uint8_t *new_ip, const uint8_t *mac,
 	if (!cfg.quiet)
 		notify_moved(new_af, new_ip, mac, old_af, old_ip, iface);
 
-	if (db_delete(old_af, old_ip, mac))
+	if (db_delete(old_af, old_ip, mac, iface))
 		log_msg("dropped obsolete %s %s on %s",
 		        oldstr, macstr, iface);
 

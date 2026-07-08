@@ -43,10 +43,9 @@ static unsigned     entry_count;
 static int          limit_warned;
 
 static uint32_t
-fnv1a(const void *data, size_t len)
+fnv1a(uint32_t h, const void *data, size_t len)
 {
 	const uint8_t *p = data;
-	uint32_t h = 2166136261u;
 
 	for (size_t i = 0; i < len; i++) {
 		h ^= p[i];
@@ -55,16 +54,22 @@ fnv1a(const void *data, size_t len)
 	return h;
 }
 
+/*
+ * Entries are keyed by (interface, address family, IP). The interface is
+ * part of the identity because the same address (e.g. a link-local
+ * fe80::1 gateway) can legitimately exist with different MACs on two
+ * monitored links, and must not collide into a single flip-flopping entry.
+ */
 static unsigned
-hash_key(int af, const uint8_t *ip)
+hash_key(const char *iface, int af, const uint8_t *ip)
 {
-	uint8_t buf[17];
-	size_t len;
+	uint8_t a = (uint8_t)af;
+	uint32_t h = 2166136261u;
 
-	buf[0] = (uint8_t)af;
-	len = (af == AF_INET) ? 4 : 16;
-	memcpy(buf + 1, ip, len);
-	return fnv1a(buf, 1 + len) % HT_BUCKETS;
+	h = fnv1a(h, iface, strlen(iface));
+	h = fnv1a(h, &a, 1);
+	h = fnv1a(h, ip, (size_t)ip_len(af));
+	return h % HT_BUCKETS;
 }
 
 
@@ -156,10 +161,11 @@ db_load(const char *path)
 
 		/* skip duplicates */
 		ilen = ip_len(af);
-		idx = hash_key(af, ip);
+		idx = hash_key(iface, af, ip);
 		int dup = 0;
 		for (struct entry *d = buckets[idx]; d; d = d->next) {
-			if (d->af == af && memcmp(d->ip, ip, ilen) == 0) {
+			if (d->af == af && memcmp(d->ip, ip, ilen) == 0 &&
+			    strcmp(d->iface, iface) == 0) {
 				dup = 1;
 				break;
 			}
@@ -325,16 +331,15 @@ int
 db_update(int af, const uint8_t *ip, const uint8_t *mac,
           const char *iface, uint8_t *old_mac, time_t *old_last_seen)
 {
-	unsigned idx = hash_key(af, ip);
+	unsigned idx = hash_key(iface, af, ip);
 	int ilen = ip_len(af);
 	time_t now = time(NULL);
 
 	for (struct entry *e = buckets[idx]; e; e = e->next) {
-		if (e->af == af && memcmp(e->ip, ip, ilen) == 0) {
+		if (e->af == af && memcmp(e->ip, ip, ilen) == 0 &&
+		    strcmp(e->iface, iface) == 0) {
 			time_t prev = e->last_seen;
 			e->last_seen = now;
-			snprintf(e->iface, sizeof(e->iface),
-			    "%s", iface);
 			if (memcmp(e->mac, mac, 6) != 0) {
 				int ev;
 
@@ -461,12 +466,12 @@ db_find_other_entries(const uint8_t *mac, int exclude_af,
 	return count;
 }
 
-/* Remove the entry at (af, ip) if its current MAC matches.
+/* Remove the entry at (iface, af, ip) if its current MAC matches.
  * Returns 1 if removed, 0 otherwise. */
 int
-db_delete(int af, const uint8_t *ip, const uint8_t *mac)
+db_delete(int af, const uint8_t *ip, const uint8_t *mac, const char *iface)
 {
-	unsigned idx = hash_key(af, ip);
+	unsigned idx = hash_key(iface, af, ip);
 	int ilen = ip_len(af);
 	struct entry *prev = NULL;
 
@@ -474,6 +479,8 @@ db_delete(int af, const uint8_t *ip, const uint8_t *mac)
 		if (e->af != af)
 			continue;
 		if (memcmp(e->ip, ip, ilen) != 0)
+			continue;
+		if (strcmp(e->iface, iface) != 0)
 			continue;
 		if (memcmp(e->mac, mac, 6) != 0)
 			return 0;

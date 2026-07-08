@@ -172,6 +172,61 @@ test_same_ip_two_ifaces(void)
 }
 
 static void
+test_symlink_rejected(void)
+{
+	int r;
+
+	/* db_load must not follow a symlink at the final path component;
+	 * otherwise a symlink planted in a writable DB directory redirects
+	 * the root-time read to an arbitrary file */
+	write_file(TEST_TMP2,
+	    "192.168.9.9,aa:bb:cc:dd:ee:ff,eth0,"
+	    "2026-01-01T00:00:00,2026-01-02T00:00:00\n");
+	unlink(TEST_TMP);
+	if (symlink("test_dbload2.tmp", TEST_TMP) != 0) {
+		unlink(TEST_TMP2);
+		return;   /* filesystem without symlink support: skip */
+	}
+
+	db_init();
+	r = db_load(TEST_TMP);
+	db_free();
+	unlink(TEST_TMP);
+	unlink(TEST_TMP2);
+
+	if (r != -1) {
+		fprintf(stderr,
+		    "FAIL: db_load followed a symlink (returned %d, want -1)\n",
+		    r);
+		exit(1);
+	}
+}
+
+static void
+test_fifo_rejected(void)
+{
+	int r;
+
+	/* db_load must reject a FIFO promptly rather than blocking on open
+	 * or looping forever on an endless read (a local DoS vector) */
+	unlink(TEST_TMP);
+	if (mkfifo(TEST_TMP, 0600) != 0)
+		return;   /* mkfifo unsupported: skip */
+
+	db_init();
+	r = db_load(TEST_TMP);
+	db_free();
+	unlink(TEST_TMP);
+
+	if (r != -1) {
+		fprintf(stderr,
+		    "FAIL: db_load did not reject a FIFO (returned %d, want -1)\n",
+		    r);
+		exit(1);
+	}
+}
+
+static void
 test_nonexistent(void)
 {
 	db_init();
@@ -252,6 +307,8 @@ main(void)
 	test_roundtrip();
 	test_bad_timestamp();
 	test_same_ip_two_ifaces();
+	test_symlink_rejected();
+	test_fifo_rejected();
 	test_nonexistent();
 	test_oversized_line();
 	test_embedded_nul_line();

@@ -24,12 +24,16 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/stat.h>
+
 #include <ctype.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "oui.h"
 #include "log.h"
@@ -58,10 +62,31 @@ oui_load(const char *path)
 	FILE *fp;
 	char line[256];
 
-	fp = fopen(path, "r");
-	if (!fp) {
-		log_msg("cannot open OUI file %s: %s", path, strerror(errno));
-		return 0;
+	/* Do not follow a final-component symlink and reject non-regular
+	 * files, so a symlink or FIFO planted in the data directory cannot
+	 * redirect this read or make it hang (see db_load for the rationale). */
+	{
+		int fd = open(path, O_RDONLY | O_NOFOLLOW | O_NONBLOCK |
+		    O_CLOEXEC);
+		struct stat st;
+
+		if (fd < 0) {
+			log_msg("cannot open OUI file %s: %s", path,
+			    strerror(errno));
+			return 0;
+		}
+		if (fstat(fd, &st) < 0 || !S_ISREG(st.st_mode)) {
+			log_msg("OUI file %s is not a regular file", path);
+			close(fd);
+			return 0;
+		}
+		fp = fdopen(fd, "r");
+		if (!fp) {
+			log_msg("cannot open OUI file %s: %s", path,
+			    strerror(errno));
+			close(fd);
+			return 0;
+		}
 	}
 
 	/* start from an empty table so a repeated load replaces the

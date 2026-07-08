@@ -24,6 +24,8 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/stat.h>
+
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -107,12 +109,33 @@ db_load(const char *path)
 	char line[512];
 	int count = 0;
 
-	fp = fopen(path, "r");
-	if (!fp) {
-		if (errno == ENOENT)
-			return 0;
-		log_err("db_load: %s: %s", path, strerror(errno));
-		return -1;
+	/* Open without following a final-component symlink and reject
+	 * non-regular files. The DB directory is owned by the unprivileged
+	 * run user, so a planted symlink or FIFO could otherwise make this
+	 * root-time read follow a link or block forever. O_NONBLOCK keeps the
+	 * open from blocking on a FIFO; it has no effect on a regular file. */
+	{
+		int fd = open(path, O_RDONLY | O_NOFOLLOW | O_NONBLOCK |
+		    O_CLOEXEC);
+		struct stat st;
+
+		if (fd < 0) {
+			if (errno == ENOENT)
+				return 0;
+			log_err("db_load: %s: %s", path, strerror(errno));
+			return -1;
+		}
+		if (fstat(fd, &st) < 0 || !S_ISREG(st.st_mode)) {
+			log_err("db_load: %s: not a regular file", path);
+			close(fd);
+			return -1;
+		}
+		fp = fdopen(fd, "r");
+		if (!fp) {
+			log_err("db_load: fdopen: %s", strerror(errno));
+			close(fd);
+			return -1;
+		}
 	}
 
 	for (;;) {

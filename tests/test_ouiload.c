@@ -88,6 +88,29 @@ test_arpscan_format(void)
 }
 
 static void
+test_overflow_rejected(void)
+{
+	/* an over-long hex octet must be rejected outright, not wrapped
+	 * mod 2^32 into a valid-looking prefix (10000000aa wraps to aa) */
+	write_file(TEST_TMP,
+	    "10000000aa:bb:cc Bogus Vendor\n"
+	    "aa:bb:cc Acme Corp\n");
+
+	oui_load(TEST_TMP);
+
+	uint8_t mac[6] = { 0xaa, 0xbb, 0xcc, 0x01, 0x02, 0x03 };
+	const char *v = oui_lookup(mac);
+	if (!v || strcmp(v, "Acme Corp") != 0) {
+		fprintf(stderr, "test_overflow_rejected: expected 'Acme Corp', "
+		    "got '%s'\n", v ? v : "(null)");
+		exit(1);
+	}
+
+	oui_free();
+	unlink(TEST_TMP);
+}
+
+static void
 test_empty_file(void)
 {
 	write_file(TEST_TMP, "");
@@ -119,6 +142,7 @@ main(void)
 
 	test_neighbot_format();
 	test_arpscan_format();
+	test_overflow_rejected();
 	test_empty_file();
 	test_nonexistent();
 

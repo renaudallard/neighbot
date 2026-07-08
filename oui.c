@@ -74,11 +74,12 @@ oui_load(const char *path)
 
 		/* neighbot format: aa:bb:cc Vendor Name.
 		 * require a hex digit first so %x cannot accept a leading
-		 * +/- sign and store a mis-keyed prefix */
+		 * +/- sign, and cap each octet at two hex digits so an
+		 * over-long value cannot overflow and wrap back under 0x100,
+		 * defeating a range check */
 		if (!isxdigit((unsigned char)line[0]) ||
-		    sscanf(line, "%x:%x:%x %79[^\n]",
-		           &a, &b, &c, vendor) != 4 ||
-		    a > 0xff || b > 0xff || c > 0xff) {
+		    sscanf(line, "%2x:%2x:%2x %79[^\n]",
+		           &a, &b, &c, vendor) != 4) {
 			/* arp-scan format: AABBCC\tVendor Name
 			 * skip MA-M (7 hex) and MA-S (9 hex) entries */
 			unsigned oui;

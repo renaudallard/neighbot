@@ -319,8 +319,11 @@ fill_local_subnets(struct iface *ifaces, int count)
 		if (!found)
 			continue;
 
-		if (subnet_count >= MAX_SUBNETS)
+		if (subnet_count >= MAX_SUBNETS) {
+			log_msg("subnet table full (%d), some local subnets "
+			    "not tracked", MAX_SUBNETS);
 			break;
+		}
 
 		struct subnet *s = &subnets[subnet_count];
 		snprintf(s->iface, sizeof(s->iface), "%s", ifa->ifa_name);
@@ -405,8 +408,11 @@ fill_local_ips(struct iface *ifaces, int count)
 		if (!found)
 			continue;
 
-		if (own_ip_count >= MAX_LOCAL_IPS)
+		if (own_ip_count >= MAX_LOCAL_IPS) {
+			log_msg("local IP table full (%d), some own IPs "
+			    "not tracked", MAX_LOCAL_IPS);
 			break;
+		}
 
 		struct local_ip *l = &own_ips[own_ip_count];
 		l->af = af;
@@ -868,6 +874,10 @@ capture_open_all(struct iface *ifaces, int max)
 		log_msg("monitoring %s", dev->name);
 		count++;
 	}
+
+	if (dev != NULL)
+		log_msg("interface limit (%d) reached, remaining interfaces "
+		    "not monitored", max);
 
 	pcap_freealldevs(alldevs);
 	fill_local_macs(ifaces, count);

@@ -79,9 +79,11 @@ void probe_schedule(int af, const uint8_t *ip, const uint8_t *mac,
 void probe_mark_seen(int af, const uint8_t *ip, const uint8_t *mac)
 { (void)af; (void)ip; (void)mac; }
 
+int notify_new_calls;
+
 void notify_new(int af, const uint8_t *ip, const uint8_t *mac,
     const char *iface)
-{ (void)af; (void)ip; (void)mac; (void)iface; }
+{ (void)af; (void)ip; (void)mac; (void)iface; notify_new_calls++; }
 
 void notify_changed(int af, const uint8_t *ip, const uint8_t *mac,
     const uint8_t *old_mac, const char *iface, time_t prev_seen)
@@ -506,6 +508,53 @@ test_ndp_ra_withdraw_no_l_flag(void)
 	}
 }
 
+/* NA with a hop limit below 255 must be dropped (RFC 4861 7.1.2) */
+static void
+test_ndp_hlim(void)
+{
+	uint8_t pkt[86];
+	int saved_quiet = cfg.quiet;
+	int before;
+
+	cfg.quiet = 0;   /* allow notify_new so the accept path is countable */
+
+	memset(pkt, 0, sizeof(pkt));
+	pkt[0] = 0x33; pkt[1] = 0x33; pkt[5] = 0x01;
+	pkt[6] = 0x02; pkt[11] = 0x99;           /* src MAC */
+	pkt[12] = 0x86; pkt[13] = 0xdd;
+	pkt[14] = 0x60;
+	pkt[19] = 32;                            /* payload: 24 NA + 8 option */
+	pkt[20] = 58;                            /* next header: ICMPv6 */
+	pkt[21] = 255;                           /* hop limit */
+	pkt[22] = 0x20;                          /* src non-zero */
+	pkt[38] = 0xff; pkt[39] = 0x02; pkt[53] = 0x01;
+	pkt[54] = 136;                           /* NA */
+	pkt[58] = 0x60;                          /* flags S=1 O=1 */
+	pkt[62] = 0x20; pkt[63] = 0x01; pkt[64] = 0x0d; pkt[65] = 0xb8;
+	pkt[77] = 0x11;                          /* target 2001:db8::11 */
+	pkt[78] = 2; pkt[79] = 1;                /* Target LLA option */
+	pkt[80] = 0x02; pkt[85] = 0x99;
+
+	before = notify_new_calls;
+	feed(pkt, sizeof(pkt));
+	if (notify_new_calls != before + 1) {
+		fprintf(stderr, "FAIL: NA with hop limit 255 was rejected\n");
+		exit(1);
+	}
+
+	/* same packet with hop limit 64 and a fresh target: must drop */
+	pkt[21] = 64;
+	pkt[77] = 0x22;                          /* target 2001:db8::22 */
+	before = notify_new_calls;
+	feed(pkt, sizeof(pkt));
+	if (notify_new_calls != before) {
+		fprintf(stderr, "FAIL: NA with hop limit 64 was not dropped\n");
+		exit(1);
+	}
+
+	cfg.quiet = saved_quiet;
+}
+
 static void
 test_truncated(void)
 {
@@ -527,6 +576,7 @@ test_multiple_then_cleanup(void)
 	test_ndp_ra_no_l_flag();
 	test_ndp_ra_zero_lifetime();
 	test_ndp_ra_withdraw_no_l_flag();
+	test_ndp_hlim();
 	test_truncated();
 }
 
@@ -546,6 +596,7 @@ main(void)
 	test_ndp_ra_no_l_flag();
 	test_ndp_ra_zero_lifetime();
 	test_ndp_ra_withdraw_no_l_flag();
+	test_ndp_hlim();
 	test_truncated();
 
 	/* reset and run batch */

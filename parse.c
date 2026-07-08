@@ -621,6 +621,12 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 		return;
 	}
 
+	/* RFC 4861 7.1.1/7.1.2: a valid NS or NA carries hop limit 255. A
+	 * lower value proves the packet crossed a router, so drop it to keep
+	 * off-link spoofed neighbor traffic out of the database */
+	if (ip6.ip6_hlim != 255)
+		return;
+
 	if (type == ND_NEIGHBOR_ADVERT) {
 		/* NA: type(1) + code(1) + cksum(2) + flags(4) + target(16) + opts */
 		if (icmp_len < 24)

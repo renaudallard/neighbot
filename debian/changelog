@@ -1,3 +1,12 @@
+neighbot (0.5.13-1) unstable; urgency=low
+
+  * Fix a local privilege escalation in the startup database chown/chmod
+  * Drop off-link spoofed NDP by requiring hop limit 255 on NS/NA
+  * Key neighbor entries by interface to stop false flip-flop alerts
+  * Robustness and documentation fixes from a code audit
+
+ -- Renaud Allard <renaud@allard.it>  Tue, 08 Jul 2026 00:00:00 +0000
+
 neighbot (0.5.12-1) unstable; urgency=low
 
   * Read database lines by counting bytes so an embedded NUL cannot split a record

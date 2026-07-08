@@ -1,5 +1,5 @@
 Name: neighbot
-Version: 0.5.12
+Version: 0.5.13
 Release: 1%{?dist}
 Summary: Network neighbor monitoring daemon
 
@@ -60,6 +60,12 @@ if [ -x /usr/bin/systemctl ]; then
 fi
 
 %changelog
+* Tue Jul 08 2026 Renaud Allard <renaud@allard.it> 0.5.13-1
+- Fix a local privilege escalation in the startup database chown/chmod
+- Drop off-link spoofed NDP by requiring hop limit 255 on NS/NA
+- Key neighbor entries by interface to stop false flip-flop alerts
+- Robustness and documentation fixes from a code audit
+
 * Tue Jun 02 2026 Renaud Allard <renaud@allard.it> 0.5.12-1
 - Read database lines by counting bytes so an embedded NUL cannot split a record
 - Add hysteresis to notification suppression to stop log flapping

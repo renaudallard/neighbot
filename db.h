@@ -73,7 +73,8 @@ int   db_find_other_entries(const uint8_t *mac, int exclude_af,
 int   db_has_temp_in_prefix(const uint8_t *mac, const uint8_t *ip6);
 int   db_delete(int af, const uint8_t *ip, const uint8_t *mac,
                 const char *iface);
-int   db_drop_temp_in_prefix(const uint8_t *mac, const uint8_t *ip6);
+int   db_drop_temp_in_prefix(const uint8_t *mac, const uint8_t *ip6,
+                             time_t idle_secs);
 int   db_expire(time_t idle_secs);
 int   db_expire_temp(time_t idle_secs);
 

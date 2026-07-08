@@ -230,7 +230,8 @@ handle_event(int event, int af, const uint8_t *ip, const uint8_t *mac,
 		    db_has_temp_in_prefix(mac, ip));
 
 		if (temp_rotate) {
-			int dropped = db_drop_temp_in_prefix(mac, ip);
+			int dropped = db_drop_temp_in_prefix(mac, ip,
+			    TEMP_ROTATE_IDLE);
 
 			log_msg("new temporary %s %s on %s", ipstr, macstr,
 			    iface);

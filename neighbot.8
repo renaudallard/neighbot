@@ -156,7 +156,7 @@ previously recorded.
 An IP address alternates between two previously seen MAC addresses.
 This typically indicates VRRP/HSRP failover, dual-homed hosts,
 or ARP spoofing.
-If the same IP flips more than 5 times within 60 seconds, an
+If the same IP flips 5 or more times within 60 seconds, an
 address conflict storm is declared: a single warning email is sent
 and further flip-flop notifications are suppressed until the storm
 subsides (no flips for 30 minutes) or a

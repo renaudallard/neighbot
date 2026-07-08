@@ -390,14 +390,19 @@ handle_bogon(int af, const uint8_t *ip, const uint8_t *mac,
 	char ipstr[INET6_ADDRSTRLEN];
 	char macstr[18];
 
+	/* Rate-limit the bogon log as well as the email. Bogons are never
+	 * stored, so unlike the new-station and flip-flop paths this has no
+	 * self-limit; without the cooldown a single replayed out-of-subnet
+	 * frame floods the log at packet rate. -B 0 disables the cooldown. */
+	if (cfg.bogon_cooldown != 0 &&
+	    !bogon_should_notify(af, ip, iface, time(NULL)))
+		return;
+
 	inet_ntop(af, ip, ipstr, sizeof(ipstr));
 	format_mac(mac, macstr, sizeof(macstr));
 	log_msg("bogon %s %s on %s", ipstr, macstr, iface);
-	if (!cfg.quiet) {
-		if (cfg.bogon_cooldown == 0 ||
-		    bogon_should_notify(af, ip, iface, time(NULL)))
-			notify_bogon(af, ip, mac, iface);
-	}
+	if (!cfg.quiet)
+		notify_bogon(af, ip, mac, iface);
 }
 
 static void

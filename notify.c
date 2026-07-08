@@ -148,8 +148,17 @@ resolve_hostname(int af, const uint8_t *ip, char *host, size_t hostlen)
 	}
 
 	if (getnameinfo((struct sockaddr *)&ss, sslen,
-	                host, hostlen, NULL, 0, NI_NAMEREQD) != 0)
+	                host, hostlen, NULL, 0, NI_NAMEREQD) != 0) {
 		snprintf(host, hostlen, "<unknown>");
+		return;
+	}
+
+	/* the PTR record is attacker-controlled; replace any control or
+	 * non-ASCII byte so a crafted hostname cannot forge extra lines in
+	 * the alert body or inject terminal escape sequences */
+	for (unsigned char *p = (unsigned char *)host; *p; p++)
+		if (*p < 0x20 || *p >= 0x7f)
+			*p = '?';
 }
 
 void

@@ -385,6 +385,7 @@ main(int argc, char *argv[])
 #endif
 
 	time_t last_expire = time(NULL);
+	time_t last_save = time(NULL);
 	int active = nifaces;
 	int all_down = 0;
 
@@ -469,10 +470,19 @@ check_signals:
 				}
 				last_expire = now;
 			}
-		}
-		if (save) {
-			save = 0;
-			db_save(cfg.dbfile);
+
+			/* Debounce db_save so an on-link flip-flop or
+			 * new-address flood cannot force a full fsync'd
+			 * rewrite every loop iteration; bursts coalesce into
+			 * one save per interval. A clean shutdown still saves
+			 * unconditionally below. The now < last_save guard
+			 * keeps a backward clock step from starving the save. */
+			if (save && (now < last_save ||
+			    now - last_save >= SAVE_MIN_INTERVAL)) {
+				save = 0;
+				db_save(cfg.dbfile);
+				last_save = now;
+			}
 		}
 	}
 

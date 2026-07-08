@@ -244,20 +244,29 @@ main(int argc, char *argv[])
 			return 1;
 		}
 #endif
+		int rc = 0;
+
 		if (!cfg.quiet && cfg.mailto) {
 			signal(SIGPIPE, SIG_IGN);
 			FILE *fp = notify_report_open(
 			    "neighbot: database report");
 			if (fp) {
 				db_report(fp);
-				notify_report_close(fp);
+				if (notify_report_close(fp) != 0)
+					rc = 1;
+			} else {
+				rc = 1;
 			}
 		} else {
 			db_report(stdout);
+			if (fflush(stdout) != 0 || ferror(stdout)) {
+				log_err("report: write error");
+				rc = 1;
+			}
 		}
 		db_free();
 		oui_free();
-		return 0;
+		return rc;
 	}
 
 	if (!cfg.mailto)

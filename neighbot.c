@@ -450,7 +450,11 @@ check_signals:
 		{
 			time_t now = time(NULL);
 
-			if (now - last_expire >= EXPIRE_CHECK_INTERVAL) {
+			/* the now < last_expire guard runs the sweep and
+			 * resets the timer after a backward wall-clock step,
+			 * instead of freezing it until real time catches up */
+			if (now < last_expire ||
+			    now - last_expire >= EXPIRE_CHECK_INTERVAL) {
 				int n = db_expire_temp(TEMP_IDLE_EXPIRE);
 
 				if (n > 0) {

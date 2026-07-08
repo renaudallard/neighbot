@@ -298,6 +298,15 @@ db_save(const char *path)
 		return -1;
 	}
 
+	/* get the data on disk before the rename so a crash cannot leave a
+	 * zero-length or partial database in place of the previous good one */
+	if (fflush(fp) != 0 || fsync(fileno(fp)) != 0) {
+		log_err("db_save: fsync: %s", strerror(errno));
+		fclose(fp);
+		unlink(tmp);
+		return -1;
+	}
+
 	if (fclose(fp) != 0) {
 		log_err("db_save: fclose: %s", strerror(errno));
 		unlink(tmp);
@@ -308,6 +317,29 @@ db_save(const char *path)
 		log_err("db_save: rename: %s", strerror(errno));
 		unlink(tmp);
 		return -1;
+	}
+
+	/* fsync the directory so the rename itself survives a crash */
+	{
+		char dir[PATH_MAX];
+		const char *sl = strrchr(path, '/');
+		int dfd;
+
+		if (sl == path)
+			snprintf(dir, sizeof(dir), "/");
+		else if (sl)
+			snprintf(dir, sizeof(dir), "%.*s",
+			    (int)(sl - path), path);
+		else
+			snprintf(dir, sizeof(dir), ".");
+
+		dfd = open(dir, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+		if (dfd >= 0) {
+			if (fsync(dfd) != 0)
+				log_err("db_save: fsync %s: %s", dir,
+				    strerror(errno));
+			close(dfd);
+		}
 	}
 
 	log_msg("saved %d entries to %s", count, path);

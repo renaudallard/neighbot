@@ -217,7 +217,8 @@ send_mail(const char *subject, const char *body)
 		close(pfd[1]);
 		if (dup2(pfd[0], STDIN_FILENO) < 0)
 			_exit(127);
-		close(pfd[0]);
+		if (pfd[0] != STDIN_FILENO)
+			close(pfd[0]);
 
 		/* close inherited fds (pcap handles) before exec */
 		close_inherited_fds();
@@ -274,7 +275,8 @@ notify_report_open(const char *subject)
 		close(pfd[1]);
 		if (dup2(pfd[0], STDIN_FILENO) < 0)
 			_exit(127);
-		close(pfd[0]);
+		if (pfd[0] != STDIN_FILENO)
+			close(pfd[0]);
 
 		close_inherited_fds();
 

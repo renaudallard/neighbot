@@ -96,6 +96,30 @@ cleanup(struct iface *ifaces, int nifaces)
 	oui_free();
 }
 
+/*
+ * Ensure fds 0, 1 and 2 are open before anything else is opened, so a
+ * descriptor allocated later (a pcap handle, a pipe) cannot land on a
+ * standard fd number and then be clobbered by daemon()'s /dev/null
+ * redirect or closed by a child's dup2 cleanup.
+ */
+static void
+sanitise_stdfd(void)
+{
+	for (int fd = 0; fd <= 2; fd++) {
+		int n;
+
+		if (fcntl(fd, F_GETFD) != -1 || errno != EBADF)
+			continue;
+		n = open("/dev/null", O_RDWR);
+		if (n < 0)
+			return;
+		if (n != fd) {
+			(void)dup2(n, fd);
+			close(n);
+		}
+	}
+}
+
 static void
 dbdir_from_path(const char *path, char *dir, size_t dirlen)
 {
@@ -115,6 +139,8 @@ main(int argc, char *argv[])
 	struct iface ifaces[MAX_IFACES];
 	struct pollfd pfds[MAX_IFACES];
 	int nifaces = 0, ch;
+
+	sanitise_stdfd();
 
 	cfg.dbfile         = DEFAULT_DBFILE;
 	cfg.ouifile        = DEFAULT_OUIFILE;

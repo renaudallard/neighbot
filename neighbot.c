@@ -363,6 +363,8 @@ main(int argc, char *argv[])
 #endif
 
 	time_t last_expire = time(NULL);
+	int active = nifaces;
+	int all_down = 0;
 
 	while (!quit) {
 		int ret = poll(pfds, nifaces, POLL_TIMEOUT_MS);
@@ -385,6 +387,7 @@ main(int argc, char *argv[])
 				ifaces[i].handle = NULL;
 				ifaces[i].fd = -1;
 				pfds[i].fd = -1;
+				active--;
 				continue;
 			}
 
@@ -396,6 +399,15 @@ main(int argc, char *argv[])
 					    ifaces[i].name,
 					    pcap_geterr(ifaces[i].handle));
 			}
+		}
+
+		/* with no interfaces left there is nothing to monitor; exit
+		 * so a supervisor can restart and re-enumerate rather than
+		 * spinning on an all-negative poll set forever */
+		if (active <= 0) {
+			log_err("all monitored interfaces are down, exiting");
+			all_down = 1;
+			break;
 		}
 
 check_signals:
@@ -445,5 +457,5 @@ check_signals:
 	log_msg("shutting down");
 	db_save(cfg.dbfile);
 	cleanup(ifaces, nifaces);
-	return 0;
+	return all_down ? 1 : 0;
 }

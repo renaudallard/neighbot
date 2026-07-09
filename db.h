@@ -48,7 +48,8 @@ struct entry {
 	time_t         first_seen;
 	time_t         last_seen;
 	struct entry  *next;      /* chain within the (iface, af, ip) bucket */
-	struct entry  *mac_next;  /* chain within the MAC bucket */
+	struct entry  *mac_next;  /* doubly-linked chain within the MAC bucket */
+	struct entry  *mac_prev;
 };
 
 struct db_entry_info {

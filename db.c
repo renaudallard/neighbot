@@ -92,26 +92,29 @@ mac_link(struct entry *e)
 {
 	unsigned idx = mac_hash(e->mac);
 
+	e->mac_prev = NULL;
 	e->mac_next = mac_buckets[idx];
+	if (mac_buckets[idx])
+		mac_buckets[idx]->mac_prev = e;
 	mac_buckets[idx] = e;
 }
 
+/*
+ * O(1) removal via the doubly-linked chain. Uses e->mac (must be the MAC
+ * the entry is currently linked under) only to find the bucket head when
+ * e is the head; every caller unlinks before mutating e->mac.
+ */
 static void
 mac_unlink(struct entry *e)
 {
-	unsigned idx = mac_hash(e->mac);
-	struct entry *prev = NULL;
-
-	for (struct entry *m = mac_buckets[idx]; m; prev = m, m = m->mac_next) {
-		if (m == e) {
-			if (prev)
-				prev->mac_next = m->mac_next;
-			else
-				mac_buckets[idx] = m->mac_next;
-			e->mac_next = NULL;
-			return;
-		}
-	}
+	if (e->mac_prev)
+		e->mac_prev->mac_next = e->mac_next;
+	else
+		mac_buckets[mac_hash(e->mac)] = e->mac_next;
+	if (e->mac_next)
+		e->mac_next->mac_prev = e->mac_prev;
+	e->mac_next = NULL;
+	e->mac_prev = NULL;
 }
 
 

@@ -343,6 +343,40 @@ struct bogon_slot {
 
 static struct bogon_slot bogon_cache[BOGON_CACHE_SIZE];
 
+#define BOGON_LOG_MAX    10   /* max bogon reports per window */
+#define BOGON_LOG_WINDOW 10   /* seconds */
+
+static time_t bogon_log_window_start;
+static int    bogon_log_count;
+static int    bogon_log_suppressed;
+
+/*
+ * Global rate cap for bogon reporting. The per-(af,ip,iface) cooldown does
+ * not bound a flood of DISTINCT bogon sources (each is a fresh key), and
+ * IPv6 gives an unlimited supply, so cap total reports per window as a
+ * hard backstop against a log/fork flood. Applies even under -B 0.
+ */
+static int
+bogon_log_allowed(time_t now)
+{
+	if (now < bogon_log_window_start ||
+	    now - bogon_log_window_start >= BOGON_LOG_WINDOW) {
+		bogon_log_window_start = now;
+		bogon_log_count = 0;
+		bogon_log_suppressed = 0;
+	}
+	if (bogon_log_count >= BOGON_LOG_MAX) {
+		if (!bogon_log_suppressed) {
+			log_msg("bogon reports rate-limited (>%d/%ds)",
+			    BOGON_LOG_MAX, BOGON_LOG_WINDOW);
+			bogon_log_suppressed = 1;
+		}
+		return 0;
+	}
+	bogon_log_count++;
+	return 1;
+}
+
 static int
 bogon_should_notify(int af, const uint8_t *ip, const char *iface, time_t now)
 {
@@ -390,12 +424,16 @@ handle_bogon(int af, const uint8_t *ip, const uint8_t *mac,
 	char ipstr[INET6_ADDRSTRLEN];
 	char macstr[18];
 
-	/* Rate-limit the bogon log as well as the email. Bogons are never
-	 * stored, so unlike the new-station and flip-flop paths this has no
-	 * self-limit; without the cooldown a single replayed out-of-subnet
-	 * frame floods the log at packet rate. -B 0 disables the cooldown. */
+	/* Per-(af,ip,iface) cooldown suppresses repeats of the same bogon.
+	 * Bogons are never stored, so without it a single replayed frame
+	 * would flood the log; -B 0 disables this cooldown. */
 	if (cfg.bogon_cooldown != 0 &&
 	    !bogon_should_notify(af, ip, iface, time(NULL)))
+		return;
+
+	/* Global backstop: a flood of DISTINCT bogon sources bypasses the
+	 * per-key cooldown, so cap total reporting per window. */
+	if (!bogon_log_allowed(time(NULL)))
 		return;
 
 	inet_ntop(af, ip, ipstr, sizeof(ipstr));

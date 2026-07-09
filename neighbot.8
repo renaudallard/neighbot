@@ -36,9 +36,10 @@ Suppress duplicate bogon log lines and email notifications for the
 same IP and interface within
 .Ar seconds .
 Bogons are not stored in the database, so this cooldown is what bounds
-their reporting.
+per-address reporting.
 Default: 1800 (30 minutes).
-Set to 0 to report every bogon (no rate limiting).
+Set to 0 to disable this per-address cooldown; a global rate cap on
+total bogon reporting still applies as a flood backstop.
 .It Fl d
 Daemonize.
 Detach from the terminal and log to syslog instead of stderr.

@@ -119,7 +119,7 @@ neighbot [-B seconds] [-d] [-e days] [-f dbfile] [-i iface] [-m mailto] [-o ouif
 
 | Flag | Description |
 |------|-------------|
-| `-B seconds` | Bogon log and notification cooldown in seconds (default: 1800). Set to 0 for no rate limiting |
+| `-B seconds` | Bogon log and notification cooldown in seconds (default: 1800). Set to 0 to disable the per-address cooldown (a global flood cap still applies) |
 | `-d` | Daemonize (log to syslog instead of stderr) |
 | `-e days` | Drop entries unseen for more than `days` days (checked hourly). 0 disables (default) |
 | `-f path` | Database file (default: `/var/neighbot/neighbot.csv`) |

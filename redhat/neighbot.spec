@@ -1,5 +1,5 @@
 Name: neighbot
-Version: 0.5.13
+Version: 0.5.14
 Release: 1%{?dist}
 Summary: Network neighbor monitoring daemon
 
@@ -60,6 +60,12 @@ if [ -x /usr/bin/systemctl ]; then
 fi
 
 %changelog
+* Thu Jul 09 2026 Renaud Allard <renaud@allard.it> 0.5.14-1
+- Harden database and OUI file reads against symlink and FIFO attacks
+- Bound on-link denial of service: debounced saves, rate-limited bogon
+  reporting, and randomized, doubly-linked, capped hash indices
+- Run the expire sweep after a backward wall-clock step
+
 * Tue Jul 08 2026 Renaud Allard <renaud@allard.it> 0.5.13-1
 - Fix a local privilege escalation in the startup database chown/chmod
 - Drop off-link spoofed NDP by requiring hop limit 255 on NS/NA

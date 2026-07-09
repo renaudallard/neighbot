@@ -1,3 +1,12 @@
+neighbot (0.5.14-1) unstable; urgency=low
+
+  * Harden database and OUI file reads against symlink and FIFO attacks
+  * Bound on-link denial of service: debounced saves, rate-limited bogon
+    reporting, and randomized, doubly-linked, capped hash indices
+  * Run the expire sweep after a backward wall-clock step
+
+ -- Renaud Allard <renaud@allard.it>  Thu, 09 Jul 2026 00:00:00 +0000
+
 neighbot (0.5.13-1) unstable; urgency=low
 
   * Fix a local privilege escalation in the startup database chown/chmod

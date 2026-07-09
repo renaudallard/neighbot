@@ -282,6 +282,39 @@ test_mac_index(void)
 }
 
 static void
+test_temp_cap(void)
+{
+	uint8_t mac[6] = { 0xaa, 0xbb, 0xcc, 0x11, 0x22, 0x33 };
+	uint8_t ip[16];
+	uint8_t old[6];
+	time_t ols;
+	int added = 0;
+
+	db_init();
+
+	/* many non-EUI-64 temporary addresses in one /64 for one MAC: only
+	 * TEMP_MAX_PER_PREFIX are accepted, the rest refused, so a flood
+	 * cannot fill the table with same-MAC temporaries */
+	memset(ip, 0, sizeof(ip));
+	ip[0] = 0x20; ip[1] = 0x01; ip[2] = 0x0d; ip[3] = 0xb8;   /* 2001:db8::/64 */
+	ip[8] = 0xde;                                             /* non-EUI-64 iid */
+	for (int i = 0; i < TEMP_MAX_PER_PREFIX + 50; i++) {
+		ip[14] = (uint8_t)(i >> 8);
+		ip[15] = (uint8_t)(i & 0xff);
+		if (db_update(AF_INET6, ip, mac, "eth0", old, &ols) == EVENT_NEW)
+			added++;
+	}
+
+	if (added != TEMP_MAX_PER_PREFIX) {
+		fprintf(stderr, "FAIL: temp cap accepted %d, want %d\n",
+		    added, TEMP_MAX_PER_PREFIX);
+		exit(1);
+	}
+
+	db_free();
+}
+
+static void
 test_nonexistent(void)
 {
 	db_init();
@@ -365,6 +398,7 @@ main(void)
 	test_symlink_rejected();
 	test_fifo_rejected();
 	test_mac_index();
+	test_temp_cap();
 	test_nonexistent();
 	test_oversized_line();
 	test_embedded_nul_line();

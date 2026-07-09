@@ -44,6 +44,7 @@ static struct entry *buckets[HT_BUCKETS];
 static struct entry *mac_buckets[HT_BUCKETS];
 static unsigned     entry_count;
 static int          limit_warned;
+static int          temp_cap_warned;
 
 /* Random per-process seed for both hash indices. The IP and MAC bytes fed
  * to the hashes are attacker-controlled, so a fixed seed would let an
@@ -463,6 +464,26 @@ is_zero_mac(const uint8_t *mac)
 	return 1;
 }
 
+/* Count non-EUI-64 IPv6 addresses this MAC has in the same /64 as ip6. */
+static int
+temp_count_in_prefix(const uint8_t *mac, const uint8_t *ip6)
+{
+	int count = 0;
+
+	for (struct entry *e = mac_buckets[mac_hash(mac)]; e; e = e->mac_next) {
+		if (e->af != AF_INET6)
+			continue;
+		if (memcmp(e->mac, mac, 6) != 0)
+			continue;
+		if (memcmp(e->ip, ip6, 8) != 0)   /* same /64 */
+			continue;
+		if (is_eui64(e->ip, mac))
+			continue;
+		count++;
+	}
+	return count;
+}
+
 /* Returns EVENT_NEW, EVENT_CHANGED, EVENT_FLIPFLOP, EVENT_REAPPEARED,
  * or 0 (no change).
  * If EVENT_CHANGED or EVENT_FLIPFLOP, old_mac is filled with the previous MAC.
@@ -515,6 +536,24 @@ db_update(int af, const uint8_t *ip, const uint8_t *mac,
 			log_err("db_update: entry limit reached (%u)",
 			    MAX_ENTRIES);
 			limit_warned = 1;
+		}
+		return 0;
+	}
+
+	/* Cap non-EUI-64 (privacy/temporary) addresses per MAC per /64. A
+	 * legitimate host keeps only a handful under RFC 4941, so refuse a
+	 * flood that would otherwise fill the table with same-MAC temporaries
+	 * and make the temp-rotation sweep quadratic. */
+	if (af == AF_INET6 && !is_eui64(ip, mac) &&
+	    temp_count_in_prefix(mac, ip) >= TEMP_MAX_PER_PREFIX) {
+		if (!temp_cap_warned) {
+			char macstr[18];
+
+			format_mac(mac, macstr, sizeof(macstr));
+			log_msg("db_update: %d temporary address cap reached "
+			    "for %s in a /64, ignoring further",
+			    TEMP_MAX_PER_PREFIX, macstr);
+			temp_cap_warned = 1;
 		}
 		return 0;
 	}
@@ -897,4 +936,5 @@ db_free(void)
 	memset(mac_buckets, 0, sizeof(mac_buckets));
 	entry_count = 0;
 	limit_warned = 0;
+	temp_cap_warned = 0;
 }

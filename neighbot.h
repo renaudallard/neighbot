@@ -56,6 +56,7 @@
 #define SAVE_MIN_INTERVAL 10                 /* min seconds between db saves */
 #define TEMP_IDLE_EXPIRE (7 * 24 * 3600)    /* RFC 4941 default valid_lft */
 #define TEMP_ROTATE_IDLE 120                 /* idle before a sibling temp is obsolete */
+#define TEMP_MAX_PER_PREFIX 16               /* cap non-EUI-64 addrs per MAC per /64 */
 #define LEARNED_MAX_LIFETIME   (7 * 24 * 3600) /* cap RA lifetime at 7 days */
 #define LEARNED_MIN_PREFIX6    48                /* reject shorter on-link prefixes */
 #define STORM_THRESHOLD  5                   /* flips within window */

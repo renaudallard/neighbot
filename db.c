@@ -45,6 +45,12 @@ static struct entry *mac_buckets[HT_BUCKETS];
 static unsigned     entry_count;
 static int          limit_warned;
 
+/* Random per-process seed for both hash indices. The IP and MAC bytes fed
+ * to the hashes are attacker-controlled, so a fixed seed would let an
+ * on-link attacker precompute colliding keys and degrade a bucket chain to
+ * O(entries); a random seed makes that infeasible. */
+static uint32_t     hash_seed = 2166136261u;
+
 static uint32_t
 fnv1a(uint32_t h, const void *data, size_t len)
 {
@@ -67,7 +73,7 @@ static unsigned
 hash_key(const char *iface, int af, const uint8_t *ip)
 {
 	uint8_t a = (uint8_t)af;
-	uint32_t h = 2166136261u;
+	uint32_t h = hash_seed;
 
 	h = fnv1a(h, iface, strlen(iface));
 	h = fnv1a(h, &a, 1);
@@ -84,7 +90,7 @@ hash_key(const char *iface, int af, const uint8_t *ip)
 static unsigned
 mac_hash(const uint8_t *mac)
 {
-	return fnv1a(2166136261u, mac, 6) % HT_BUCKETS;
+	return fnv1a(hash_seed, mac, 6) % HT_BUCKETS;
 }
 
 static void
@@ -125,11 +131,29 @@ format_mac(const uint8_t *mac, char *buf, size_t len)
 	         mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 }
 
+static uint32_t
+read_hash_seed(void)
+{
+	uint32_t s;
+	int fd = open("/dev/urandom", O_RDONLY | O_CLOEXEC);
+
+	if (fd >= 0) {
+		ssize_t n = read(fd, &s, sizeof(s));
+
+		close(fd);
+		if (n == (ssize_t)sizeof(s))
+			return s;
+	}
+	/* fallback: still per-process and hard to precompute remotely */
+	return 2166136261u ^ (uint32_t)time(NULL) ^ ((uint32_t)getpid() << 16);
+}
+
 void
 db_init(void)
 {
 	memset(buckets, 0, sizeof(buckets));
 	memset(mac_buckets, 0, sizeof(mac_buckets));
+	hash_seed = read_hash_seed();
 }
 
 /* Write the directory component of path into dir. */

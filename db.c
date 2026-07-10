@@ -479,7 +479,10 @@ temp_count_in_prefix(const uint8_t *mac, const uint8_t *ip6)
 			continue;
 		if (is_eui64(e->ip, mac))
 			continue;
-		count++;
+		/* the caller only needs to know whether the cap is reached,
+		 * so stop counting there to bound the per-packet walk */
+		if (++count >= TEMP_MAX_PER_PREFIX)
+			break;
 	}
 	return count;
 }

@@ -1,5 +1,5 @@
 Name: neighbot
-Version: 0.5.14
+Version: 0.5.15
 Release: 1%{?dist}
 Summary: Network neighbor monitoring daemon
 
@@ -60,6 +60,11 @@ if [ -x /usr/bin/systemctl ]; then
 fi
 
 %changelog
+* Fri Jul 10 2026 Renaud Allard <renaud@allard.it> 0.5.15-1
+- Do not stamp the bogon cooldown for a report the global cap drops
+- Bound the per-MAC temporary-address count walk
+- Raise the per-MAC temporary-address cap to 64 and document it
+
 * Thu Jul 09 2026 Renaud Allard <renaud@allard.it> 0.5.14-1
 - Harden database and OUI file reads against symlink and FIFO attacks
 - Bound on-link denial of service: debounced saves, rate-limited bogon

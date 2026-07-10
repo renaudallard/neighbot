@@ -1,3 +1,11 @@
+neighbot (0.5.15-1) unstable; urgency=low
+
+  * Do not stamp the bogon cooldown for a report the global cap drops
+  * Bound the per-MAC temporary-address count walk
+  * Raise the per-MAC temporary-address cap to 64 and document it
+
+ -- Renaud Allard <renaud@allard.it>  Fri, 10 Jul 2026 00:00:00 +0000
+
 neighbot (0.5.14-1) unstable; urgency=low
 
   * Harden database and OUI file reads against symlink and FIFO attacks

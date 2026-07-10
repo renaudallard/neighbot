@@ -213,6 +213,11 @@ When a host's new temporary address arrives in a /64 prefix it
 already uses, prior non-EUI-64 entries in the same /64 for the same
 MAC that have gone idle are dropped silently; an address still in
 active use is kept.
+.It Em per-address cap
+At most 64 non-EUI-64 addresses per MAC per /64 are tracked; further
+new addresses for that MAC and prefix are ignored (logged once).
+This bounds a flood of privacy addresses under a single MAC; a
+legitimate host stays well below the limit.
 .It Em stale non-EUI-64 IPv6
 Non-EUI-64, non-link-local IPv6 entries unseen for more than 7 days
 are dropped on the hourly sweep.

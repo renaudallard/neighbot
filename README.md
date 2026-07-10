@@ -192,7 +192,9 @@ MAC already has a non-EUI-64 address in the same /64 prefix and suppresses
 the "new station" email. Prior non-EUI-64 entries in that /64 that have
 gone idle are silently dropped from the database, while an address still
 in active use is kept. This also covers link-local address rotation
-(common on devices with randomized MACs).
+(common on devices with randomized MACs). At most 64 non-EUI-64 addresses
+per MAC per /64 are tracked; a flood of privacy addresses under one MAC
+beyond that is ignored (logged once), which a legitimate host never reaches.
 
 Disable with `-p` for purely passive monitoring.
 

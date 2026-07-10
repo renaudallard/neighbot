@@ -1,3 +1,11 @@
+neighbot (0.5.16-1) unstable; urgency=low
+
+  * Cap total entries per MAC and walk the MAC chain in the temporary-
+    address sweep, so per-packet work stays constant-time under an
+    on-link flood
+
+ -- Renaud Allard <renaud@allard.it>  Fri, 10 Jul 2026 12:00:00 +0000
+
 neighbot (0.5.15-1) unstable; urgency=low
 
   * Do not stamp the bogon cooldown for a report the global cap drops

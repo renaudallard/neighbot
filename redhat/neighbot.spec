@@ -1,5 +1,5 @@
 Name: neighbot
-Version: 0.5.15
+Version: 0.5.16
 Release: 1%{?dist}
 Summary: Network neighbor monitoring daemon
 
@@ -60,6 +60,10 @@ if [ -x /usr/bin/systemctl ]; then
 fi
 
 %changelog
+* Fri Jul 10 2026 Renaud Allard <renaud@allard.it> 0.5.16-1
+- Cap total entries per MAC and walk the MAC chain in the temporary-
+  address sweep, so per-packet work stays constant-time under a flood
+
 * Fri Jul 10 2026 Renaud Allard <renaud@allard.it> 0.5.15-1
 - Do not stamp the bogon cooldown for a report the global cap drops
 - Bound the per-MAC temporary-address count walk

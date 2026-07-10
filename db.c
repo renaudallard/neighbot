@@ -44,7 +44,7 @@ static struct entry *buckets[HT_BUCKETS];
 static struct entry *mac_buckets[HT_BUCKETS];
 static unsigned     entry_count;
 static int          limit_warned;
-static int          temp_cap_warned;
+static int          mac_cap_warned;
 
 /* Random per-process seed for both hash indices. The IP and MAC bytes fed
  * to the hashes are attacker-controlled, so a fixed seed would let an
@@ -464,24 +464,17 @@ is_zero_mac(const uint8_t *mac)
 	return 1;
 }
 
-/* Count non-EUI-64 IPv6 addresses this MAC has in the same /64 as ip6. */
+/* Count entries currently sharing this MAC, stopping at the cap so the
+ * walk (and thus every per-MAC operation) stays bounded. */
 static int
-temp_count_in_prefix(const uint8_t *mac, const uint8_t *ip6)
+mac_entry_count(const uint8_t *mac)
 {
 	int count = 0;
 
 	for (struct entry *e = mac_buckets[mac_hash(mac)]; e; e = e->mac_next) {
-		if (e->af != AF_INET6)
-			continue;
 		if (memcmp(e->mac, mac, 6) != 0)
 			continue;
-		if (memcmp(e->ip, ip6, 8) != 0)   /* same /64 */
-			continue;
-		if (is_eui64(e->ip, mac))
-			continue;
-		/* the caller only needs to know whether the cap is reached,
-		 * so stop counting there to bound the per-packet walk */
-		if (++count >= TEMP_MAX_PER_PREFIX)
+		if (++count >= MAX_PER_MAC)
 			break;
 	}
 	return count;
@@ -543,20 +536,18 @@ db_update(int af, const uint8_t *ip, const uint8_t *mac,
 		return 0;
 	}
 
-	/* Cap non-EUI-64 (privacy/temporary) addresses per MAC per /64. A
-	 * legitimate host keeps only a handful under RFC 4941, so refuse a
-	 * flood that would otherwise fill the table with same-MAC temporaries
-	 * and make the temp-rotation sweep quadratic. */
-	if (af == AF_INET6 && !is_eui64(ip, mac) &&
-	    temp_count_in_prefix(mac, ip) >= TEMP_MAX_PER_PREFIX) {
-		if (!temp_cap_warned) {
+	/* Cap total entries per MAC. This bounds every per-MAC chain walk, so
+	 * an on-link flood under one MAC (privacy-address churn, or an IPv4
+	 * subnet swept under one MAC) cannot make per-packet work grow with
+	 * the table. A legitimate neighbour stays far below the limit. */
+	if (mac_entry_count(mac) >= MAX_PER_MAC) {
+		if (!mac_cap_warned) {
 			char macstr[18];
 
 			format_mac(mac, macstr, sizeof(macstr));
-			log_msg("db_update: %d temporary address cap reached "
-			    "for %s in a /64, ignoring further",
-			    TEMP_MAX_PER_PREFIX, macstr);
-			temp_cap_warned = 1;
+			log_msg("db_update: %d address cap reached for %s, "
+			    "ignoring further", MAX_PER_MAC, macstr);
+			mac_cap_warned = 1;
 		}
 		return 0;
 	}
@@ -939,5 +930,5 @@ db_free(void)
 	memset(mac_buckets, 0, sizeof(mac_buckets));
 	entry_count = 0;
 	limit_warned = 0;
-	temp_cap_warned = 0;
+	mac_cap_warned = 0;
 }

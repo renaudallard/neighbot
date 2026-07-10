@@ -378,7 +378,28 @@ bogon_log_allowed(time_t now)
 }
 
 static int
-bogon_should_notify(int af, const uint8_t *ip, const char *iface, time_t now)
+bogon_in_cooldown(int af, const uint8_t *ip, const char *iface, time_t now)
+{
+	int ilen = ip_len(af);
+
+	for (int i = 0; i < BOGON_CACHE_SIZE; i++) {
+		if (bogon_cache[i].last_notified == 0)
+			continue;
+		if (bogon_cache[i].af == af &&
+		    memcmp(bogon_cache[i].ip, ip, ilen) == 0 &&
+		    strcmp(bogon_cache[i].iface, iface) == 0)
+			return now - bogon_cache[i].last_notified <
+			    cfg.bogon_cooldown;
+	}
+	return 0;
+}
+
+/* Record that this bogon was reported now: refresh its slot, or insert
+ * into an empty slot, or evict the oldest. Called only once both the
+ * cooldown and the global cap have allowed the report, so a dropped
+ * report never stamps the cooldown. */
+static void
+bogon_mark(int af, const uint8_t *ip, const char *iface, time_t now)
 {
 	int ilen = ip_len(af);
 	int oldest = 0;
@@ -394,11 +415,8 @@ bogon_should_notify(int af, const uint8_t *ip, const char *iface, time_t now)
 		if (bogon_cache[i].af == af &&
 		    memcmp(bogon_cache[i].ip, ip, ilen) == 0 &&
 		    strcmp(bogon_cache[i].iface, iface) == 0) {
-			if (now - bogon_cache[i].last_notified <
-			    cfg.bogon_cooldown)
-				return 0;
 			bogon_cache[i].last_notified = now;
-			return 1;
+			return;
 		}
 		if (bogon_cache[i].last_notified < oldest_time) {
 			oldest_time = bogon_cache[i].last_notified;
@@ -406,7 +424,6 @@ bogon_should_notify(int af, const uint8_t *ip, const char *iface, time_t now)
 		}
 	}
 
-	/* insert into empty slot or evict oldest */
 	int slot = (empty >= 0) ? empty : oldest;
 	bogon_cache[slot].af = af;
 	memset(bogon_cache[slot].ip, 0, sizeof(bogon_cache[slot].ip));
@@ -414,7 +431,6 @@ bogon_should_notify(int af, const uint8_t *ip, const char *iface, time_t now)
 	snprintf(bogon_cache[slot].iface, sizeof(bogon_cache[slot].iface),
 	    "%s", iface);
 	bogon_cache[slot].last_notified = now;
-	return 1;
 }
 
 static void
@@ -424,17 +440,22 @@ handle_bogon(int af, const uint8_t *ip, const uint8_t *mac,
 	char ipstr[INET6_ADDRSTRLEN];
 	char macstr[18];
 
-	/* Per-(af,ip,iface) cooldown suppresses repeats of the same bogon.
-	 * Bogons are never stored, so without it a single replayed frame
-	 * would flood the log; -B 0 disables this cooldown. */
-	if (cfg.bogon_cooldown != 0 &&
-	    !bogon_should_notify(af, ip, iface, time(NULL)))
+	time_t now = time(NULL);
+
+	/* Decide with both rate limits before mutating either, so a report
+	 * dropped by the global cap does not stamp the per-address cooldown
+	 * (which would silence a genuine bogon for the full -B period).
+	 * Per-(af,ip,iface) cooldown suppresses repeats; -B 0 disables it. */
+	if (cfg.bogon_cooldown != 0 && bogon_in_cooldown(af, ip, iface, now))
 		return;
 
 	/* Global backstop: a flood of DISTINCT bogon sources bypasses the
 	 * per-key cooldown, so cap total reporting per window. */
-	if (!bogon_log_allowed(time(NULL)))
+	if (!bogon_log_allowed(now))
 		return;
+
+	if (cfg.bogon_cooldown != 0)
+		bogon_mark(af, ip, iface, now);
 
 	inet_ntop(af, ip, ipstr, sizeof(ipstr));
 	format_mac(mac, macstr, sizeof(macstr));

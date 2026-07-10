@@ -124,6 +124,30 @@ mac_unlink(struct entry *e)
 	e->mac_prev = NULL;
 }
 
+/*
+ * Unlink e from its (iface, af, ip) bucket chain. Walks the bucket to
+ * find e's predecessor, so it is O(bucket length); used on the rare
+ * removal path that iterates the MAC chain and so does not already hold
+ * that predecessor. The bucket chains are bounded by the load factor.
+ */
+static void
+bucket_remove(struct entry *e)
+{
+	unsigned idx = hash_key(e->iface, e->af, e->ip);
+	struct entry *prev = NULL;
+
+	for (struct entry *b = buckets[idx]; b; prev = b, b = b->next) {
+		if (b == e) {
+			if (prev)
+				prev->next = e->next;
+			else
+				buckets[idx] = e->next;
+			e->next = NULL;
+			return;
+		}
+	}
+}
+
 
 void
 format_mac(const uint8_t *mac, char *buf, size_t len)
@@ -681,35 +705,26 @@ db_drop_temp_in_prefix(const uint8_t *mac, const uint8_t *ip6, time_t idle_secs)
 {
 	time_t now = time(NULL);
 	int removed = 0;
+	struct entry *e = mac_buckets[mac_hash(mac)];
 
-	for (unsigned i = 0; i < HT_BUCKETS; i++) {
-		struct entry *prev = NULL;
-		struct entry *e = buckets[i];
+	/* walk only this MAC's chain (bounded by MAX_PER_MAC) rather than the
+	 * whole table, so a temp-rotation flood cannot make this O(entries) */
+	while (e) {
+		struct entry *next = e->mac_next;
 
-		while (e) {
-			struct entry *next = e->next;
-
-			if (e->af != AF_INET6 ||
-			    memcmp(e->mac, mac, 6) != 0 ||
-			    memcmp(e->ip, ip6, 8) != 0 ||
-			    memcmp(e->ip, ip6, 16) == 0 ||
-			    is_eui64(e->ip, mac) ||
-			    now - e->last_seen <= idle_secs) {
-				prev = e;
-				e = next;
-				continue;
-			}
-
-			if (prev)
-				prev->next = next;
-			else
-				buckets[i] = next;
+		if (e->af == AF_INET6 &&
+		    memcmp(e->mac, mac, 6) == 0 &&
+		    memcmp(e->ip, ip6, 8) == 0 &&
+		    memcmp(e->ip, ip6, 16) != 0 &&
+		    !is_eui64(e->ip, mac) &&
+		    now - e->last_seen > idle_secs) {
+			bucket_remove(e);
 			mac_unlink(e);
 			free(e);
 			entry_count--;
 			removed++;
-			e = next;
 		}
+		e = next;
 	}
 	return removed;
 }

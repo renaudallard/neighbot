@@ -4,6 +4,7 @@
  * the reapers drop.  Designed to run under valgrind for leak checking.
  */
 
+#include <arpa/inet.h>
 #include <assert.h>
 #include <signal.h>
 #include <stddef.h>
@@ -199,6 +200,35 @@ test_expire_idle(void)
 	unlink(TEST_TMP);
 }
 
+static void
+test_drop_temp_in_prefix(void)
+{
+	uint8_t mac[6] = { 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff };
+	uint8_t ipa[16];
+
+	/* three stale non-EUI-64 addresses in one /64 for one MAC; dropping
+	 * obsolete siblings of the first removes the other two and keeps it,
+	 * exercising the MAC-chain walk and the bucket-unlink removal path */
+	write_file(TEST_TMP,
+	    "fd00::dead:1,aa:bb:cc:dd:ee:ff,eth0,"
+	    "2020-01-01T00:00:00,2020-01-02T00:00:00,00:00:00:00:00:00\n"
+	    "fd00::dead:2,aa:bb:cc:dd:ee:ff,eth0,"
+	    "2020-01-01T00:00:00,2020-01-02T00:00:00,00:00:00:00:00:00\n"
+	    "fd00::dead:3,aa:bb:cc:dd:ee:ff,eth0,"
+	    "2020-01-01T00:00:00,2020-01-02T00:00:00,00:00:00:00:00:00\n");
+
+	assert(inet_pton(AF_INET6, "fd00::dead:1", ipa) == 1);
+
+	db_init();
+	assert(db_load(TEST_TMP) == 3);
+	/* siblings are years stale, so any positive idle threshold drops them */
+	assert(db_drop_temp_in_prefix(mac, ipa, 3600) == 2);
+	/* a second call finds nothing left to drop */
+	assert(db_drop_temp_in_prefix(mac, ipa, 3600) == 0);
+	db_free();
+	unlink(TEST_TMP);
+}
+
 int
 main(void)
 {
@@ -210,6 +240,7 @@ main(void)
 	test_expire_temp_multiple_stale();
 	test_expire_temp_disabled();
 	test_expire_idle();
+	test_drop_temp_in_prefix();
 
 	printf("test_dbexpire: all tests passed\n");
 	return 0;

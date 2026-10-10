@@ -331,24 +331,10 @@ main(int argc, char *argv[])
 				    strerror(errno));
 		}
 
-		/* Fix ownership and mode on the DB file through an
-		 * O_NOFOLLOW handle. The file lives in a directory owned by
-		 * the unprivileged user, so following a symlink here would
-		 * let that user redirect the root chown/chmod onto any file. */
-		int dbfd = open(cfg.dbfile, O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
-		if (dbfd < 0) {
-			if (errno != ENOENT)
-				log_err("open %s: %s", cfg.dbfile,
-				    strerror(errno));
-		} else {
-			if (fchown(dbfd, run_uid, run_gid) < 0)
-				log_err("fchown %s: %s", cfg.dbfile,
-				    strerror(errno));
-			if (fchmod(dbfd, 0640) < 0)
-				log_err("fchmod %s: %s", cfg.dbfile,
-				    strerror(errno));
-			close(dbfd);
-		}
+		/* The DB file itself is not chowned: db_save() replaces it
+		 * with a new file created by the run user, and that user can
+		 * plant a hardlink to any file in its own directory, which a
+		 * root fchown here would then hand over. */
 
 		if (setgroups(1, &run_gid) < 0) {
 			log_err("setgroups: %s", strerror(errno));

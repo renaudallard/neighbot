@@ -74,9 +74,12 @@ capture_add_learned_subnet(const char *iface, int af,
 	return 1;
 }
 
+int probe_schedule_calls;
+
 void probe_schedule(int af, const uint8_t *ip, const uint8_t *mac,
     int new_af, const uint8_t *new_ip, const char *iface)
-{ (void)af; (void)ip; (void)mac; (void)new_af; (void)new_ip; (void)iface; }
+{ (void)af; (void)ip; (void)mac; (void)new_af; (void)new_ip; (void)iface;
+  probe_schedule_calls++; }
 
 void probe_mark_seen(int af, const uint8_t *ip, const uint8_t *mac,
     const char *iface)
@@ -752,6 +755,28 @@ test_storm_alert_dropped(void)
 	cfg.quiet = saved_quiet;
 }
 
+/* a temporary address rotation probes the MAC's other addresses but
+ * not the older temporaries it replaces, which would end as moved */
+static void
+test_temp_rotation_probes(void)
+{
+	const uint8_t mac[6] = { 0x02, 0, 0, 0, 0, 0x0d };
+	int saved_probe = cfg.probe;
+
+	cfg.probe = 1;
+	feed_na(mac, "2001:db8:5::aaaa:1");      /* first temporary */
+	feed_na(mac, "2001:db8:5::0:ff:fe00:d"); /* EUI-64 of mac */
+	probe_schedule_calls = 0;
+	feed_na(mac, "2001:db8:5::aaaa:2");      /* rotation */
+	if (probe_schedule_calls != 1) {
+		fprintf(stderr, "FAIL: temp rotation scheduled %d probes, "
+		    "want 1 (the EUI-64 address only)\n",
+		    probe_schedule_calls);
+		exit(1);
+	}
+	cfg.probe = saved_probe;
+}
+
 static void
 test_truncated(void)
 {
@@ -798,6 +823,7 @@ main(void)
 	test_temp_takeover();
 	test_linklocal_two_links();
 	test_storm_alert_dropped();
+	test_temp_rotation_probes();
 	test_truncated();
 
 	/* reset and run batch */

@@ -111,8 +111,8 @@ This flag makes
 purely passive.
 .Pp
 When an IPv6 temporary address (RFC 4941) rotates, the new address
-is not reported as a new station; obsolete temporary addresses are
-reaped later by the stale non-EUI-64 sweep (see
+is not reported as a new station; older temporary addresses are not
+probed, and are reaped later by the stale non-EUI-64 sweep (see
 .Sx OBSOLETE ADDRESS CLEANUP ) .
 This also covers link-local address rotation on devices with
 randomized MACs, although link-local entries are only removed by

@@ -261,6 +261,16 @@ handle_event(int event, int af, const uint8_t *ip, const uint8_t *mac,
 				if (capture_is_own_ip(others[i].af,
 				    others[i].ip))
 					continue;
+				/* on a temporary address rotation the older
+				 * temporaries in this /64 on this link are
+				 * expected to fall silent: probing them would
+				 * only report each one as moved. The stale
+				 * non-EUI-64 sweep reaps them instead. */
+				if (temp_rotate && others[i].af == AF_INET6 &&
+				    strcmp(others[i].iface, iface) == 0 &&
+				    memcmp(others[i].ip, ip, 8) == 0 &&
+				    !is_eui64(others[i].ip, mac))
+					continue;
 				probe_schedule(others[i].af, others[i].ip,
 				    mac, af, ip, others[i].iface);
 			}

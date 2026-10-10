@@ -247,7 +247,7 @@ When a probe times out, the obsolete entry is dropped (see the
 event).
 .It Em per-MAC cap
 At most 256 addresses per MAC are tracked; further new addresses for
-that MAC are ignored (logged once).
+that MAC are ignored (logged once per run).
 An address that moves to a MAC already at the limit is still reported
 as changed, but its entry keeps the previous MAC, and rows beyond the
 limit in the database file are skipped at load.

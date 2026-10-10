@@ -385,7 +385,7 @@ jobs:
         run: |
           for i in 1 2 3 4 5; do
             make oui-update && break
-            sleep 30
+            [ "$i" = 5 ] || sleep 30
           done
           test -s oui.txt
 

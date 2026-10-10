@@ -906,10 +906,10 @@ capture_open_all(struct iface *ifaces, int max)
 
 		/* the name is a field of the CSV database, which has no
 		 * quoting; a comma in it would corrupt every saved row, and
-		 * rows with control bytes in it are rejected at load */
-		if (strchr(dev->name, ',') != NULL || has_ctrl(dev->name)) {
-			log_err("skipping interface with a comma or control "
-			    "character in its name");
+		 * rows with non-printable bytes in it are rejected at load */
+		if (strchr(dev->name, ',') != NULL || has_nonprint(dev->name)) {
+			log_err("skipping interface with a comma or a "
+			    "non-printable character in its name");
 			continue;
 		}
 

@@ -78,8 +78,9 @@ its ports, such as a spoofed ARP reply to one host, are seen too.
 Use
 .Fl i
 to explicitly monitor a trunk interface, bridge port or bond slave.
-Interfaces whose name contains a comma or a control character are
-never monitored, since the name is stored unquoted in the CSV database.
+Interfaces whose name contains a comma or a non-printable character
+are never monitored, since the name is stored unquoted in the CSV
+database.
 .It Fl m Ar mailto
 Email recipient for notifications.
 Default:

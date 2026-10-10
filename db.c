@@ -305,9 +305,9 @@ db_load(const char *path)
 			continue;
 
 		/* the file is writable by the unprivileged run user; skip an
-		 * interface name with control bytes rather than print
-		 * terminal escapes in a report or an alert */
-		if (has_ctrl(iface))
+		 * interface name that is not printable ASCII rather than
+		 * print terminal escapes in a report or an alert */
+		if (has_nonprint(iface))
 			continue;
 
 		if (inet_pton(AF_INET, ipstr, ip) == 1)

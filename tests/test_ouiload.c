@@ -152,6 +152,37 @@ test_control_bytes(void)
 	unlink(TEST_TMP);
 }
 
+/* UTF-8 names are kept; C1 controls, raw or UTF-8 encoded, and invalid
+ * bytes are replaced */
+static void
+test_c1_and_utf8(void)
+{
+	write_file(TEST_TMP,
+	    "aa:bb:01 SECURITAS DIRECT ESPA\303\221A, SAU\n"
+	    "aa:bb:02 Evil\302\23331mX\n"
+	    "aa:bb:03 Raw\233X\n");
+
+	oui_load(TEST_TMP);
+
+	uint8_t m1[6] = { 0xaa, 0xbb, 0x01, 0, 0, 0 };
+	uint8_t m2[6] = { 0xaa, 0xbb, 0x02, 0, 0, 0 };
+	uint8_t m3[6] = { 0xaa, 0xbb, 0x03, 0, 0, 0 };
+	const char *v1 = oui_lookup(m1);
+	const char *v2 = oui_lookup(m2);
+	const char *v3 = oui_lookup(m3);
+	if (!v1 || strcmp(v1, "SECURITAS DIRECT ESPA\303\221A, SAU") != 0 ||
+	    !v2 || strcmp(v2, "Evil??31mX") != 0 ||
+	    !v3 || strcmp(v3, "Raw?X") != 0) {
+		fprintf(stderr, "test_c1_and_utf8: got '%s', '%s', '%s'\n",
+		    v1 ? v1 : "(null)", v2 ? v2 : "(null)",
+		    v3 ? v3 : "(null)");
+		exit(1);
+	}
+
+	oui_free();
+	unlink(TEST_TMP);
+}
+
 /* the IEEE file has CRLF line endings; the CR is not part of the name */
 static void
 test_crlf(void)
@@ -196,6 +227,7 @@ main(void)
 	test_empty_file();
 	test_control_bytes();
 	test_crlf();
+	test_c1_and_utf8();
 	test_nonexistent();
 
 	printf("test_ouiload: all tests passed\n");

@@ -56,6 +56,51 @@ oui_cmp(const void *a, const void *b)
 	              ((const struct oui_entry *)b)->prefix, 3);
 }
 
+/*
+ * Replace control characters, C0 and C1 alike, and bytes that are not
+ * part of valid UTF-8 with '?', so a vendor name cannot carry terminal
+ * escapes into a report or an alert. Valid UTF-8 text, which the IEEE
+ * file contains, is kept.
+ */
+static void
+sanitize_vendor(char *s)
+{
+	unsigned char *p = (unsigned char *)s;
+
+	while (*p) {
+		int n;
+
+		if (*p < 0x80) {
+			if (*p < 0x20 || *p == 0x7f)
+				*p = '?';
+			p++;
+			continue;
+		}
+		if (*p >= 0xc2 && *p <= 0xdf)
+			n = 1;
+		else if ((*p & 0xf0) == 0xe0)
+			n = 2;
+		else if (*p >= 0xf0 && *p <= 0xf4)
+			n = 3;
+		else
+			n = 0;
+		/* a continuation byte check stops at the NUL, so this never
+		 * reads past the end of the string */
+		for (int i = 1; i <= n; i++) {
+			if ((p[i] & 0xc0) != 0x80) {
+				n = 0;
+				break;
+			}
+		}
+		/* C1 controls are U+0080-U+009F, encoded c2 80 - c2 9f */
+		if (n == 0 || (p[0] == 0xc2 && p[1] < 0xa0)) {
+			*p++ = '?';
+			continue;
+		}
+		p += n + 1;
+	}
+}
+
 int
 oui_load(const char *path)
 {
@@ -141,12 +186,8 @@ oui_load(const char *path)
 			oui_alloc = new_alloc;
 		}
 
-		/* the file may be writable by the unprivileged run user;
-		 * neutralise control bytes (terminal escapes, CR) before the
-		 * name reaches a report or an alert body */
-		for (unsigned char *p = (unsigned char *)vendor; *p; p++)
-			if (*p < 0x20 || *p == 0x7f)
-				*p = '?';
+		/* the file may be writable by the unprivileged run user */
+		sanitize_vendor(vendor);
 
 		oui_db[oui_count].prefix[0] = (uint8_t)a;
 		oui_db[oui_count].prefix[1] = (uint8_t)b;

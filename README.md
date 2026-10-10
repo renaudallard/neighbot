@@ -158,7 +158,7 @@ neighbot -r -m admin@example.com
 |-------|-------------|-------|
 | **new** | Previously unknown IP address seen for the first time | yes (suppressed for IPv6 temporary address rotations) |
 | **changed** | IP seen with a different MAC than previously recorded | yes |
-| **flip-flop** | IP alternates between two known MACs (VRRP/HSRP, dual-homing, or spoofing). Storm detection suppresses rapid repeats | yes |
+| **flip-flop** | IP alternates between two known MACs (VRRP/HSRP, dual-homing, or spoofing). Storm detection suppresses rapid repeats, also when three or more MACs take turns (seen as changed events) | yes |
 | **reappeared** | Known MAC/IP pair seen again after 6+ months of silence | yes |
 | **bogon** | IP outside any local subnet on the receiving interface (possible spoofing). Subnets are re-read every minute and on `SIGHUP` | yes |
 | **ra-learned** | IPv6 on-link prefix announced by a Router Advertisement | yes (first time only) |

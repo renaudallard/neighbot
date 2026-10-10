@@ -109,8 +109,8 @@ storm_reset(void)
 }
 
 /*
- * Check if a flip-flop event is part of an address conflict storm.
- * Returns 1 if the event should be suppressed, 0 otherwise.
+ * Check if a changed or flip-flop event is part of an address conflict
+ * storm. Returns 1 if the event should be suppressed, 0 otherwise.
  */
 static int
 storm_check(int af, const uint8_t *ip, const uint8_t *mac,
@@ -265,12 +265,17 @@ handle_event(int event, int af, const uint8_t *ip, const uint8_t *mac,
 			}
 		}
 	} else if (event == EVENT_CHANGED) {
-		format_mac(old_mac, oldmacstr, sizeof(oldmacstr));
-		log_msg("changed station %s %s -> %s on %s",
-		        ipstr, oldmacstr, macstr, iface);
-		if (!cfg.quiet)
-			notify_changed(af, ip, mac, old_mac, iface,
-			               old_last_seen);
+		/* three or more MACs taking turns on one IP never repeat
+		 * the previous MAC, so they show up as changed rather than
+		 * flip-flop events and need the same storm check */
+		if (!storm_check(af, ip, mac, old_mac, iface)) {
+			format_mac(old_mac, oldmacstr, sizeof(oldmacstr));
+			log_msg("changed station %s %s -> %s on %s",
+			        ipstr, oldmacstr, macstr, iface);
+			if (!cfg.quiet)
+				notify_changed(af, ip, mac, old_mac, iface,
+				               old_last_seen);
+		}
 	} else if (event == EVENT_FLIPFLOP) {
 		if (!storm_check(af, ip, mac, old_mac, iface)) {
 			format_mac(old_mac, oldmacstr, sizeof(oldmacstr));

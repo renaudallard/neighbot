@@ -559,22 +559,22 @@ notify_storm(int af, const uint8_t *ip, const uint8_t *mac_a,
 	    "neighbot: address conflict storm %s on %s", ipstr, iface);
 	snprintf(body, sizeof(body),
 	    "An address conflict storm has been detected.\n"
-	    "Two devices are claiming the same IP address,\n"
-	    "generating a flood of flip-flop events.\n"
+	    "Several devices are claiming the same IP address,\n"
+	    "generating a flood of changed or flip-flop events.\n"
 	    "\n"
-	    "Further flip-flop notifications for this IP will\n"
-	    "be suppressed until the conflict is resolved.\n"
+	    "Further changed and flip-flop notifications for this IP\n"
+	    "will be suppressed until the conflict is resolved.\n"
 	    "\n"
 	    "            hostname: %s\n"
 	    "          ip address: %s\n"
 	    "           interface: %s\n"
 	    "           timestamp: %s\n"
 	    "\n"
-	    "  device A:\n"
+	    "  device A (latest):\n"
 	    "    ethernet address: %s\n"
 	    "     ethernet vendor: %s\n"
 	    "\n"
-	    "  device B:\n"
+	    "  device B (previous):\n"
 	    "    ethernet address: %s\n"
 	    "     ethernet vendor: %s\n",
 	    host, ipstr, iface, timebuf,

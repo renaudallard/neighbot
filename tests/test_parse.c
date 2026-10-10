@@ -86,9 +86,12 @@ void notify_new(int af, const uint8_t *ip, const uint8_t *mac,
     const char *iface)
 { (void)af; (void)ip; (void)mac; (void)iface; notify_new_calls++; }
 
+int notify_changed_calls;
+
 void notify_changed(int af, const uint8_t *ip, const uint8_t *mac,
     const uint8_t *old_mac, const char *iface, time_t prev_seen)
-{ (void)af; (void)ip; (void)mac; (void)old_mac; (void)iface; (void)prev_seen; }
+{ (void)af; (void)ip; (void)mac; (void)old_mac; (void)iface; (void)prev_seen;
+  notify_changed_calls++; }
 
 void notify_flipflop(int af, const uint8_t *ip, const uint8_t *mac,
     const uint8_t *old_mac, const char *iface, time_t prev_seen)
@@ -106,9 +109,12 @@ void notify_moved(int new_af, const uint8_t *new_ip, const uint8_t *mac,
     int old_af, const uint8_t *old_ip, const char *iface)
 { (void)new_af; (void)new_ip; (void)mac; (void)old_af; (void)old_ip; (void)iface; }
 
+int notify_storm_calls;
+
 void notify_storm(int af, const uint8_t *ip, const uint8_t *mac_a,
     const uint8_t *mac_b, const char *iface)
-{ (void)af; (void)ip; (void)mac_a; (void)mac_b; (void)iface; }
+{ (void)af; (void)ip; (void)mac_a; (void)mac_b; (void)iface;
+  notify_storm_calls++; }
 
 void notify_ra_learned(const char *iface, const uint8_t *prefix,
     int prefix_len, const uint8_t *router, uint32_t lifetime)
@@ -556,6 +562,46 @@ test_ndp_hlim(void)
 	cfg.quiet = saved_quiet;
 }
 
+/* three MACs taking turns on one IP: each event is "changed", and the
+ * storm check must still stop the alerts */
+static void
+test_three_mac_storm(void)
+{
+	uint8_t pkt[42];
+	int saved_quiet = cfg.quiet;
+
+	cfg.quiet = 0;
+	storm_reset();
+	notify_changed_calls = notify_storm_calls = 0;
+
+	memset(pkt, 0, sizeof(pkt));
+	memset(pkt, 0xff, 6);
+	pkt[12] = 0x08; pkt[13] = 0x06;
+	pkt[15] = 0x01; pkt[16] = 0x08; pkt[18] = 6; pkt[19] = 4;
+	pkt[21] = 0x01;
+	pkt[28] = 10; pkt[29] = 9; pkt[30] = 9; pkt[31] = 9;
+	pkt[38] = 10; pkt[39] = 9; pkt[40] = 9; pkt[41] = 1;
+
+	for (int i = 0; i < 60; i++) {
+		uint8_t last = (uint8_t)(1 + i % 3);
+
+		pkt[6] = pkt[22] = 0x02;
+		pkt[11] = pkt[27] = last;
+		feed(pkt, sizeof(pkt));
+	}
+
+	if (notify_storm_calls != 1 ||
+	    notify_changed_calls >= STORM_THRESHOLD) {
+		fprintf(stderr, "FAIL: 3-MAC rotation: %d changed alerts, "
+		    "%d storm alerts\n", notify_changed_calls,
+		    notify_storm_calls);
+		exit(1);
+	}
+
+	storm_reset();
+	cfg.quiet = saved_quiet;
+}
+
 static void
 test_truncated(void)
 {
@@ -598,6 +644,7 @@ main(void)
 	test_ndp_ra_zero_lifetime();
 	test_ndp_ra_withdraw_no_l_flag();
 	test_ndp_hlim();
+	test_three_mac_storm();
 	test_truncated();
 
 	/* reset and run batch */

@@ -100,8 +100,8 @@ Dual-stack hosts are not probed across IPv4/IPv6.
 Probes are sent from the interface's own address, the link-local one
 for IPv6, since a probe from the zero address looks like duplicate
 address detection to a host that is bringing up the probed address.
-An interface with no address of the probed family sends from the
-zero address.
+An interface with no IPv4 address other than a link-local one, or no
+IPv6 link-local address, sends from the zero address.
 Link-local addresses and IPs assigned to the local host's own
 interfaces are excluded from probing.
 This flag makes

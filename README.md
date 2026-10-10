@@ -181,8 +181,9 @@ MAC (dual-stack hosts are not probed across IPv4/IPv6):
 
 A zero source address is not used: it is what a duplicate address check
 looks like (RFC 4862, RFC 5227), and a host that is just bringing up the
-probed address would give it up. An interface with no address of the
-probed family still sends from `0.0.0.0` or `::`.
+probed address would give it up. An interface with no IPv4 address other
+than a link-local one, or no IPv6 link-local address, still sends from
+`0.0.0.0` or `::`.
 
 | Outcome | Meaning | Action |
 |---------|---------|--------|

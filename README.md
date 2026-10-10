@@ -39,7 +39,7 @@ Linux, FreeBSD, OpenBSD, and NetBSD.
 | **Active probing** | ARP requests / NDP solicitations to detect moved vs. multi-homed hosts |
 | **OUI database** | Optional hardware vendor identification from MAC prefix |
 | **Storage** | Plain CSV with atomic saves (temp file + rename) |
-| **VLAN trunks** | Auto-detects VLAN subinterfaces and skips trunk parents; on Linux also skips bond slaves |
+| **VLAN trunks** | Auto-detects VLAN subinterfaces and skips trunk parents that have no address besides link-local ones; on Linux also skips bond slaves |
 | **Sandboxing** | `pledge(2)` + `unveil(2)` on OpenBSD, privilege drop everywhere |
 | **Portability** | Linux (glibc, musl), FreeBSD, OpenBSD, NetBSD |
 
@@ -454,7 +454,8 @@ Crashes and slow inputs are written to the current directory.
 ## How It Works
 
 1. Enumerates non-loopback Ethernet interfaces via `pcap_findalldevs()`,
-   skipping VLAN trunk parents when subinterfaces exist, and on Linux
+   skipping VLAN trunk parents that have subinterfaces and no address
+   besides link-local ones, and on Linux
    bonding slaves (seen through the bond device)
 2. Opens one pcap handle per interface with BPF filter:
    `arp or (icmp6 and (ip6[40] == 136 or ip6[40] == 135 or ip6[40] == 134))`

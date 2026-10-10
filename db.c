@@ -733,10 +733,11 @@ db_delete(int af, const uint8_t *ip, const uint8_t *mac, const char *iface)
 	return 0;
 }
 
-/* Remove entries whose last_seen is older than idle_secs.
+/* Remove entries whose last_seen is older than idle_secs, either all of
+ * them or, with temp_only, only non-EUI-64, non-link-local IPv6 ones.
  * Returns the number of entries removed. */
-int
-db_expire(time_t idle_secs)
+static int
+expire(time_t idle_secs, int temp_only)
 {
 	time_t now = time(NULL);
 	int removed = 0;
@@ -751,7 +752,9 @@ db_expire(time_t idle_secs)
 		while (e) {
 			struct entry *next = e->next;
 
-			if (now - e->last_seen <= idle_secs) {
+			if ((temp_only && (e->af != AF_INET6 ||
+			    IS_LINKLOCAL6(e->ip) || is_eui64(e->ip, e->mac))) ||
+			    now - e->last_seen <= idle_secs) {
 				prev = e;
 				e = next;
 				continue;
@@ -771,6 +774,14 @@ db_expire(time_t idle_secs)
 	return removed;
 }
 
+/* Remove entries whose last_seen is older than idle_secs.
+ * Returns the number of entries removed. */
+int
+db_expire(time_t idle_secs)
+{
+	return expire(idle_secs, 0);
+}
+
 /* Remove non-EUI-64, non-link-local IPv6 entries idle for longer than
  * idle_secs.  Reaps stale RFC 4941 temporary addresses left behind by
  * address rotation, an offline device or a prefix change.  Returns the
@@ -778,40 +789,7 @@ db_expire(time_t idle_secs)
 int
 db_expire_temp(time_t idle_secs)
 {
-	time_t now = time(NULL);
-	int removed = 0;
-
-	if (idle_secs <= 0)
-		return 0;
-
-	for (unsigned i = 0; i < HT_BUCKETS; i++) {
-		struct entry *prev = NULL;
-		struct entry *e = buckets[i];
-
-		while (e) {
-			struct entry *next = e->next;
-
-			if (e->af != AF_INET6 ||
-			    IS_LINKLOCAL6(e->ip) ||
-			    is_eui64(e->ip, e->mac) ||
-			    now - e->last_seen <= idle_secs) {
-				prev = e;
-				e = next;
-				continue;
-			}
-
-			if (prev)
-				prev->next = next;
-			else
-				buckets[i] = next;
-			mac_unlink(e);
-			free(e);
-			entry_count--;
-			removed++;
-			e = next;
-		}
-	}
-	return removed;
+	return expire(idle_secs, 1);
 }
 
 /* Check if MAC already has a non-EUI-64 IPv6 in the same /64 on iface.

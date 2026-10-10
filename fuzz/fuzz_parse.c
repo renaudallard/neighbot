@@ -21,9 +21,9 @@ struct config          cfg;
 volatile sig_atomic_t  quit;
 volatile sig_atomic_t  save;
 
-/* stubs. capture_is_local returns 1 so packets are always processed */
+/* stubs. capture_is_local_fresh returns 1 so packets are always processed */
 int
-capture_is_local(const char *iface, int af, const uint8_t *ip)
+capture_is_local_fresh(const char *iface, int af, const uint8_t *ip)
 {
 	(void)iface; (void)af; (void)ip;
 	return 1;

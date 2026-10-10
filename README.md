@@ -162,7 +162,7 @@ neighbot -r -m admin@example.com
 | **changed** | IP seen with a different MAC than previously recorded | yes |
 | **flip-flop** | IP alternates between two known MACs (VRRP/HSRP, dual-homing, or spoofing). Storm detection suppresses rapid repeats, also when three or more MACs take turns (seen as changed events) | yes |
 | **reappeared** | Known MAC/IP pair seen again after 6+ months of silence | yes |
-| **bogon** | IP outside any local subnet on the receiving interface (possible spoofing). Subnets are re-read every minute and on `SIGHUP` | yes |
+| **bogon** | IP outside any local subnet on the receiving interface (possible spoofing). Subnets are re-read every minute, on `SIGHUP`, and before reporting a bogon (at most once a second) | yes |
 | **ra-learned** | IPv6 on-link prefix announced by a Router Advertisement | yes (first time only) |
 | **moved** | MAC seen at a new IP while old IP no longer responds to probes. The obsolete entry is dropped | yes |
 

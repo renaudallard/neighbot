@@ -193,8 +193,11 @@ Bogon packets are not added to the database.
 IPs that are foreign to the receiving interface but match another
 monitored interface's subnet are silently ignored (common with
 access points on VLAN trunks).
-The configured subnets are re-read every 60 seconds and on
-.Dv SIGHUP .
+The configured subnets are re-read every 60 seconds, on
+.Dv SIGHUP ,
+and before an address is reported as a bogon (at most once a second),
+so an address just added to an interface does not make its
+neighbours look foreign.
 .It ra-learned
 A Router Advertisement announced a new on-link IPv6 prefix on an
 interface.

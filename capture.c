@@ -87,6 +87,10 @@ struct learned_subnet {
 static struct learned_subnet learned[MAX_LEARNED_SUBNETS];
 static int learned_count;
 
+/* the monitored interfaces, for refreshes triggered by the parser */
+static struct iface *mon_ifaces;
+static int mon_count;
+
 static void
 prefix_to_mask(int af, int prefix_len, uint8_t *mask)
 {
@@ -632,6 +636,28 @@ capture_is_local(const char *iface, int af, const uint8_t *ip)
 	return 0;
 }
 
+/*
+ * capture_is_local(), but before calling an address foreign re-read the
+ * interface addresses, at most once a second: an address added since the
+ * last periodic refresh would otherwise make its neighbours, and the
+ * host itself, look like bogons.
+ */
+int
+capture_is_local_fresh(const char *iface, int af, const uint8_t *ip)
+{
+	static time_t last;
+	time_t now;
+
+	if (capture_is_local(iface, af, ip))
+		return 1;
+	now = time(NULL);
+	if (mon_ifaces == NULL || now == last)
+		return 0;
+	last = now;
+	capture_refresh_addrs(mon_ifaces, mon_count);
+	return capture_is_local(iface, af, ip);
+}
+
 #if defined(__linux__)
 int
 capture_parse_vlan_parents(const char *path,
@@ -990,6 +1016,8 @@ capture_open_all(struct iface *ifaces, int max)
 		    "not monitored", max);
 
 	pcap_freealldevs(alldevs);
+	mon_ifaces = ifaces;
+	mon_count = count;
 	capture_refresh_addrs(ifaces, count);
 	return count;
 }

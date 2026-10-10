@@ -313,7 +313,9 @@ resolved from the MAC address prefix.
 The file is loaded once at startup.
 Use
 .Sq make oui-update
-to re-download, or add a daily cron job to keep it current.
+to re-download it into the source tree and
+.Sq make install
+to install it, or add a daily cron job to keep it current.
 .It Pa /etc/systemd/system/neighbot.service
 Systemd unit file installed by
 .Sq make install-systemd

@@ -56,7 +56,9 @@ Then generate some traffic (`arping`, `ping`) and watch the log output.
 
 ## Build
 
-Requires a C compiler and libpcap.
+Requires a C compiler, make and libpcap. `make install` also downloads the
+OUI database with `curl` unless `oui.txt` is already present in the source
+tree, so it needs network access the first time.
 
 | OS | Install libpcap |
 |----|-----------------|
@@ -75,7 +77,7 @@ make
 sudo make install          # binary + man page + OUI database
 sudo make install-systemd  # + systemd unit (Linux)
 sudo make install-rcd      # + rc.d script (OpenBSD)
-make oui-update            # re-download IEEE OUI database
+make oui-update            # re-download oui.txt (then make install)
 ```
 
 Installs to `/usr/local/sbin` by default, with the manual page under

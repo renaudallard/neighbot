@@ -110,13 +110,15 @@ prefix_to_mask(int af, int prefix_len, uint8_t *mask)
 	}
 }
 
+/* Whether ip is in the network addr/mask. */
 static int
-learned_match(const struct learned_subnet *s, int af, const uint8_t *ip)
+net_match(int af, const uint8_t *ip, const uint8_t *addr,
+          const uint8_t *mask)
 {
 	int alen = ip_len(af);
 
 	for (int j = 0; j < alen; j++) {
-		if ((ip[j] & s->mask[j]) != (s->addr[j] & s->mask[j]))
+		if ((ip[j] & mask[j]) != (addr[j] & mask[j]))
 			return 0;
 	}
 	return 1;
@@ -289,7 +291,7 @@ fill_local_subnets(struct iface *ifaces, int count)
 	subnet_count = 0;
 
 	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
-		int af, alen;
+		int af;
 		const uint8_t *addr, *mask;
 		int found = 0;
 
@@ -304,7 +306,6 @@ fill_local_subnets(struct iface *ifaces, int count)
 			    (struct sockaddr_in *)ifa->ifa_netmask;
 			addr = (const uint8_t *)&sin->sin_addr;
 			mask = (const uint8_t *)&sinm->sin_addr;
-			alen = 4;
 		} else if (af == AF_INET6) {
 			struct sockaddr_in6 *sin6 =
 			    (struct sockaddr_in6 *)ifa->ifa_addr;
@@ -312,7 +313,6 @@ fill_local_subnets(struct iface *ifaces, int count)
 			    (struct sockaddr_in6 *)ifa->ifa_netmask;
 			addr = (const uint8_t *)&sin6->sin6_addr;
 			mask = (const uint8_t *)&sin6m->sin6_addr;
-			alen = 16;
 		} else {
 			continue;
 		}
@@ -343,14 +343,7 @@ fill_local_subnets(struct iface *ifaces, int count)
 			break;
 		}
 
-		struct subnet *s = &subnets[subnet_count];
-		snprintf(s->iface, sizeof(s->iface), "%s", ifa->ifa_name);
-		s->af = af;
-		memset(s->addr, 0, sizeof(s->addr));
-		memset(s->mask, 0, sizeof(s->mask));
-		memcpy(s->addr, addr, alen);
-		memcpy(s->mask, mask, alen);
-		subnet_count++;
+		capture_add_subnet(ifa->ifa_name, af, addr, mask);
 	}
 
 	freeifaddrs(ifap);
@@ -488,17 +481,11 @@ capture_probe_src(const char *iface, int af, const uint8_t *target,
 	if (af == AF_INET) {
 		for (int i = 0; i < subnet_count; i++) {
 			struct subnet *s = &subnets[i];
-			int match = 1;
+			int match;
 
 			if (s->af != AF_INET || strcmp(s->iface, iface) != 0)
 				continue;
-			for (int j = 0; j < alen; j++) {
-				if ((target[j] & s->mask[j]) !=
-				    (s->addr[j] & s->mask[j])) {
-					match = 0;
-					break;
-				}
-			}
+			match = net_match(af, target, s->addr, s->mask);
 			if (match || !found) {
 				memcpy(src, s->addr, alen);
 				found = 1;
@@ -540,57 +527,15 @@ capture_is_own_ip(int af, const uint8_t *ip)
 	return 0;
 }
 
-int
-capture_is_local_any(int af, const uint8_t *ip)
+/*
+ * Whether ip is local to iface, or to any monitored interface when iface
+ * is NULL: link-local, or inside a configured or learned subnet. With no
+ * subnet known for the address family, locality cannot be determined and
+ * every address counts as local.
+ */
+static int
+is_local(const char *iface, int af, const uint8_t *ip)
 {
-	int alen = ip_len(af);
-	int has_subnet = 0;
-	time_t now = time(NULL);
-
-	if (af == AF_INET6 && IS_LINKLOCAL6(ip))
-		return 1;
-	if (af == AF_INET && IS_LINKLOCAL4(ip))
-		return 1;
-
-	for (int i = 0; i < subnet_count; i++) {
-		struct subnet *s = &subnets[i];
-
-		if (s->af != af)
-			continue;
-		has_subnet = 1;
-
-		int match = 1;
-		for (int j = 0; j < alen; j++) {
-			if ((ip[j] & s->mask[j]) !=
-			    (s->addr[j] & s->mask[j])) {
-				match = 0;
-				break;
-			}
-		}
-		if (match)
-			return 1;
-	}
-
-	for (int i = 0; i < learned_count; i++) {
-		struct learned_subnet *s = &learned[i];
-
-		if (s->af != af || s->expires <= now)
-			continue;
-		has_subnet = 1;
-		if (learned_match(s, af, ip))
-			return 1;
-	}
-
-	if (!has_subnet)
-		return 1;
-
-	return 0;
-}
-
-int
-capture_is_local(const char *iface, int af, const uint8_t *ip)
-{
-	int alen = ip_len(af);
 	int has_subnet = 0;
 	time_t now = time(NULL);
 
@@ -603,19 +548,10 @@ capture_is_local(const char *iface, int af, const uint8_t *ip)
 	for (int i = 0; i < subnet_count; i++) {
 		struct subnet *s = &subnets[i];
 
-		if (s->af != af || strcmp(s->iface, iface) != 0)
+		if (s->af != af || (iface && strcmp(s->iface, iface) != 0))
 			continue;
 		has_subnet = 1;
-
-		int match = 1;
-		for (int j = 0; j < alen; j++) {
-			if ((ip[j] & s->mask[j]) !=
-			    (s->addr[j] & s->mask[j])) {
-				match = 0;
-				break;
-			}
-		}
-		if (match)
+		if (net_match(af, ip, s->addr, s->mask))
 			return 1;
 	}
 
@@ -623,18 +559,26 @@ capture_is_local(const char *iface, int af, const uint8_t *ip)
 		struct learned_subnet *s = &learned[i];
 
 		if (s->af != af || s->expires <= now ||
-		    strcmp(s->iface, iface) != 0)
+		    (iface && strcmp(s->iface, iface) != 0))
 			continue;
 		has_subnet = 1;
-		if (learned_match(s, af, ip))
+		if (net_match(af, ip, s->addr, s->mask))
 			return 1;
 	}
 
-	/* no configured subnets for this af. cannot determine locality */
-	if (!has_subnet)
-		return 1;
+	return !has_subnet;
+}
 
-	return 0;
+int
+capture_is_local_any(int af, const uint8_t *ip)
+{
+	return is_local(NULL, af, ip);
+}
+
+int
+capture_is_local(const char *iface, int af, const uint8_t *ip)
+{
+	return is_local(iface, af, ip);
 }
 
 /*

@@ -390,45 +390,55 @@ fill_local_ips(struct iface *ifaces, int count)
 	}
 	own_ip_count = 0;
 
-	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
-		int af;
-		const uint8_t *addr;
-		int found = 0;
+	/* IPv6 link-local addresses go in first: probes are sent from
+	 * them, and getifaddrs() may list hundreds of IPv4 addresses
+	 * before any IPv6 one */
+	for (int pass = 0; pass < 2; pass++) {
+		for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+			int af, ll;
+			const uint8_t *addr;
+			int found = 0;
 
-		if (!ifa->ifa_addr)
-			continue;
+			if (!ifa->ifa_addr)
+				continue;
 
-		af = ifa->ifa_addr->sa_family;
-		if (af == AF_INET) {
-			struct sockaddr_in *sin =
-			    (struct sockaddr_in *)ifa->ifa_addr;
-			addr = (const uint8_t *)&sin->sin_addr;
-		} else if (af == AF_INET6) {
-			struct sockaddr_in6 *sin6 =
-			    (struct sockaddr_in6 *)ifa->ifa_addr;
-			addr = (const uint8_t *)&sin6->sin6_addr;
-		} else {
-			continue;
-		}
+			af = ifa->ifa_addr->sa_family;
+			if (af == AF_INET) {
+				struct sockaddr_in *sin =
+				    (struct sockaddr_in *)ifa->ifa_addr;
+				addr = (const uint8_t *)&sin->sin_addr;
+			} else if (af == AF_INET6) {
+				struct sockaddr_in6 *sin6 =
+				    (struct sockaddr_in6 *)ifa->ifa_addr;
+				addr = (const uint8_t *)&sin6->sin6_addr;
+			} else {
+				continue;
+			}
+			ll = (af == AF_INET6 && IS_LINKLOCAL6(addr));
+			if (ll != (pass == 0))
+				continue;
 
-		for (int i = 0; i < count; i++) {
-			if (strcmp(ifaces[i].name, ifa->ifa_name) == 0) {
-				found = 1;
+			for (int i = 0; i < count; i++) {
+				if (strcmp(ifaces[i].name,
+				    ifa->ifa_name) == 0) {
+					found = 1;
+					break;
+				}
+			}
+			if (!found)
+				continue;
+
+			if (own_ip_count >= MAX_LOCAL_IPS) {
+				if (!full_warned)
+					log_msg("local IP table full (%d), "
+					    "some own IPs not tracked",
+					    MAX_LOCAL_IPS);
+				full_warned = 1;
 				break;
 			}
-		}
-		if (!found)
-			continue;
 
-		if (own_ip_count >= MAX_LOCAL_IPS) {
-			if (!full_warned)
-				log_msg("local IP table full (%d), some own "
-				    "IPs not tracked", MAX_LOCAL_IPS);
-			full_warned = 1;
-			break;
+			capture_add_own_ip(ifa->ifa_name, af, addr);
 		}
-
-		capture_add_own_ip(ifa->ifa_name, af, addr);
 	}
 
 	freeifaddrs(ifap);

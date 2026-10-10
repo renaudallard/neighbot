@@ -297,12 +297,12 @@ that user; when installing from source, create it first (uid 904, as in
 the ports tree):
 
 ```sh
-sudo groupadd -g 904 _neighbot
-sudo useradd -u 904 -g _neighbot -c "neighbot daemon" -d /var/empty \
+doas groupadd -g 904 _neighbot
+doas useradd -u 904 -g _neighbot -c "neighbot daemon" -d /var/empty \
     -s /sbin/nologin _neighbot
-sudo make install-rcd
-sudo rcctl enable neighbot
-sudo rcctl start neighbot
+doas make install-rcd
+doas rcctl enable neighbot
+doas rcctl start neighbot
 ```
 
 Override flags in `/etc/rc.conf.local`. They replace the script's default

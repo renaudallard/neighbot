@@ -368,8 +368,14 @@ children run at once; further notifications are suppressed and
 logged until the backlog clears.
 .Sh EXIT STATUS
 .Nm
-exits 0 on clean shutdown or after printing a report, or 1 if no
-usable interfaces were found.
+exits 0 on clean shutdown or after printing a report.
+It exits 1 on an invalid option or argument, an unknown
+.Ar user ,
+a database file that exists but cannot be read, when no usable
+interface is found, when privileges cannot be dropped or
+.Xr pledge 2
+fails, when every monitored interface has gone away, or when a
+report cannot be written or mailed.
 .Sh SEE ALSO
 .Xr pledge 2 ,
 .Xr unveil 2 ,

@@ -341,12 +341,11 @@ handle_multiple_ips(int af, const uint8_t *ip, const uint8_t *mac,
 	char otherstr[INET6_ADDRSTRLEN];
 
 	(void)mac;
-	(void)iface;
 
 	inet_ntop(af, ip, ipstr, sizeof(ipstr));
 	inet_ntop(other_af, other_ip, otherstr, sizeof(otherstr));
-	log_msg("probe: %s still active, device has multiple IPs (also %s)",
-	    ipstr, otherstr);
+	log_msg("probe: %s still active on %s, device has multiple IPs "
+	    "(also %s)", ipstr, iface, otherstr);
 }
 
 #define BOGON_CACHE_SIZE 128

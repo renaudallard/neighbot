@@ -297,7 +297,7 @@ Two file formats are supported:
 
 | Format | Example | Source |
 |--------|---------|--------|
-| neighbot | `aa:bb:cc Vendor Name` | `make oui.txt` |
+| neighbot | `aa:bb:cc Vendor Name` | `make oui.txt` (`make oui-update` refreshes it) |
 | arp-scan | `AABBCC\tVendor Name` | `net/arp-scan,-mac` package |
 
 On OpenBSD, install the `arp-scan,-mac` package and point neighbot at

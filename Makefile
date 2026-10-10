@@ -37,17 +37,22 @@ $(BIN): $(OBJS)
 
 clean:
 	rm -f $(BIN) $(OBJS) $(DEPS) fuzz_parse fuzz_dbload fuzz_ouiload
+	rm -f oui.txt.raw oui.txt.tmp
 	rm -f tests/test_parse tests/test_dbload tests/test_dbexpire tests/test_ouiload tests/test_probe tests/test_capture tests/test_notify
 
 oui.txt:
-	curl -sL https://standards-oui.ieee.org/oui/oui.txt | \
+	$(MAKE) oui-update
+
+# Download to a temporary file and only replace oui.txt with a non-empty
+# result, so a failed download never leaves an empty or partial file.
+oui-update:
+	curl -fsSL -o oui.txt.raw https://standards-oui.ieee.org/oui/oui.txt
 	awk '/\(hex\)/ { gsub(/-/, ":", $$1); v=""; \
 	for (i=3; i<=NF; i++) v = v (i>3?" ":"") $$i; \
-	print tolower($$1) " " v }' > oui.txt
-
-oui-update:
-	rm -f oui.txt
-	$(MAKE) oui.txt
+	print tolower($$1) " " v }' oui.txt.raw > oui.txt.tmp
+	rm -f oui.txt.raw
+	test -s oui.txt.tmp
+	mv oui.txt.tmp oui.txt
 
 install: $(BIN) oui.txt
 	install -d $(DESTDIR)$(BINDIR)

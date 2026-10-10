@@ -638,7 +638,13 @@ parse_ra(const uint8_t *icmp, size_t icmp_len, const char *iface,
 				    "(router %s, lifetime %us)",
 				    pfxstr, prefix_len, iface, rtrstr,
 				    (unsigned)valid);
-				if (!cfg.quiet)
+				/* a prefix the host itself has configured
+				 * is expected: log it, but only mail about
+				 * prefixes that are new to this link, so a
+				 * restart does not re-announce every one */
+				if (!cfg.quiet &&
+				    !capture_prefix_configured(iface,
+				    AF_INET6, prefix, prefix_len))
 					notify_ra_learned(iface, prefix,
 					    prefix_len, router_src, valid);
 			} else if (added == 2) {

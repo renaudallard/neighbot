@@ -189,6 +189,24 @@ test_probe_src(void)
 
 	capture_reset_subnets();
 	capture_reset_own_ips();
+	/* prefix inside a configured subnet, and broader ones */
+	{
+		uint8_t net[16] = { 0x20, 0x01, 0x0d, 0xb8, 0, 0x01, 0, 0,
+		                    0, 0, 0, 0, 0, 0, 0, 0x01 };
+		uint8_t m64[16] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+		                    0xff, 0xff };
+		uint8_t pfx[16] = { 0x20, 0x01, 0x0d, 0xb8, 0, 0x01 };
+
+		capture_add_subnet("eth0", AF_INET6, net, m64);
+		ASSERT(capture_prefix_configured("eth0", AF_INET6, pfx, 64),
+		       "the configured /64 should match");
+		ASSERT(!capture_prefix_configured("eth0", AF_INET6, pfx, 48),
+		       "a broader /48 should not count as configured");
+		ASSERT(!capture_prefix_configured("eth1", AF_INET6, pfx, 64),
+		       "another interface's subnet should not match");
+		capture_reset_subnets();
+	}
+
 	printf("  probe_src: ok\n");
 	return 0;
 }

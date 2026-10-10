@@ -569,6 +569,29 @@ is_local(const char *iface, int af, const uint8_t *ip)
 	return !has_subnet;
 }
 
+/* Whether prefix/prefix_len lies inside a subnet configured on iface. */
+int
+capture_prefix_configured(const char *iface, int af, const uint8_t *prefix,
+                          int prefix_len)
+{
+	int alen = ip_len(af);
+
+	for (int i = 0; i < subnet_count; i++) {
+		struct subnet *s = &subnets[i];
+		int bits = 0;
+
+		if (s->af != af || strcmp(s->iface, iface) != 0)
+			continue;
+		for (int j = 0; j < alen; j++)
+			for (uint8_t m = s->mask[j]; m; m <<= 1)
+				bits++;
+		if (prefix_len >= bits &&
+		    net_match(af, prefix, s->addr, s->mask))
+			return 1;
+	}
+	return 0;
+}
+
 int
 capture_is_local_any(int af, const uint8_t *ip)
 {

@@ -37,6 +37,14 @@ capture_is_local_any(int af, const uint8_t *ip)
 }
 
 int
+capture_prefix_configured(const char *iface, int af, const uint8_t *prefix,
+    int prefix_len)
+{
+	(void)iface; (void)af; (void)prefix; (void)prefix_len;
+	return 0;
+}
+
+int
 capture_is_own_ip(int af, const uint8_t *ip)
 {
 	(void)af; (void)ip;

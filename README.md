@@ -255,7 +255,9 @@ treated as local and no longer produce bogon alerts, even when the host
 itself has no IPv6 address configured on that interface.
 
 The first time a new prefix is learned on an interface, neighbot sends an
-**ra-learned** notification so the operator is aware of the new subnet.
+**ra-learned** notification so the operator is aware of the new subnet; a
+prefix inside a subnet the host has configured on that interface is only
+logged, so restarts do not re-announce it.
 Subsequent refreshes of the same prefix are silent; a prefix that expired,
 was withdrawn or was evicted is reported again when it is announced again. Prefix entries expire
 after the RA valid-lifetime (capped at 7 days), and a prefix re-advertised

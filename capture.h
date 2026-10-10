@@ -44,6 +44,8 @@ int  capture_is_local(const char *iface, int af, const uint8_t *ip);
 int  capture_is_local_fresh(const char *iface, int af, const uint8_t *ip);
 int  capture_link_up(const char *iface);
 int  capture_is_local_any(int af, const uint8_t *ip);
+int  capture_prefix_configured(const char *iface, int af,
+                               const uint8_t *prefix, int prefix_len);
 int  capture_is_own_ip(int af, const uint8_t *ip);
 void capture_add_subnet(const char *iface, int af,
                         const uint8_t *addr, const uint8_t *mask);

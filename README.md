@@ -132,14 +132,14 @@ neighbot [-B seconds] [-d] [-e days] [-f dbfile] [-i iface] [-m mailto] [-o ouif
 | `-B seconds` | Bogon log and notification cooldown in seconds (default: 1800). Set to 0 to disable the per-address cooldown (a global flood cap still applies) |
 | `-d` | Daemonize (log to syslog instead of stderr) |
 | `-e days` | Drop entries unseen for more than `days` days (checked hourly). 0 disables (default); the 7-day stale non-EUI-64 IPv6 sweep runs regardless |
-| `-f path` | Database file (default: `/var/neighbot/neighbot.csv`) |
+| `-f dbfile` | Database file (default: `/var/neighbot/neighbot.csv`) |
 | `-i iface` | Monitor only this interface (default: all Ethernet interfaces) |
-| `-m addr` | Email recipient (default: `root`) |
-| `-o path` | OUI vendor database file (default: `/var/neighbot/oui.txt`) |
+| `-m mailto` | Email recipient (default: `root`) |
+| `-o ouifile` | OUI vendor database file (default: `/var/neighbot/oui.txt`) |
 | `-p` | Disable active probing (passive only) |
 | `-q` | Quiet mode. No email notifications, events are still logged |
 | `-r` | Report mode. Print database summary to stdout (or email with `-m`), then exit |
-| `-s path` | Path to sendmail-compatible MTA (default: `/usr/sbin/sendmail`) |
+| `-s sendmail` | Path to sendmail-compatible MTA (default: `/usr/sbin/sendmail`) |
 | `-u user` | Drop privileges to this user after opening pcap handles (default: `nobody`) |
 | `-V` | Print the version number and exit |
 

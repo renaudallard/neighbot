@@ -43,6 +43,7 @@ jobs:
         if: steps.check.outputs.exists == 'false'
         run: |
           gh release create "${{ steps.version.outputs.tag }}" \
+            --target "$GITHUB_SHA" \
             --title "neighbot ${{ steps.version.outputs.version }}" \
             --generate-notes \
             "neighbot-${{ steps.version.outputs.version }}.tar.gz"

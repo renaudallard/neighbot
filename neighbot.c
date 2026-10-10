@@ -404,6 +404,7 @@ main(int argc, char *argv[])
 
 	time_t last_expire = time(NULL);
 	time_t last_save = time(NULL);
+	time_t last_tick = 0;
 	int active = nifaces;
 	int all_down = 0;
 
@@ -417,29 +418,37 @@ main(int argc, char *argv[])
 			break;
 		}
 
+		/* Also call pcap_dispatch() once a second on every handle.
+		 * On Linux a link going down is reported once as POLLERR
+		 * (ENETDOWN) and the socket works again when the link comes
+		 * back, so only libpcap can tell whether the interface was
+		 * later removed, and that raises no further event. */
+		time_t tick = time(NULL);
+		int recheck = (tick != last_tick);
+
+		last_tick = tick;
 		for (int i = 0; i < nifaces; i++) {
+			short rev = pfds[i].revents;
+
 			if (pfds[i].fd < 0)
 				continue;
-
-			if (pfds[i].revents & (POLLHUP | POLLERR)) {
-				log_msg("interface %s down, disabling",
-				        ifaces[i].name);
-				pcap_close(ifaces[i].handle);
-				ifaces[i].handle = NULL;
-				ifaces[i].fd = -1;
-				pfds[i].fd = -1;
-				active--;
+			if (!(rev & (POLLIN | POLLHUP | POLLERR)) && !recheck)
 				continue;
-			}
 
-			if (pfds[i].revents & POLLIN) {
-				if (pcap_dispatch(ifaces[i].handle, -1,
-				    parse_packet,
-				    (u_char *)ifaces[i].name) < 0)
-					log_err("pcap_dispatch(%s): %s",
-					    ifaces[i].name,
-					    pcap_geterr(ifaces[i].handle));
-			}
+			if (pcap_dispatch(ifaces[i].handle, -1, parse_packet,
+			    (u_char *)ifaces[i].name) == PCAP_ERROR) {
+				log_err("pcap_dispatch(%s): %s", ifaces[i].name,
+				    pcap_geterr(ifaces[i].handle));
+			} else if (!(rev & POLLHUP))
+				continue;
+
+			log_msg("interface %s down, disabling",
+			        ifaces[i].name);
+			pcap_close(ifaces[i].handle);
+			ifaces[i].handle = NULL;
+			ifaces[i].fd = -1;
+			pfds[i].fd = -1;
+			active--;
 		}
 
 		/* with no interfaces left there is nothing to monitor; exit

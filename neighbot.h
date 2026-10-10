@@ -67,10 +67,13 @@
 
 /* ARP, ND (RS, RA, NS, NA) right after the IPv6 header, and IPv6
  * packets starting with a hop-by-hop, routing or destination options
- * header, which the parser walks to find ND behind them */
+ * header, which the parser walks to find ND behind them; the same inside
+ * an 802.1Q priority tag (VLAN ID 0). The vlan clause must come last:
+ * it shifts the offsets of every primitive after it. */
 #define BPF_NDP    "(icmp6 and ip6[40] >= 133 and ip6[40] <= 136)"
 #define BPF_EXTHDR "(ip6 and (ip6[6] == 0 or ip6[6] == 43 or ip6[6] == 60))"
-#define BPF_FILTER "arp or " BPF_NDP " or " BPF_EXTHDR
+#define BPF_MATCH  "arp or " BPF_NDP " or " BPF_EXTHDR
+#define BPF_FILTER BPF_MATCH " or (vlan 0 and (" BPF_MATCH "))"
 
 #define IS_LINKLOCAL6(ip) ((ip)[0] == 0xfe && ((ip)[1] & 0xc0) == 0x80)
 #define IS_LINKLOCAL4(ip) ((ip)[0] == 169 && (ip)[1] == 254)

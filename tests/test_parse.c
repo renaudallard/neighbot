@@ -998,6 +998,43 @@ test_na_ext_header(void)
 	cfg.quiet = saved_quiet;
 }
 
+/* ARP in an 802.1Q priority tag (VLAN ID 0) is processed, other VLAN
+ * IDs are not */
+static void
+test_vlan0_priority_tag(void)
+{
+	uint8_t pkt[46];
+	int saved_quiet = cfg.quiet;
+	int before;
+
+	cfg.quiet = 0;
+	memset(pkt, 0, sizeof(pkt));
+	memset(pkt, 0xff, 6);
+	pkt[6] = 0x02; pkt[11] = 0x45;
+	pkt[12] = 0x81; pkt[13] = 0x00;          /* 802.1Q */
+	pkt[14] = 0xa0; pkt[15] = 0x00;          /* priority 5, VLAN ID 0 */
+	pkt[16] = 0x08; pkt[17] = 0x06;
+	pkt[19] = 0x01; pkt[20] = 0x08; pkt[22] = 6; pkt[23] = 4;
+	pkt[25] = 0x02;
+	pkt[26] = 0x02; pkt[31] = 0x45;          /* sender MAC */
+	pkt[32] = 10; pkt[33] = 45; pkt[34] = 0; pkt[35] = 1;
+
+	before = notify_new_calls;
+	feed(pkt, sizeof(pkt));
+	if (notify_new_calls != before + 1) {
+		fprintf(stderr, "FAIL: priority-tagged ARP was ignored\n");
+		exit(1);
+	}
+	pkt[15] = 0x05;                          /* VLAN ID 5 */
+	pkt[35] = 2;
+	feed(pkt, sizeof(pkt));
+	if (notify_new_calls != before + 1) {
+		fprintf(stderr, "FAIL: ARP tagged with VLAN 5 was processed\n");
+		exit(1);
+	}
+	cfg.quiet = saved_quiet;
+}
+
 static void
 test_truncated(void)
 {
@@ -1051,6 +1088,7 @@ main(void)
 	test_broadcast_mac_claim();
 	test_ra_rs_lladdr();
 	test_na_ext_header();
+	test_vlan0_priority_tag();
 	test_truncated();
 
 	/* reset and run batch */

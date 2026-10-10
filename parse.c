@@ -43,6 +43,10 @@
 #include <net/ethernet.h>
 #endif
 
+#ifndef ETHERTYPE_VLAN
+#define ETHERTYPE_VLAN 0x8100
+#endif
+
 #include "neighbot.h"
 #include "capture.h"
 #include "db.h"
@@ -808,7 +812,7 @@ parse_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt)
 	const struct ether_header *eh;
 	_Alignas(8) u_char frame[SNAP_LEN];
 	uint16_t etype;
-	size_t len = hdr->caplen;
+	size_t len = hdr->caplen, off;
 
 	if (len < sizeof(struct ether_header))
 		return;
@@ -826,13 +830,20 @@ parse_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt)
 
 	eh = (const struct ether_header *)pkt;
 	etype = ntohs(eh->ether_type);
+	off = sizeof(struct ether_header);
 
-	if (etype == ETHERTYPE_ARP) {
-		parse_arp(pkt + sizeof(struct ether_header),
-		          len - sizeof(struct ether_header), iface);
-	} else if (etype == ETHERTYPE_IPV6) {
-		parse_ndp(pkt + sizeof(struct ether_header),
-		          len - sizeof(struct ether_header), iface,
-		          eh->ether_shost);
+	/* An 802.1Q priority tag (VLAN ID 0) marks untagged traffic with a
+	 * priority only, and hosts process the ARP or ND inside it. Other
+	 * VLAN IDs belong to the VLAN subinterfaces. */
+	if (etype == ETHERTYPE_VLAN) {
+		if (len < off + 4 || ((pkt[off] << 8 | pkt[off + 1]) & 0x0fff))
+			return;
+		etype = (uint16_t)(pkt[off + 2] << 8 | pkt[off + 3]);
+		off += 4;
 	}
+
+	if (etype == ETHERTYPE_ARP)
+		parse_arp(pkt + off, len - off, iface);
+	else if (etype == ETHERTYPE_IPV6)
+		parse_ndp(pkt + off, len - off, iface, eh->ether_shost);
 }

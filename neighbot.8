@@ -102,16 +102,17 @@ An interface with no address of the probed family sends from the
 zero address.
 Link-local addresses and IPs assigned to the local host's own
 interfaces are excluded from probing.
+This flag makes
+.Nm
+purely passive.
 .Pp
 When an IPv6 temporary address (RFC 4941) rotates, the new address
 is not reported as a new station; obsolete temporary addresses in the
 same prefix that have gone idle are dropped from the database silently.
 This also covers link-local address rotation on devices with
 randomized MACs.
-.Pp
-This flag makes
-.Nm
-purely passive.
+This handling does not depend on probing and also applies with
+.Fl p .
 .It Fl q
 Quiet mode.
 Suppress email notifications.

@@ -193,6 +193,8 @@ IPs assigned to the local host's own interfaces are also excluded,
 preventing false "moved" alerts when the host has multiple IPs across
 VLANs or other interfaces.
 
+Disable probing with `-p` for purely passive monitoring.
+
 **IPv6 temporary addresses (RFC 4941):** When a device using privacy
 extensions rotates its temporary address, neighbot detects that the same
 MAC already has a non-EUI-64 address in the same /64 prefix and suppresses
@@ -203,9 +205,8 @@ in active use is kept. This also covers link-local address rotation
 are tracked; a flood of addresses under one MAC beyond that is ignored
 (logged once), which a legitimate neighbor never reaches. An address moving
 to a MAC already at the limit is still reported as changed but not kept,
-and extra rows in an older database file are skipped at load.
-
-Disable with `-p` for purely passive monitoring.
+and extra rows in an older database file are skipped at load. This
+handling does not depend on probing and also applies with `-p`.
 
 ## Obsolete Address Cleanup
 

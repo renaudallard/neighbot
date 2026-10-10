@@ -186,6 +186,7 @@ probed family still sends from `0.0.0.0` or `::`.
 |---------|---------|--------|
 | Probe answered | Device has multiple IPs | Log only |
 | Probe timed out | Device moved to new IP | Log + email |
+| Probe timed out with the link down | Unknown (probes were not delivered) | Log only |
 
 Link-local addresses (fe80::/10, 169.254/16) are excluded from probing
 since every IPv6 interface has one alongside its global address.

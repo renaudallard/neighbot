@@ -21,6 +21,9 @@ volatile sig_atomic_t  quit;
 volatile sig_atomic_t  save;
 
 /* stubs for symbols referenced by probe.c */
+int capture_link_up(const char *iface)
+{ (void)iface; return 1; }
+
 int capture_probe_src(const char *iface, int af, const uint8_t *target,
     uint8_t *src)
 { (void)iface; (void)af; (void)target; memset(src, 0, 16); return 0; }

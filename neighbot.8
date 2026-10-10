@@ -226,6 +226,9 @@ A MAC address is seen at a new IP address while its old IP no longer
 responds to probes (requires active probing).
 The obsolete IP entry is removed from the database after the
 notification is sent.
+If the probed interface has no link (or is gone) when the probes time
+out, they could not have been answered, and the probe is cancelled
+instead.
 .El
 .Sh OBSOLETE ADDRESS CLEANUP
 .Nm

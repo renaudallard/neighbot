@@ -38,6 +38,7 @@
 #if defined(__linux__)
 #include <sys/stat.h>
 #include <linux/if_packet.h>
+#include <net/if.h>
 #include <stdio.h>
 #elif defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__NetBSD__)
 #include <net/if_dl.h>
@@ -634,6 +635,39 @@ capture_is_local(const char *iface, int af, const uint8_t *ip)
 		return 1;
 
 	return 0;
+}
+
+/*
+ * Whether iface exists, is up and has a carrier. An unknown link state
+ * counts as up, and so does a failure to read the interface list.
+ */
+int
+capture_link_up(const char *iface)
+{
+	struct ifaddrs *ifap, *ifa;
+	int up = 0;
+
+	if (getifaddrs(&ifap) < 0)
+		return 1;
+	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+		if (strcmp(ifa->ifa_name, iface) != 0)
+			continue;
+#if defined(__linux__)
+		/* IFF_RUNNING reflects the carrier on Linux */
+		up = (ifa->ifa_flags & (IFF_UP | IFF_RUNNING)) ==
+		    (IFF_UP | IFF_RUNNING);
+#else
+		if (!ifa->ifa_addr || ifa->ifa_addr->sa_family != AF_LINK)
+			continue;
+		up = (ifa->ifa_flags & IFF_UP) != 0;
+		if (up && ifa->ifa_data != NULL)
+			up = ((struct if_data *)ifa->ifa_data)->ifi_link_state !=
+			    LINK_STATE_DOWN;
+#endif
+		break;
+	}
+	freeifaddrs(ifap);
+	return up;
 }
 
 /*

@@ -351,11 +351,22 @@ probe_tick(struct iface *ifaces, int nifaces)
 			continue;
 		}
 
-		/* timed out after all attempts */
+		/* timed out after all attempts. Silence only means the
+		 * address is gone if the probes could reach it: with the
+		 * interface closed or its link down they were dropped
+		 * without an error, so cancel instead of reporting a move */
 		if (p->tries >= PROBE_MAX_TRIES &&
 		    now - p->last_sent >= PROBE_TIMEOUT) {
-			handle_moved(p->new_af, p->new_ip,
-			    p->mac, p->af, p->ip, p->iface);
+			if (find_iface(ifaces, nifaces, p->iface) == NULL ||
+			    !capture_link_up(p->iface)) {
+				char ipstr[INET6_ADDRSTRLEN];
+
+				inet_ntop(p->af, p->ip, ipstr, sizeof(ipstr));
+				log_msg("probe: %s on %s cancelled, link down",
+				    ipstr, p->iface);
+			} else
+				handle_moved(p->new_af, p->new_ip,
+				    p->mac, p->af, p->ip, p->iface);
 			p->active = 0;
 			continue;
 		}

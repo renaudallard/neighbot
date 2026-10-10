@@ -127,12 +127,12 @@ test_empty_file(void)
 	unlink(TEST_TMP);
 }
 
-/* control bytes in a vendor name (terminal escapes, CR) are replaced */
+/* control bytes in a vendor name (terminal escapes) are replaced */
 static void
 test_control_bytes(void)
 {
 	write_file(TEST_TMP,
-	    "aa:bb:cc Evil\033[31mRED\rCorp\n"
+	    "aa:bb:cc Evil\033[31mRED\bCorp\n"
 	    "112233\tTab\033Corp\n");
 
 	oui_load(TEST_TMP);
@@ -144,6 +144,31 @@ test_control_bytes(void)
 	if (!v1 || strcmp(v1, "Evil?[31mRED?Corp") != 0 ||
 	    !v2 || strcmp(v2, "Tab?Corp") != 0) {
 		fprintf(stderr, "test_control_bytes: got '%s' and '%s'\n",
+		    v1 ? v1 : "(null)", v2 ? v2 : "(null)");
+		exit(1);
+	}
+
+	oui_free();
+	unlink(TEST_TMP);
+}
+
+/* the IEEE file has CRLF line endings; the CR is not part of the name */
+static void
+test_crlf(void)
+{
+	write_file(TEST_TMP,
+	    "aa:bb:cc Acme Corp\r\n"
+	    "112233\tWidgets Inc\r\n");
+
+	oui_load(TEST_TMP);
+
+	uint8_t mac1[6] = { 0xaa, 0xbb, 0xcc, 0, 0, 0 };
+	uint8_t mac2[6] = { 0x11, 0x22, 0x33, 0, 0, 0 };
+	const char *v1 = oui_lookup(mac1);
+	const char *v2 = oui_lookup(mac2);
+	if (!v1 || strcmp(v1, "Acme Corp") != 0 ||
+	    !v2 || strcmp(v2, "Widgets Inc") != 0) {
+		fprintf(stderr, "test_crlf: got '%s' and '%s'\n",
 		    v1 ? v1 : "(null)", v2 ? v2 : "(null)");
 		exit(1);
 	}
@@ -170,6 +195,7 @@ main(void)
 	test_overflow_rejected();
 	test_empty_file();
 	test_control_bytes();
+	test_crlf();
 	test_nonexistent();
 
 	printf("test_ouiload: all tests passed\n");

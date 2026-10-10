@@ -103,7 +103,7 @@ oui_load(const char *path)
 		 * over-long value cannot overflow and wrap back under 0x100,
 		 * defeating a range check */
 		if (!isxdigit((unsigned char)line[0]) ||
-		    sscanf(line, "%2x:%2x:%2x %79[^\n]",
+		    sscanf(line, "%2x:%2x:%2x %79[^\r\n]",
 		           &a, &b, &c, vendor) != 4) {
 			/* arp-scan format: AABBCC\tVendor Name
 			 * skip MA-M (7 hex) and MA-S (9 hex) entries */
@@ -119,7 +119,7 @@ oui_load(const char *path)
 			a = (oui >> 16) & 0xff;
 			b = (oui >> 8) & 0xff;
 			c = oui & 0xff;
-			line[strcspn(line, "\n")] = '\0';
+			line[strcspn(line, "\r\n")] = '\0';
 			snprintf(vendor, sizeof(vendor), "%.79s", line + 7);
 			if (vendor[0] == '\0')
 				continue;

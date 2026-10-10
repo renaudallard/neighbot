@@ -574,6 +574,7 @@ parse_ra(const uint8_t *icmp, size_t icmp_len, const char *iface,
 	const u_char *opts = icmp + 16;
 	size_t opts_len = icmp_len - 16;
 	size_t off = 0;
+	int short_logged = 0;
 
 	while (off + 2 <= opts_len) {
 		uint8_t otype = opts[off];
@@ -605,6 +606,11 @@ parse_ra(const uint8_t *icmp, size_t icmp_len, const char *iface,
 			if (prefix_len < LEARNED_MIN_PREFIX6) {
 				char pfxstr[INET6_ADDRSTRLEN];
 
+				/* one line per RA: a single frame can carry
+				 * dozens of such options */
+				if (short_logged)
+					goto next;
+				short_logged = 1;
 				inet_ntop(AF_INET6, prefix, pfxstr,
 				    sizeof(pfxstr));
 				log_msg("ignoring RA prefix %s/%u on %s: "

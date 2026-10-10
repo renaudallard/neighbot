@@ -1,5 +1,5 @@
 Name: neighbot
-Version: 0.5.16
+Version: 0.5.17
 Release: 1%{?dist}
 Summary: Network neighbor monitoring daemon
 
@@ -68,6 +68,18 @@ if [ -x /usr/bin/systemctl ]; then
 fi
 
 %changelog
+* Sat Oct 10 2026 Renaud Allard <renaud@allard.it> 0.5.17-1
+- Fix the build on FreeBSD and NetBSD
+- Keep monitoring across link down/up and re-read interface addresses
+  and MACs at runtime
+- Send probes from the host's own address, skip bridge ports and
+  capture bridges in promiscuous mode
+- Detect forged RAs and RSs, ND behind extension headers, priority
+  tagged frames, ARP hardware type 6 and broadcast MAC claims
+- Never chown the database file as root, only chown the default
+  directory, and strip control characters from file strings
+- Fix storm, temporary address and bogon alerts and packaging issues
+
 * Fri Jul 10 2026 Renaud Allard <renaud@allard.it> 0.5.16-1
 - Cap total entries per MAC and walk the MAC chain in the temporary-
   address sweep, so per-packet work stays constant-time under a flood

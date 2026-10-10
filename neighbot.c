@@ -395,8 +395,7 @@ main(int argc, char *argv[])
 	time_t last_save = time(NULL);
 	time_t last_refresh = time(NULL);
 	time_t last_tick = 0;
-	int active = nifaces;
-	int all_down = 0;
+	int iface_lost = 0;
 
 	while (!quit) {
 		int ret = poll(pfds, nifaces, POLL_TIMEOUT_MS);
@@ -417,11 +416,9 @@ main(int argc, char *argv[])
 		int recheck = (tick != last_tick);
 
 		last_tick = tick;
-		for (int i = 0; i < nifaces; i++) {
+		for (int i = 0; i < nifaces && !iface_lost; i++) {
 			short rev = pfds[i].revents;
 
-			if (pfds[i].fd < 0)
-				continue;
 			if (!(rev & (POLLIN | POLLHUP | POLLERR)) && !recheck)
 				continue;
 
@@ -432,23 +429,17 @@ main(int argc, char *argv[])
 			} else if (!(rev & POLLHUP))
 				continue;
 
-			log_msg("interface %s down, disabling",
-			        ifaces[i].name);
-			pcap_close(ifaces[i].handle);
-			ifaces[i].handle = NULL;
-			ifaces[i].fd = -1;
-			pfds[i].fd = -1;
-			active--;
+			/* A handle cannot be reopened after the privilege
+			 * drop. Exit with an error so a supervisor restarts
+			 * the daemon, which then picks the interface up again
+			 * if it came back (USB replug, re-created bridge,
+			 * rename) instead of leaving it silently unwatched. */
+			log_err("interface %s is gone, exiting",
+			    ifaces[i].name);
+			iface_lost = 1;
 		}
-
-		/* with no interfaces left there is nothing to monitor; exit
-		 * so a supervisor can restart and re-enumerate rather than
-		 * spinning on an all-negative poll set forever */
-		if (active <= 0) {
-			log_err("all monitored interfaces are down, exiting");
-			all_down = 1;
+		if (iface_lost)
 			break;
-		}
 
 check_signals:
 		/* reap notification children */
@@ -517,5 +508,5 @@ check_signals:
 	log_msg("shutting down");
 	db_save(cfg.dbfile);
 	cleanup(ifaces, nifaces);
-	return all_down ? 1 : 0;
+	return iface_lost ? 1 : 0;
 }

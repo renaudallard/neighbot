@@ -263,6 +263,12 @@ short prefix.
 
 ## Service Setup
 
+neighbot exits with status 1 when a monitored interface disappears (a USB
+adapter unplugged, a bridge re-created, an interface renamed), since capture
+handles cannot be reopened after dropping privileges. The systemd unit
+restarts it, and the restarted daemon picks the interface up again; under
+OpenBSD rc.d, restart it with `rcctl`.
+
 <details>
 <summary><b>Linux (systemd)</b></summary>
 

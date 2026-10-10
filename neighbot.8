@@ -375,8 +375,9 @@ It exits 1 on an invalid option or argument, an unknown
 a database file that exists but cannot be read, when no usable
 interface is found, when privileges cannot be dropped or
 .Xr pledge 2
-fails, when every monitored interface has gone away, or when a
-report cannot be written or mailed.
+fails, when a monitored interface goes away (so that a supervisor
+restarts it and the interface is picked up again if it comes back),
+or when a report cannot be written or mailed.
 .Sh SEE ALSO
 .Xr pledge 2 ,
 .Xr unveil 2 ,

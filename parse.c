@@ -797,8 +797,11 @@ parse_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt)
 
 	if (len < sizeof(struct ether_header))
 		return;
-	if (len > sizeof(frame))
-		len = sizeof(frame);
+	/* a frame cut short by the snap length could hide the NDP option
+	 * carrying the real link-layer address, and the Ethernet source
+	 * would be recorded instead; skip it */
+	if (hdr->caplen < hdr->len || len > sizeof(frame))
+		return;
 
 	/* Parse a private copy. On Linux the capture buffer is a ring
 	 * shared with the kernel, and a forked notification child would

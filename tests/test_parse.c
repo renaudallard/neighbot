@@ -819,6 +819,37 @@ test_known_not_bogon(void)
 	cfg.quiet = saved_quiet;
 }
 
+/* a frame cut by the snap length (caplen < len) is ignored, since an
+ * option past the cut may carry the real link-layer address */
+static void
+test_snap_truncated(void)
+{
+	struct pcap_pkthdr hdr;
+	uint8_t pkt[42];
+	int saved_quiet = cfg.quiet;
+	int before;
+
+	cfg.quiet = 0;
+	memset(pkt, 0, sizeof(pkt));
+	memset(pkt, 0xff, 6);
+	pkt[6] = pkt[22] = 0x02; pkt[11] = pkt[27] = 0x31;
+	pkt[12] = 0x08; pkt[13] = 0x06;
+	pkt[15] = 0x01; pkt[16] = 0x08; pkt[18] = 6; pkt[19] = 4;
+	pkt[21] = 0x01;
+	pkt[28] = 10; pkt[29] = 31; pkt[30] = 0; pkt[31] = 1;
+
+	memset(&hdr, 0, sizeof(hdr));
+	hdr.caplen = sizeof(pkt);
+	hdr.len = sizeof(pkt) + 100;
+	before = notify_new_calls;
+	parse_packet((u_char *)"test0", &hdr, pkt);
+	if (notify_new_calls != before) {
+		fprintf(stderr, "FAIL: truncated frame was processed\n");
+		exit(1);
+	}
+	cfg.quiet = saved_quiet;
+}
+
 static void
 test_truncated(void)
 {
@@ -867,6 +898,7 @@ main(void)
 	test_storm_alert_dropped();
 	test_temp_rotation_probes();
 	test_known_not_bogon();
+	test_snap_truncated();
 	test_truncated();
 
 	/* reset and run batch */

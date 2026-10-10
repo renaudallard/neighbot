@@ -98,8 +98,8 @@ sudo make uninstall
 
 ### Pre-built packages
 
-`.deb` and `.rpm` packages are built automatically for each GitHub release
-and attached as release assets. Supported distributions:
+Packages are built automatically for each GitHub release and attached as
+release assets. Supported distributions:
 
 | Format | Distributions |
 |--------|---------------|
@@ -116,6 +116,10 @@ sudo rpm -i neighbot-*.rpm                       # Fedora/RHEL/SUSE
 sudo apk add --allow-untrusted neighbot-*.apk    # Alpine
 doas pkg_add -D unsigned ./neighbot-*.tgz        # OpenBSD
 ```
+
+The `.deb` enables and starts the service on install. The `.rpm` installs
+the unit but leaves it disabled (`sudo systemctl enable --now neighbot`).
+The `.apk` ships no init script, and on OpenBSD use `rcctl enable neighbot`.
 
 ## Usage
 

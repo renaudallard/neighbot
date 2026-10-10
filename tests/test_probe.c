@@ -25,13 +25,17 @@ int capture_probe_src(const char *iface, int af, const uint8_t *target,
     uint8_t *src)
 { (void)iface; (void)af; (void)target; memset(src, 0, 16); return 0; }
 
+static int moved_calls, multiple_calls;
+
 void handle_moved(int new_af, const uint8_t *new_ip, const uint8_t *mac,
     int old_af, const uint8_t *old_ip, const char *iface)
-{ (void)new_af; (void)new_ip; (void)mac; (void)old_af; (void)old_ip; (void)iface; }
+{ (void)new_af; (void)new_ip; (void)mac; (void)old_af; (void)old_ip; (void)iface;
+  moved_calls++; }
 
 void handle_multiple_ips(int af, const uint8_t *ip, const uint8_t *mac,
     int other_af, const uint8_t *other_ip, const char *iface)
-{ (void)af; (void)ip; (void)mac; (void)other_af; (void)other_ip; (void)iface; }
+{ (void)af; (void)ip; (void)mac; (void)other_af; (void)other_ip; (void)iface;
+  multiple_calls++; }
 
 #define ASSERT(cond, msg) do { \
 	if (!(cond)) { \
@@ -277,15 +281,29 @@ test_probe_mark_seen(void)
 	uint8_t other_mac[6] = { 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff };
 
 	probe_reset();
+	moved_calls = multiple_calls = 0;
 
 	/* schedule and mark as answered (same MAC) */
 	probe_schedule(AF_INET, ip, mac, AF_INET, new_ip, "eth0");
-	probe_mark_seen(AF_INET, ip, mac);
+	probe_mark_seen(AF_INET, ip, mac, "eth0");
 
 	/* schedule another and mark as stolen (different MAC) */
 	uint8_t ip2[4] = { 10, 0, 0, 1 };
 	probe_schedule(AF_INET, ip2, mac, AF_INET, new_ip, "eth0");
-	probe_mark_seen(AF_INET, ip2, other_mac);
+	probe_mark_seen(AF_INET, ip2, other_mac, "eth0");
+
+	/* no interfaces: an unresolved probe is cancelled, not reported */
+	probe_tick(NULL, 0);
+	ASSERT(multiple_calls == 1, "answered probe should report multiple IPs");
+	ASSERT(moved_calls == 1, "stolen probe should report a move");
+
+	/* the same IP used by another MAC on another link is unrelated */
+	probe_schedule(AF_INET, ip2, mac, AF_INET, new_ip, "eth0");
+	probe_mark_seen(AF_INET, ip2, other_mac, "eth1");
+	probe_mark_seen(AF_INET, ip2, mac, "eth1");
+	probe_tick(NULL, 0);
+	ASSERT(moved_calls == 1 && multiple_calls == 1,
+	       "traffic on another interface should not resolve a probe");
 
 	probe_reset();
 	printf("  probe_mark_seen: ok\n");

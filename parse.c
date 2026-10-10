@@ -505,7 +505,7 @@ parse_arp(const u_char *pkt, size_t len, const char *iface)
 	event = db_update(AF_INET, arp->spa, arp->sha, iface, old_mac,
 	                  &old_last_seen);
 	if (cfg.probe)
-		probe_mark_seen(AF_INET, arp->spa, arp->sha);
+		probe_mark_seen(AF_INET, arp->spa, arp->sha, iface);
 	if (event)
 		handle_event(event, AF_INET, arp->spa, arp->sha,
 		             old_mac, iface, old_last_seen);
@@ -746,7 +746,7 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 	event = db_update(AF_INET6, ip_addr, mac, iface, old_mac,
 	                  &old_last_seen);
 	if (cfg.probe)
-		probe_mark_seen(AF_INET6, ip_addr, mac);
+		probe_mark_seen(AF_INET6, ip_addr, mac, iface);
 	if (event)
 		handle_event(event, AF_INET6, ip_addr, mac, old_mac, iface,
 		             old_last_seen);

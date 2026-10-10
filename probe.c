@@ -208,7 +208,8 @@ probe_schedule(int af, const uint8_t *ip, const uint8_t *mac,
 			continue;
 		if (probes[i].af == af &&
 		    memcmp(probes[i].ip, ip, ilen) == 0 &&
-		    memcmp(probes[i].mac, mac, 6) == 0)
+		    memcmp(probes[i].mac, mac, 6) == 0 &&
+		    strcmp(probes[i].iface, iface) == 0)
 			return;
 	}
 
@@ -244,8 +245,11 @@ probe_schedule(int af, const uint8_t *ip, const uint8_t *mac,
 	log_err("probe: no free slots");
 }
 
+/* Record traffic from ip/mac seen on iface. The same address may be in
+ * use on another monitored link, so only probes on iface match. */
 void
-probe_mark_seen(int af, const uint8_t *ip, const uint8_t *mac)
+probe_mark_seen(int af, const uint8_t *ip, const uint8_t *mac,
+                const char *iface)
 {
 	int ilen = ip_len(af);
 
@@ -255,6 +259,8 @@ probe_mark_seen(int af, const uint8_t *ip, const uint8_t *mac)
 		if (probes[i].af != af)
 			continue;
 		if (memcmp(probes[i].ip, ip, ilen) != 0)
+			continue;
+		if (strcmp(probes[i].iface, iface) != 0)
 			continue;
 		if (memcmp(probes[i].mac, mac, 6) == 0)
 			probes[i].answered = 1;

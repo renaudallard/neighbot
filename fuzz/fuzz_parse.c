@@ -55,8 +55,9 @@ void probe_schedule(int af, const uint8_t *ip, const uint8_t *mac,
     int new_af, const uint8_t *new_ip, const char *iface)
 { (void)af; (void)ip; (void)mac; (void)new_af; (void)new_ip; (void)iface; }
 
-void probe_mark_seen(int af, const uint8_t *ip, const uint8_t *mac)
-{ (void)af; (void)ip; (void)mac; }
+void probe_mark_seen(int af, const uint8_t *ip, const uint8_t *mac,
+    const char *iface)
+{ (void)af; (void)ip; (void)mac; (void)iface; }
 
 void notify_new(int af, const uint8_t *ip, const uint8_t *mac,
     const char *iface)

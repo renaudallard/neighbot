@@ -203,8 +203,6 @@ capture_add_learned_subnet(const char *iface, int af,
 			oldest_exp = learned[i].expires;
 		}
 	}
-	if (oldest < 0)
-		return -1;
 	slot = oldest;
 
 fill:

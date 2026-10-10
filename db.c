@@ -524,7 +524,8 @@ is_zero_mac(const uint8_t *mac)
 /* Returns EVENT_NEW, EVENT_CHANGED, EVENT_FLIPFLOP, EVENT_REAPPEARED,
  * or 0 (no change).
  * If EVENT_CHANGED or EVENT_FLIPFLOP, old_mac is filled with the previous MAC.
- * If EVENT_REAPPEARED, old_last_seen is filled with the previous last_seen. */
+ * If EVENT_CHANGED, EVENT_FLIPFLOP or EVENT_REAPPEARED, old_last_seen is
+ * filled with the previous last_seen. */
 int
 db_update(int af, const uint8_t *ip, const uint8_t *mac,
           const char *iface, uint8_t *old_mac, time_t *old_last_seen)

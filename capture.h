@@ -57,9 +57,10 @@ void capture_reset_own_ips(void);
 
 /*
  * Register, refresh, or withdraw a prefix learned from a Router
- * Advertisement. Returns 1 if newly added, 0 if refreshed, 2 if a
- * zero-lifetime advertisement withdrew a matching prefix, and -1 on
- * error, a full table, or nothing to withdraw.
+ * Advertisement. Returns 1 if newly added (evicting the entry closest
+ * to expiry when the table is full), 0 if refreshed, 2 if a
+ * zero-lifetime advertisement withdrew a matching prefix, and -1 on an
+ * invalid prefix length or nothing to withdraw.
  */
 int  capture_add_learned_subnet(const char *iface, int af,
                                 const uint8_t *addr, int prefix_len,

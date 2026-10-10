@@ -330,11 +330,39 @@ jobs:
               fh.write(f"openbsd_releases={json.dumps(openbsd_releases)}\n")
           PY
 
+  fetch-oui:
+    name: Fetch OUI database
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
+
+      # The IEEE server fails intermittently. Fetch the file once for
+      # all package builds, with retries, rather than in every build
+      # job, where one failed download would block the whole release.
+      - name: Fetch OUI database
+        run: |
+          for i in 1 2 3 4 5; do
+            make oui-update && break
+            sleep 30
+          done
+          test -s oui.txt
+
+      - name: Upload OUI database
+        uses: actions/upload-artifact@v6
+        with:
+          name: oui
+          path: oui.txt
+          if-no-files-found: error
+
   build-deb-ubuntu-stable:
     name: Build .deb (Ubuntu Stable)
     runs-on: ubuntu-latest
     needs:
       - detect-versions
+      - fetch-oui
     container: ubuntu:${{ needs.detect-versions.outputs.ubuntu_stable }}
     defaults:
       run:
@@ -354,6 +382,12 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ inputs.ref }}
+
+      - name: Download OUI database
+        uses: actions/download-artifact@v7
+        with:
+          name: oui
+          path: .
 
       - name: Extract version and generate changelog
         run: |
@@ -391,6 +425,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - detect-versions
+      - fetch-oui
     container: ubuntu:${{ needs.detect-versions.outputs.ubuntu_lts }}
     defaults:
       run:
@@ -410,6 +445,12 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ inputs.ref }}
+
+      - name: Download OUI database
+        uses: actions/download-artifact@v7
+        with:
+          name: oui
+          path: .
 
       - name: Extract version and generate changelog
         run: |
@@ -447,6 +488,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - detect-versions
+      - fetch-oui
     container: debian:${{ needs.detect-versions.outputs.debian_stable }}
     defaults:
       run:
@@ -466,6 +508,12 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ inputs.ref }}
+
+      - name: Download OUI database
+        uses: actions/download-artifact@v7
+        with:
+          name: oui
+          path: .
 
       - name: Extract version and generate changelog
         run: |
@@ -503,6 +551,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - detect-versions
+      - fetch-oui
     container: debian:${{ needs.detect-versions.outputs.debian_oldstable }}
     defaults:
       run:
@@ -522,6 +571,12 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ inputs.ref }}
+
+      - name: Download OUI database
+        uses: actions/download-artifact@v7
+        with:
+          name: oui
+          path: .
 
       - name: Extract version and generate changelog
         run: |
@@ -559,6 +614,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - detect-versions
+      - fetch-oui
     container:
       image: fedora:${{ needs.detect-versions.outputs.fedora_release }}
     defaults:
@@ -581,6 +637,12 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ inputs.ref }}
+
+      - name: Download OUI database
+        uses: actions/download-artifact@v7
+        with:
+          name: oui
+          path: .
 
       - name: Prepare source tarball
         run: |
@@ -627,6 +689,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - detect-versions
+      - fetch-oui
     container:
       image: quay.io/rockylinux/rockylinux:${{ needs.detect-versions.outputs.rocky_container_latest }}
     defaults:
@@ -668,6 +731,12 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ inputs.ref }}
+
+      - name: Download OUI database
+        uses: actions/download-artifact@v7
+        with:
+          name: oui
+          path: .
 
       - name: Prepare source tarball
         run: |
@@ -715,6 +784,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - detect-versions
+      - fetch-oui
     container:
       image: quay.io/rockylinux/rockylinux:${{ needs.detect-versions.outputs.rocky_container_previous }}
     defaults:
@@ -756,6 +826,12 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ inputs.ref }}
+
+      - name: Download OUI database
+        uses: actions/download-artifact@v7
+        with:
+          name: oui
+          path: .
 
       - name: Prepare source tarball
         run: |
@@ -802,6 +878,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - detect-versions
+      - fetch-oui
     container:
       image: opensuse/leap:${{ needs.detect-versions.outputs.opensuse_leap }}
     defaults:
@@ -829,6 +906,12 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ inputs.ref }}
+
+      - name: Download OUI database
+        uses: actions/download-artifact@v7
+        with:
+          name: oui
+          path: .
 
       - name: Prepare source tarball
         run: |
@@ -875,6 +958,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - detect-versions
+      - fetch-oui
     container:
       image: registry.suse.com/bci/bci-base:${{ needs.detect-versions.outputs.suse_bci }}
     defaults:
@@ -903,6 +987,12 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ inputs.ref }}
+
+      - name: Download OUI database
+        uses: actions/download-artifact@v7
+        with:
+          name: oui
+          path: .
 
       - name: Prepare source tarball
         run: |
@@ -949,6 +1039,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - detect-versions
+      - fetch-oui
     container:
       image: alpine:${{ needs.detect-versions.outputs.alpine_release }}
     defaults:
@@ -982,6 +1073,12 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ inputs.ref }}
+
+      - name: Download OUI database
+        uses: actions/download-artifact@v7
+        with:
+          name: oui
+          path: .
 
       - name: Build .apk package
         run: |

@@ -368,6 +368,14 @@ db_load(const char *path)
 		count++;
 	}
 
+	/* a read error must not look like end of file, or the partial
+	 * table would later be saved over the intact file */
+	if (ferror(fp)) {
+		log_err("db_load: %s: read error", path);
+		fclose(fp);
+		return -1;
+	}
+
 	fclose(fp);
 	log_msg("loaded %d entries from %s", count, path);
 	return count;

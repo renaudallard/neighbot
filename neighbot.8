@@ -53,6 +53,9 @@ This is independent of probe-driven cleanup, which always removes
 entries whose IP no longer responds at the recorded MAC.
 .It Fl f Ar dbfile
 Path to the database file.
+If the file exists but cannot be read in full,
+.Nm
+exits instead of overwriting it.
 Default:
 .Pa /var/neighbot/neighbot.csv .
 .It Fl i Ar iface

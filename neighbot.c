@@ -213,7 +213,10 @@ main(int argc, char *argv[])
 
 	if (cfg.report) {
 		db_init();
-		db_load(cfg.dbfile);
+		if (db_load(cfg.dbfile) < 0) {
+			db_free();
+			return 1;
+		}
 		if (cfg.oui_explicit)
 			oui_load(cfg.ouifile);
 		else if (access(DEFAULT_OUIFILE, R_OK) == 0)
@@ -282,8 +285,13 @@ main(int argc, char *argv[])
 	uid_t run_uid = pw->pw_uid;
 	gid_t run_gid = pw->pw_gid;
 
+	/* refuse to run on a database that exists but cannot be read in
+	 * full, since the first save would replace it with what was read */
 	db_init();
-	db_load(cfg.dbfile);
+	if (db_load(cfg.dbfile) < 0) {
+		db_free();
+		return 1;
+	}
 	oui_load(cfg.ouifile);
 
 	nifaces = capture_open_all(ifaces, MAX_IFACES);

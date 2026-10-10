@@ -132,13 +132,15 @@ When combined with
 .Fl q ,
 the report is always printed to stdout.
 .Pp
-The OUI vendor database is resolved in this order: the path given by
+The OUI vendor database is the file given by
+.Fl o ;
+without
 .Fl o ,
-then
-.Pa /var/neighbot/oui.txt ,
-then
+it is
+.Pa /var/neighbot/oui.txt
+if readable, else
 .Pa /usr/local/share/arp-scan/ieee-oui.txt .
-If none is found, vendor names show as
+If it cannot be loaded, vendor names show as
 .Ql <unknown> .
 .It Fl s Ar sendmail
 Path to the sendmail-compatible mail program used for notifications.

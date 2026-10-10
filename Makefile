@@ -71,6 +71,7 @@ install-systemd: install
 	chmod 644 $(DESTDIR)/etc/systemd/system/neighbot.service
 
 install-rcd: install
+	install -d $(DESTDIR)/etc/rc.d
 	sed 's|/usr/local/sbin/|$(BINDIR)/|' neighbot.rc \
 	    > $(DESTDIR)/etc/rc.d/neighbot
 	chmod 755 $(DESTDIR)/etc/rc.d/neighbot

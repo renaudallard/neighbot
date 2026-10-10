@@ -238,7 +238,9 @@ The first time a new prefix is learned on an interface, neighbot sends an
 **ra-learned** notification so the operator is aware of the new subnet.
 Subsequent refreshes of the same prefix are silent. Prefix entries expire
 after the RA valid-lifetime (capped at 7 days), and a prefix re-advertised
-with a zero valid-lifetime is withdrawn immediately.
+with the L flag and a zero valid-lifetime is withdrawn immediately. Prefix
+options without the L flag are ignored, withdrawals included, as RFC 4861
+requires.
 
 Incoming Router Advertisements are validated per RFC 4861: only RAs with
 an IPv6 hop limit of 255 and a link-local source address are accepted, so

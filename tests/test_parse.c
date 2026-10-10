@@ -477,7 +477,8 @@ test_ndp_ra_zero_lifetime(void)
 	}
 }
 
-/* RA withdrawal (zero lifetime) is honored even with the L flag cleared */
+/* a zero-lifetime PIO without the L flag must not withdraw an on-link
+ * prefix (RFC 4861 6.3.4) */
 static void
 test_ndp_ra_withdraw_no_l_flag(void)
 {
@@ -508,9 +509,9 @@ test_ndp_ra_withdraw_no_l_flag(void)
 		fprintf(stderr, "FAIL: zero-lifetime RA without L flag learned\n");
 		exit(1);
 	}
-	if (ra_withdraw_calls != wbefore + 1) {
+	if (ra_withdraw_calls != wbefore) {
 		fprintf(stderr,
-		    "FAIL: zero-lifetime RA without L flag did not withdraw\n");
+		    "FAIL: zero-lifetime RA without L flag withdrew\n");
 		exit(1);
 	}
 }

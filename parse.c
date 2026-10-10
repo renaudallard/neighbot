@@ -757,11 +757,20 @@ parse_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt)
 {
 	const char *iface = (const char *)user;
 	const struct ether_header *eh;
+	_Alignas(8) u_char frame[SNAP_LEN];
 	uint16_t etype;
 	size_t len = hdr->caplen;
 
 	if (len < sizeof(struct ether_header))
 		return;
+	if (len > sizeof(frame))
+		len = sizeof(frame);
+
+	/* Parse a private copy. On Linux the capture buffer is a ring
+	 * shared with the kernel, and a forked notification child would
+	 * otherwise read addresses from a slot the kernel has reused. */
+	memcpy(frame, pkt, len);
+	pkt = frame;
 
 	eh = (const struct ether_header *)pkt;
 	etype = ntohs(eh->ether_type);

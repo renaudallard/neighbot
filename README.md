@@ -280,8 +280,11 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now neighbot
 ```
 
-Edit `/etc/systemd/system/neighbot.service` to change options
-(e.g. add `-m admin@example.com` to `ExecStart`, remove `-q` to enable email).
+Run `sudo systemctl edit --full neighbot` to change options (e.g. add
+`-m admin@example.com` to `ExecStart`, remove `-q` to enable email). This
+works whether the unit came from `make install-systemd`
+(`/etc/systemd/system`) or from a package (`/usr/lib/systemd/system`, or
+`/lib/systemd/system` on Debian and Ubuntu).
 
 </details>
 

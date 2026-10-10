@@ -190,15 +190,25 @@ jobs:
               return trimmed or [versions_sorted[-1].split(".")[0]]
 
           def latest_opensuse_leap():
+              # Ask Docker Hub, which the build job pulls from. The
+              # download.opensuse.org listing uses "./15.6/" links and
+              # still carries the pre-15 "42.x" numbering, which would
+              # sort above current releases, so skip major 42 and up.
               try:
-                  data = fetch_text("https://download.opensuse.org/distribution/leap/")
-                  versions = []
-                  for line in data.splitlines():
-                      match = re.search(r'href=\"([0-9]+(?:\\.[0-9]+)?)/\"', line)
-                      if match:
-                          versions.append(match.group(1))
+                  data = fetch_text(
+                      "https://registry.hub.docker.com/v2/repositories"
+                      "/opensuse/leap/tags?page_size=100")
+                  results = json.loads(data).get("results", [])
+                  versions = set()
+                  for item in results:
+                      m = re.match(r"^([0-9]+)\.[0-9]+$",
+                                   item.get("name", ""))
+                      if m and int(m.group(1)) < 42:
+                          versions.add(m.group(0))
                   if versions:
-                      versions_sorted = sorted(versions, key=lambda v: [int(x) for x in v.split(".")])
+                      versions_sorted = sorted(
+                          versions,
+                          key=lambda v: [int(x) for x in v.split(".")])
                       return versions_sorted[-1]
               except Exception:
                   pass

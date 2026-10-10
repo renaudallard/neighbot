@@ -395,6 +395,7 @@ main(int argc, char *argv[])
 	time_t last_save = time(NULL);
 	time_t last_refresh = time(NULL);
 	time_t last_tick = 0;
+	int active = nifaces;
 	int failed = 0;
 
 	while (!quit) {
@@ -417,9 +418,11 @@ main(int argc, char *argv[])
 		int recheck = (tick != last_tick);
 
 		last_tick = tick;
-		for (int i = 0; i < nifaces && !failed; i++) {
+		for (int i = 0; i < nifaces; i++) {
 			short rev = pfds[i].revents;
 
+			if (pfds[i].fd < 0)
+				continue;
 			if (!(rev & (POLLIN | POLLHUP | POLLERR)) && !recheck)
 				continue;
 
@@ -430,17 +433,25 @@ main(int argc, char *argv[])
 			} else if (!(rev & POLLHUP))
 				continue;
 
-			/* A handle cannot be reopened after the privilege
-			 * drop. Exit with an error so a supervisor restarts
-			 * the daemon, which then picks the interface up again
-			 * if it came back (USB replug, re-created bridge,
-			 * rename) instead of leaving it silently unwatched. */
-			log_err("interface %s is gone, exiting",
-			    ifaces[i].name);
-			failed = 1;
+			log_err("interface %s is gone", ifaces[i].name);
+			pcap_close(ifaces[i].handle);
+			ifaces[i].handle = NULL;
+			ifaces[i].fd = -1;
+			pfds[i].fd = -1;
+			active--;
 		}
-		if (failed)
+
+		/* A handle cannot be reopened after the privilege drop. When
+		 * the interface named with -i, or the last one, is gone, exit
+		 * with an error so a supervisor restarts the daemon, which
+		 * picks it up again if it comes back. Other interfaces that
+		 * come and go (VM and container interfaces) are only dropped,
+		 * so they do not restart the daemon each time. */
+		if (active <= 0) {
+			log_err("no monitored interface left, exiting");
+			failed = 1;
 			break;
+		}
 
 check_signals:
 		/* reap notification children */

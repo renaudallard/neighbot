@@ -399,8 +399,10 @@ interface is found, when it cannot detach with
 .Fl d ,
 when privileges cannot be dropped or
 .Xr pledge 2
-fails, when a monitored interface goes away (so that a supervisor
-restarts it and the interface is picked up again if it comes back),
+fails, when no monitored interface is left (the one given with
+.Fl i ,
+or the last one, has gone away; a supervisor can then restart it and
+pick the interface up again if it comes back),
 when waiting for packets fails, or when a report cannot be written or
 mailed.
 .Sh SEE ALSO

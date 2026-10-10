@@ -275,13 +275,15 @@ short prefix.
 
 ## Service Setup
 
-neighbot exits with status 1 when a monitored interface disappears (a USB
-adapter unplugged, a bridge re-created, an interface renamed), since capture
-handles cannot be reopened after dropping privileges. The systemd unit
-restarts it (giving up after 10 failures within 10 minutes, so a permanent
-error does not loop forever), and the restarted daemon picks the interface
-up again; under
-OpenBSD rc.d, restart it with `rcctl`.
+Capture handles cannot be reopened after dropping privileges, so an
+interface that disappears (a USB adapter unplugged, an interface deleted or
+renamed) is no longer monitored. When monitoring all interfaces, the others
+keep being watched, so interfaces of VMs and containers coming and going
+do not disturb the daemon; a re-created interface is picked up at the next
+restart. neighbot exits with status 1 when the interface given with `-i`,
+or the last monitored one, disappears. The systemd unit then restarts it
+(giving up after 10 failures within 10 minutes, so a permanent error does
+not loop forever); under OpenBSD rc.d, restart it with `rcctl`.
 
 <details>
 <summary><b>Linux (systemd)</b></summary>

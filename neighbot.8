@@ -71,11 +71,13 @@ Only the VLAN subinterfaces are monitored.
 Trunks with other addresses are kept since they carry native VLAN
 traffic.
 On Linux, this requires the 8021q kernel module to be loaded.
-On Linux, bonding slaves are skipped as well, since their traffic is
-seen on the bond device.
+On Linux, bridge ports and bonding slaves are skipped as well, since
+their traffic is seen on the bridge or bond device; a bridge device is
+captured in promiscuous mode so that unicast frames forwarded between
+its ports, such as a spoofed ARP reply to one host, are seen too.
 Use
 .Fl i
-to explicitly monitor a trunk interface or bond slave.
+to explicitly monitor a trunk interface, bridge port or bond slave.
 Interfaces whose name contains a comma or a control character are
 never monitored, since the name is stored unquoted in the CSV database.
 .It Fl m Ar mailto

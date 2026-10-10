@@ -885,18 +885,14 @@ filter_assigned_parents(char parents[][32], int count)
 }
 
 #if defined(__linux__)
-/* A bonding slave hands its frames up to the bond device, which is
- * monitored itself; capturing on both would report every station
- * twice. Bridge ports are kept: the bridge device, opened without
- * promiscuous mode, does not see unicast frames forwarded between
- * ports, such as a spoofed ARP reply sent to one host. */
+/* Whether /sys/class/net/<name>/<attr> exists. */
 static int
-is_bond_slave(const char *name)
+sysfs_net_has(const char *name, const char *attr)
 {
 	char path[128];
 	struct stat st;
 
-	snprintf(path, sizeof(path), "/sys/class/net/%s/bonding_slave", name);
+	snprintf(path, sizeof(path), "/sys/class/net/%s/%s", name, attr);
 	return stat(path, &st) == 0;
 }
 #endif
@@ -948,10 +944,15 @@ capture_open_all(struct iface *ifaces, int max)
 		}
 
 #if defined(__linux__)
-		/* skip bond slaves when monitoring all interfaces; the bond
-		 * device is monitored */
-		if (!cfg.iface && is_bond_slave(dev->name)) {
-			log_msg("skipping %s (bond slave)", dev->name);
+		/* When monitoring all interfaces, skip bridge ports and bond
+		 * slaves: their frames reach the bridge or bond device, which
+		 * is monitored, and capturing on both would report every
+		 * station once per port, with probes sent on a port reaching
+		 * only the hosts behind it. */
+		if (!cfg.iface && (sysfs_net_has(dev->name, "brport") ||
+		    sysfs_net_has(dev->name, "bonding_slave"))) {
+			log_msg("skipping %s (bridge port or bond slave)",
+			    dev->name);
 			continue;
 		}
 #endif
@@ -976,7 +977,14 @@ capture_open_all(struct iface *ifaces, int max)
 		}
 
 		pcap_set_snaplen(p, SNAP_LEN);
+#if defined(__linux__)
+		/* a bridge device only receives the unicast frames meant for
+		 * the host; in promiscuous mode it also gets those forwarded
+		 * between its ports, such as a spoofed ARP reply to one host */
+		pcap_set_promisc(p, sysfs_net_has(dev->name, "bridge"));
+#else
 		pcap_set_promisc(p, 0);
+#endif
 		pcap_set_timeout(p, POLL_TIMEOUT_MS);
 
 		/* immediate mode: deliver packets to poll() without

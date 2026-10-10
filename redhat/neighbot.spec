@@ -21,6 +21,9 @@ beyond libpcap.
 %setup -q
 
 %build
+# set_build_flags exports the distro LDFLAGS (hardening, PIE on EL9),
+# which the Makefile appends to; CFLAGS is passed as before
+%{?set_build_flags}
 make %{?_smp_mflags} CFLAGS="%{optflags}"
 
 %install

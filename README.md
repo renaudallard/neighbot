@@ -197,7 +197,8 @@ Disable probing with `-p` for purely passive monitoring.
 
 **IPv6 temporary addresses (RFC 4941):** When a device using privacy
 extensions rotates its temporary address, neighbot detects that the same
-MAC already has a non-EUI-64 address in the same /64 prefix and suppresses
+MAC already has a non-EUI-64 address in the same /64 prefix on the same
+interface and suppresses
 the "new station" email. Older temporary addresses are not dropped at that
 point, since a spoofed address from the owner's MAC could otherwise clear
 the way for another MAC to take one over unreported; they are reaped by the

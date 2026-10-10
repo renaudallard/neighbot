@@ -123,14 +123,20 @@ void notify_ra_learned(const char *iface, const uint8_t *prefix,
 { (void)iface; (void)prefix; (void)prefix_len; (void)router; (void)lifetime; }
 
 static void
-feed(const uint8_t *pkt, size_t len)
+feed_on(const char *iface, const uint8_t *pkt, size_t len)
 {
 	struct pcap_pkthdr hdr;
 
 	memset(&hdr, 0, sizeof(hdr));
 	hdr.caplen = len;
 	hdr.len    = len;
-	parse_packet((u_char *)"test0", &hdr, pkt);
+	parse_packet((u_char *)iface, &hdr, pkt);
+}
+
+static void
+feed(const uint8_t *pkt, size_t len)
+{
+	feed_on("test0", pkt, len);
 }
 
 /* valid ARP request: 192.168.1.100 -> 192.168.1.1 */
@@ -607,7 +613,7 @@ test_three_mac_storm(void)
 
 /* Neighbor Advertisement for target, Target LLA option set to mac */
 static void
-feed_na(const uint8_t *mac, const char *target)
+feed_na_on(const char *iface, const uint8_t *mac, const char *target)
 {
 	uint8_t pkt[86];
 
@@ -626,7 +632,33 @@ feed_na(const uint8_t *mac, const char *target)
 	inet_pton(AF_INET6, target, pkt + 62);
 	pkt[78] = 2; pkt[79] = 1;
 	memcpy(pkt + 80, mac, 6);
-	feed(pkt, sizeof(pkt));
+	feed_on(iface, pkt, sizeof(pkt));
+}
+
+static void
+feed_na(const uint8_t *mac, const char *target)
+{
+	feed_na_on("test0", mac, target);
+}
+
+/* the same MAC with different non-EUI-64 link-locals on two links is
+ * two stations, not an address rotation */
+static void
+test_linklocal_two_links(void)
+{
+	const uint8_t mac[6] = { 0x02, 0, 0, 0, 0, 0x0c };
+	int saved_quiet = cfg.quiet;
+	int before = notify_new_calls;
+
+	cfg.quiet = 0;
+	feed_na_on("vlan10", mac, "fe80::1a2b:3c4d:5e6f:7081");
+	feed_na_on("vlan20", mac, "fe80::9aab:bccd:deef:f001");
+	if (notify_new_calls != before + 2) {
+		fprintf(stderr, "FAIL: link-locals on two links gave %d new "
+		    "station alerts, want 2\n", notify_new_calls - before);
+		exit(1);
+	}
+	cfg.quiet = saved_quiet;
 }
 
 /* A spoofed new temporary address from the owner's MAC must not clear
@@ -723,6 +755,7 @@ main(void)
 	test_ndp_hlim();
 	test_three_mac_storm();
 	test_temp_takeover();
+	test_linklocal_two_links();
 	test_truncated();
 
 	/* reset and run batch */

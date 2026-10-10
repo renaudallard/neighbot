@@ -785,16 +785,20 @@ db_expire_temp(time_t idle_secs)
 	return removed;
 }
 
-/* Check if MAC already has a non-EUI-64 IPv6 in the same /64.
- * Used to detect temporary address rotation (RFC 4941)
- * and link-local address rotation. */
+/* Check if MAC already has a non-EUI-64 IPv6 in the same /64 on iface.
+ * Used to detect temporary address rotation (RFC 4941) and link-local
+ * address rotation. fe80::/64 is the same on every link, so addresses
+ * the same MAC uses on another interface are not siblings. */
 int
-db_has_temp_in_prefix(const uint8_t *mac, const uint8_t *ip6)
+db_has_temp_in_prefix(const uint8_t *mac, const uint8_t *ip6,
+                      const char *iface)
 {
 	for (struct entry *e = mac_buckets[mac_hash(mac)]; e; e = e->mac_next) {
 		if (e->af != AF_INET6)
 			continue;
 		if (memcmp(e->mac, mac, 6) != 0)
+			continue;
+		if (strcmp(e->iface, iface) != 0)
 			continue;
 		/* same /64 prefix */
 		if (memcmp(e->ip, ip6, 8) != 0)

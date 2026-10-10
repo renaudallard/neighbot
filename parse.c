@@ -232,7 +232,7 @@ handle_event(int event, int af, const uint8_t *ip, const uint8_t *mac,
 		 * alert. The stale-temporary sweep reaps them. */
 		int temp_rotate = (af == AF_INET6 &&
 		    !is_eui64(ip, mac) &&
-		    db_has_temp_in_prefix(mac, ip));
+		    db_has_temp_in_prefix(mac, ip, iface));
 
 		if (temp_rotate) {
 			log_msg("new temporary %s %s on %s", ipstr, macstr,

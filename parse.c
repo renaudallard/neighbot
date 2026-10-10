@@ -79,12 +79,6 @@ is_zero_ip6(const uint8_t *ip)
 	return 1;
 }
 
-static int
-is_multicast_mac(const uint8_t *mac)
-{
-	return mac[0] & 0x01;
-}
-
 
 #define STORM_CACHE_SIZE 32
 
@@ -508,9 +502,9 @@ parse_arp(const u_char *pkt, size_t len, const char *iface)
 	if (is_zero_ip4(arp->spa))
 		return;
 
-	/* skip broadcast and multicast sender MACs and IPs */
-	if (is_multicast_mac(arp->sha))
-		return;
+	/* skip multicast and broadcast sender IPs. A broadcast or
+	 * multicast sender MAC is kept: hosts accept it, which turns the
+	 * victim's unicast traffic into broadcast anyone can read */
 	if (arp->spa[0] >= 224)
 		return;
 
@@ -755,10 +749,6 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 
 	/* skip DAD probes (source ::) */
 	if (is_zero_ip6((const uint8_t *)&ip6.ip6_src))
-		return;
-
-	/* skip multicast/broadcast MACs */
-	if (is_multicast_mac(mac))
 		return;
 
 	/* skip multicast IPs (ff00::/8) */

@@ -877,6 +877,34 @@ test_arp_hwtype6(void)
 	cfg.quiet = saved_quiet;
 }
 
+/* a known IP claimed by the broadcast MAC is reported as changed */
+static void
+test_broadcast_mac_claim(void)
+{
+	uint8_t pkt[42];
+	int saved_quiet = cfg.quiet;
+	int before;
+
+	cfg.quiet = 0;
+	memset(pkt, 0, sizeof(pkt));
+	memset(pkt, 0xff, 6);
+	pkt[6] = pkt[22] = 0x02; pkt[11] = pkt[27] = 0x33;
+	pkt[12] = 0x08; pkt[13] = 0x06;
+	pkt[15] = 0x01; pkt[16] = 0x08; pkt[18] = 6; pkt[19] = 4;
+	pkt[21] = 0x02;
+	pkt[28] = 10; pkt[29] = 33; pkt[30] = 0; pkt[31] = 1;
+	feed(pkt, sizeof(pkt));
+
+	memset(pkt + 22, 0xff, 6);               /* sender MAC broadcast */
+	before = notify_changed_calls;
+	feed(pkt, sizeof(pkt));
+	if (notify_changed_calls != before + 1) {
+		fprintf(stderr, "FAIL: broadcast MAC claim not reported\n");
+		exit(1);
+	}
+	cfg.quiet = saved_quiet;
+}
+
 static void
 test_truncated(void)
 {
@@ -927,6 +955,7 @@ main(void)
 	test_known_not_bogon();
 	test_snap_truncated();
 	test_arp_hwtype6();
+	test_broadcast_mac_claim();
 	test_truncated();
 
 	/* reset and run batch */

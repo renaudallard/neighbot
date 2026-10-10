@@ -3,7 +3,7 @@
  * Feeds raw Ethernet frames into the ARP/NDP parser.
  *
  * Build: make fuzz_parse (from project root)
- * Run:   ./fuzz_parse [-max_total_time=60]
+ * Run:   ./fuzz_parse -close_fd_mask=2 [-max_total_time=60]
  */
 
 #include <stddef.h>

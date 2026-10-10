@@ -391,12 +391,15 @@ on every push and pull request.
 Requires clang with libFuzzer support (included in most clang packages).
 
 ```sh
-make fuzz                              # build all three fuzz targets
-./fuzz_parse -max_total_time=60        # fuzz the packet parser for 60s
-./fuzz_dbload -max_total_time=60       # fuzz the CSV database loader
-./fuzz_ouiload -max_total_time=60      # fuzz the OUI file loader
-make fuzz-clean                        # remove fuzz binaries
+make fuzz                                         # build all three fuzz targets
+./fuzz_parse -close_fd_mask=2 -max_total_time=60  # fuzz the packet parser for 60s
+./fuzz_dbload -max_total_time=60                  # fuzz the CSV database loader
+./fuzz_ouiload -max_total_time=60                 # fuzz the OUI file loader
+make fuzz-clean                                   # remove fuzz binaries
 ```
+
+`-close_fd_mask=2` discards the parser's per-packet log lines on stderr;
+sanitizer and libFuzzer reports are still printed.
 
 Each target is built with ASan and UBSan enabled.
 Crashes and slow inputs are written to the current directory.

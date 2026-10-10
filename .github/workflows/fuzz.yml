@@ -31,7 +31,7 @@ jobs:
           else
             duration=60
           fi
-          ./${{ matrix.target }} -max_total_time=$duration corpus
+          ./${{ matrix.target }} -close_fd_mask=2 -max_total_time=$duration corpus
 
       - name: Upload crash artifacts
         if: failure()

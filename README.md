@@ -160,7 +160,7 @@ neighbot -r -m admin@example.com
 | **changed** | IP seen with a different MAC than previously recorded | yes |
 | **flip-flop** | IP alternates between two known MACs (VRRP/HSRP, dual-homing, or spoofing). Storm detection suppresses rapid repeats | yes |
 | **reappeared** | Known MAC/IP pair seen again after 6+ months of silence | yes |
-| **bogon** | IP outside any local subnet on the receiving interface (possible spoofing) | yes |
+| **bogon** | IP outside any local subnet on the receiving interface (possible spoofing). Subnets are re-read every minute and on `SIGHUP` | yes |
 | **ra-learned** | IPv6 on-link prefix announced by a Router Advertisement | yes (first time only) |
 | **moved** | MAC seen at a new IP while old IP no longer responds to probes. The obsolete entry is dropped | yes |
 
@@ -328,7 +328,7 @@ save would write over it.
 
 | Signal | Action |
 |--------|--------|
-| `SIGHUP` | Save database to disk and clear storm suppression |
+| `SIGHUP` | Save database to disk, clear storm suppression and re-read interface addresses |
 | `SIGTERM` / `SIGINT` | Save database and exit |
 | `SIGUSR1` | Dump active probe state to the log |
 | `SIGPIPE` | Ignored |
@@ -347,10 +347,11 @@ On OpenBSD, neighbot additionally restricts itself using `pledge(2)` and
 
 | Mode | pledge | unveil |
 |------|--------|--------|
-| Quiet (`-q`) | `stdio rpath wpath cpath` | DB directory only |
-| With email | `stdio rpath wpath cpath proc exec dns` | disabled |
+| Quiet (`-q`) | `stdio rpath wpath cpath route` | DB directory only |
+| With email | `stdio rpath wpath cpath route proc exec dns` | disabled |
 
 All pcap/BPF handles are opened before pledge, so no `bpf` promise is needed.
+`route` lets `getifaddrs(3)` re-read the interface addresses every minute.
 
 Each notification is delivered by a short-lived child process (reverse DNS
 plus `sendmail`). To keep a flood of events (for example spoofed in-subnet

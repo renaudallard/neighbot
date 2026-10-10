@@ -183,6 +183,8 @@ Bogon packets are not added to the database.
 IPs that are foreign to the receiving interface but match another
 monitored interface's subnet are silently ignored (common with
 access points on VLAN trunks).
+The configured subnets are re-read every 60 seconds and on
+.Dv SIGHUP .
 .It ra-learned
 A Router Advertisement announced a new on-link IPv6 prefix on an
 interface.
@@ -269,7 +271,8 @@ memory exhaustion from spoofed traffic.
 .Sh SIGNALS
 .Bl -tag -width SIGTERM
 .It Dv SIGHUP
-Save the database to disk and clear any active storm suppression.
+Save the database to disk, clear any active storm suppression and
+re-read the interface addresses.
 .It Dv SIGTERM , Dv SIGINT
 Save the database and exit.
 .It Dv SIGUSR1
@@ -315,13 +318,13 @@ In quiet mode
 .Pq Fl q ,
 .Nm
 pledges
-.Cm stdio rpath wpath cpath
+.Cm stdio rpath wpath cpath route
 and unveils only the database directory.
 .Pp
 When email notifications are enabled,
 .Nm
 pledges
-.Cm stdio rpath wpath cpath proc exec dns
+.Cm stdio rpath wpath cpath route proc exec dns
 and does not use
 .Xr unveil 2
 so that

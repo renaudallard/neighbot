@@ -63,6 +63,7 @@ volatile sig_atomic_t quit;
 volatile sig_atomic_t save;
 static volatile sig_atomic_t dump_probes;
 static volatile sig_atomic_t storm_clear;
+static volatile sig_atomic_t refresh_addrs;
 
 static void
 sig_handler(int sig)
@@ -72,6 +73,7 @@ sig_handler(int sig)
 	else if (sig == SIGHUP) {
 		save = 1;
 		storm_clear = 1;
+		refresh_addrs = 1;
 	}
 	else if (sig == SIGUSR1)
 		dump_probes = 1;
@@ -394,8 +396,9 @@ main(int argc, char *argv[])
 			log_err("unveil: %s", strerror(errno));
 	}
 
-	if (pledge(cfg.quiet ? "stdio rpath wpath cpath" :
-	    "stdio rpath wpath cpath proc exec dns", NULL) == -1) {
+	/* route: getifaddrs() for the periodic address refresh */
+	if (pledge(cfg.quiet ? "stdio rpath wpath cpath route" :
+	    "stdio rpath wpath cpath route proc exec dns", NULL) == -1) {
 		log_err("pledge: %s", strerror(errno));
 		cleanup(ifaces, nifaces);
 		return 1;
@@ -404,6 +407,7 @@ main(int argc, char *argv[])
 
 	time_t last_expire = time(NULL);
 	time_t last_save = time(NULL);
+	time_t last_refresh = time(NULL);
 	time_t last_tick = 0;
 	int active = nifaces;
 	int all_down = 0;
@@ -476,6 +480,13 @@ check_signals:
 		}
 		{
 			time_t now = time(NULL);
+
+			if (refresh_addrs || now < last_refresh ||
+			    now - last_refresh >= ADDR_REFRESH_INTERVAL) {
+				refresh_addrs = 0;
+				capture_refresh_addrs(ifaces, nifaces);
+				last_refresh = now;
+			}
 
 			/* the now < last_expire guard runs the sweep and
 			 * resets the timer after a backward wall-clock step,

@@ -272,13 +272,14 @@ static void
 fill_local_subnets(struct iface *ifaces, int count)
 {
 	struct ifaddrs *ifap, *ifa;
+	static int full_warned;
 
-	subnet_count = 0;
-
+	/* keep the current table if the addresses cannot be read */
 	if (getifaddrs(&ifap) < 0) {
 		log_err("getifaddrs: %s", strerror(errno));
 		return;
 	}
+	subnet_count = 0;
 
 	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
 		int af, alen;
@@ -320,8 +321,10 @@ fill_local_subnets(struct iface *ifaces, int count)
 			continue;
 
 		if (subnet_count >= MAX_SUBNETS) {
-			log_msg("subnet table full (%d), some local subnets "
-			    "not tracked", MAX_SUBNETS);
+			if (!full_warned)
+				log_msg("subnet table full (%d), some local "
+				    "subnets not tracked", MAX_SUBNETS);
+			full_warned = 1;
 			break;
 		}
 
@@ -368,13 +371,14 @@ static void
 fill_local_ips(struct iface *ifaces, int count)
 {
 	struct ifaddrs *ifap, *ifa;
+	static int full_warned;
 
-	own_ip_count = 0;
-
+	/* keep the current table if the addresses cannot be read */
 	if (getifaddrs(&ifap) < 0) {
 		log_err("getifaddrs: %s", strerror(errno));
 		return;
 	}
+	own_ip_count = 0;
 
 	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
 		int af, alen;
@@ -409,8 +413,10 @@ fill_local_ips(struct iface *ifaces, int count)
 			continue;
 
 		if (own_ip_count >= MAX_LOCAL_IPS) {
-			log_msg("local IP table full (%d), some own IPs "
-			    "not tracked", MAX_LOCAL_IPS);
+			if (!full_warned)
+				log_msg("local IP table full (%d), some own "
+				    "IPs not tracked", MAX_LOCAL_IPS);
+			full_warned = 1;
 			break;
 		}
 
@@ -881,9 +887,18 @@ capture_open_all(struct iface *ifaces, int max)
 
 	pcap_freealldevs(alldevs);
 	fill_local_macs(ifaces, count);
+	capture_refresh_addrs(ifaces, count);
+	return count;
+}
+
+/* Re-read the subnets and addresses of the monitored interfaces, so
+ * addresses assigned or changed after startup (DHCP, SLAAC,
+ * renumbering) are taken into account. */
+void
+capture_refresh_addrs(struct iface *ifaces, int count)
+{
 	fill_local_subnets(ifaces, count);
 	fill_local_ips(ifaces, count);
-	return count;
 }
 
 void

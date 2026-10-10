@@ -484,7 +484,8 @@ Crashes and slow inputs are written to the current directory.
 2. Opens one pcap handle per interface with BPF filter:
    `arp or (icmp6 and (ip6[40] == 136 or ip6[40] == 135 or ip6[40] == 134))`
 3. Main loop: `poll()` on all handles (1s timeout)
-4. **ARP**: extracts sender IP + MAC from requests/replies (skips probes)
+4. **ARP**: extracts sender IP + MAC from requests/replies (skips probes);
+   hardware type 6 (IEEE 802) is accepted like Ethernet, as hosts honour it
 5. **NDP**: parses Neighbor Advertisements (type 136) and Solicitations
    (type 135) for link-layer address options (skips DAD); Router
    Advertisements (type 134) feed on-link prefixes to the bogon filter

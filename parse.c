@@ -493,8 +493,11 @@ parse_arp(const u_char *pkt, size_t len, const char *iface)
 
 	arp = (const struct arp_pkt *)pkt;
 
-	/* validate: Ethernet + IPv4, correct lengths */
-	if (ntohs(arp->htype) != ARPHRD_ETHER)
+	/* validate: Ethernet + IPv4, correct lengths. Hardware type 6
+	 * (IEEE 802) is accepted too: Linux, FreeBSD and NetBSD update
+	 * their caches from it on Ethernet, so it can poison them */
+	if (ntohs(arp->htype) != ARPHRD_ETHER &&
+	    ntohs(arp->htype) != ARPHRD_IEEE802)
 		return;
 	if (ntohs(arp->ptype) != ETHERTYPE_IP)
 		return;

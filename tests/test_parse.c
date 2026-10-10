@@ -850,6 +850,33 @@ test_snap_truncated(void)
 	cfg.quiet = saved_quiet;
 }
 
+/* ARP with hardware type 6 (IEEE 802) is processed like Ethernet */
+static void
+test_arp_hwtype6(void)
+{
+	uint8_t pkt[42];
+	int saved_quiet = cfg.quiet;
+	int before;
+
+	cfg.quiet = 0;
+	memset(pkt, 0, sizeof(pkt));
+	memset(pkt, 0xff, 6);
+	pkt[6] = pkt[22] = 0x02; pkt[11] = pkt[27] = 0x32;
+	pkt[12] = 0x08; pkt[13] = 0x06;
+	pkt[15] = 0x06;                          /* hardware type 6 */
+	pkt[16] = 0x08; pkt[18] = 6; pkt[19] = 4;
+	pkt[21] = 0x02;
+	pkt[28] = 10; pkt[29] = 32; pkt[30] = 0; pkt[31] = 1;
+
+	before = notify_new_calls;
+	feed(pkt, sizeof(pkt));
+	if (notify_new_calls != before + 1) {
+		fprintf(stderr, "FAIL: ARP hardware type 6 was ignored\n");
+		exit(1);
+	}
+	cfg.quiet = saved_quiet;
+}
+
 static void
 test_truncated(void)
 {
@@ -899,6 +926,7 @@ main(void)
 	test_temp_rotation_probes();
 	test_known_not_bogon();
 	test_snap_truncated();
+	test_arp_hwtype6();
 	test_truncated();
 
 	/* reset and run batch */

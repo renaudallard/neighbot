@@ -228,6 +228,11 @@ Prefixes shorter than /48 are ignored and logged: real on-link
 prefixes are /64, and a short prefix would whitelist an implausibly
 wide slice of the address space.
 .Pp
+The source address and Source Link-Layer Address of Router
+Advertisements and Router Solicitations are recorded like those of
+neighbor messages, so a forged advertisement taking over the router's
+address is reported as a changed station.
+.Pp
 Router Advertisements are validated per RFC 4861: only RAs with an
 IPv6 hop limit of 255 and a link-local source address are accepted,
 so off-link or spoofed advertisements are dropped.

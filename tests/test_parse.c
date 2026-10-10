@@ -905,6 +905,61 @@ test_broadcast_mac_claim(void)
 	cfg.quiet = saved_quiet;
 }
 
+/* RA or RS with a Source LLA option, no prefix */
+static void
+feed_rs_ra(int type, const char *src, const uint8_t *slla)
+{
+	uint8_t pkt[94];
+	size_t fixed = (type == 134) ? 16 : 8;
+	size_t len = 54 + fixed + 8;
+
+	memset(pkt, 0, sizeof(pkt));
+	pkt[0] = 0x33; pkt[1] = 0x33; pkt[5] = 0x01;
+	memcpy(pkt + 6, slla, 6);
+	pkt[12] = 0x86; pkt[13] = 0xdd;
+	pkt[14] = 0x60;
+	pkt[19] = (uint8_t)(fixed + 8);
+	pkt[20] = 58;
+	pkt[21] = 255;
+	inet_pton(AF_INET6, src, pkt + 22);
+	pkt[38] = 0xff; pkt[39] = 0x02; pkt[53] = 0x01;
+	pkt[54] = (uint8_t)type;
+	pkt[54 + fixed] = 1;                     /* Source LLA option */
+	pkt[54 + fixed + 1] = 1;
+	memcpy(pkt + 54 + fixed + 2, slla, 6);
+	feed(pkt, len);
+}
+
+/* the RA source and Source LLA are recorded, so a forged RA taking over
+ * the router's address is reported; RS sources are recorded too */
+static void
+test_ra_rs_lladdr(void)
+{
+	const uint8_t gw[6] = { 0x02, 0, 0, 0, 0, 0x41 };
+	const uint8_t evil[6] = { 0x02, 0, 0, 0, 0, 0x42 };
+	const uint8_t host[6] = { 0x02, 0, 0, 0, 0, 0x43 };
+	int saved_quiet = cfg.quiet;
+	int nbefore, cbefore;
+
+	cfg.quiet = 0;
+	nbefore = notify_new_calls;
+	feed_rs_ra(134, "fe80::41", gw);
+	feed_rs_ra(133, "2001:db8:8::43", host);
+	if (notify_new_calls != nbefore + 2) {
+		fprintf(stderr, "FAIL: RA/RS sources not recorded (%d)\n",
+		    notify_new_calls - nbefore);
+		exit(1);
+	}
+	cbefore = notify_changed_calls;
+	feed_rs_ra(134, "fe80::41", evil);
+	if (notify_changed_calls != cbefore + 1) {
+		fprintf(stderr, "FAIL: forged RA for the router address "
+		    "not reported\n");
+		exit(1);
+	}
+	cfg.quiet = saved_quiet;
+}
+
 static void
 test_truncated(void)
 {
@@ -956,6 +1011,7 @@ main(void)
 	test_snap_truncated();
 	test_arp_hwtype6();
 	test_broadcast_mac_claim();
+	test_ra_rs_lladdr();
 	test_truncated();
 
 	/* reset and run batch */

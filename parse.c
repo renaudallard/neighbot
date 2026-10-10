@@ -700,27 +700,39 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 	icmp_len = len - icmp_off;
 	type = icmp[0];
 
-	if (type == ND_ROUTER_ADVERT) {
-		/* RFC 4861 6.1.2: a valid Router Advertisement has IPv6
-		 * hop limit 255 and a link-local source. drop anything
-		 * else so a spoofed or off-link RA cannot make us learn
-		 * an attacker-chosen prefix */
-		if (ip6.ip6_hlim != 255)
-			return;
-		if (!IS_LINKLOCAL6((const uint8_t *)&ip6.ip6_src))
-			return;
-		parse_ra(icmp, icmp_len, iface,
-		    (const uint8_t *)&ip6.ip6_src);
-		return;
-	}
-
-	/* RFC 4861 7.1.1/7.1.2: a valid NS or NA carries hop limit 255. A
-	 * lower value proves the packet crossed a router, so drop it to keep
-	 * off-link spoofed neighbor traffic out of the database */
+	/* RFC 4861 6.1.1, 6.1.2, 7.1.1, 7.1.2: valid RS, RA, NS and NA
+	 * carry hop limit 255. A lower value proves the packet crossed a
+	 * router, so drop it to keep off-link spoofed traffic out of the
+	 * database and the learned prefixes */
 	if (ip6.ip6_hlim != 255)
 		return;
 
-	if (type == ND_NEIGHBOR_ADVERT) {
+	if (type == ND_ROUTER_ADVERT) {
+		/* a valid Router Advertisement also has a link-local
+		 * source (RFC 4861 6.1.2) */
+		if (!IS_LINKLOCAL6((const uint8_t *)&ip6.ip6_src))
+			return;
+		if (icmp_len < 16)
+			return;
+		parse_ra(icmp, icmp_len, iface,
+		    (const uint8_t *)&ip6.ip6_src);
+		/* hosts cache the router's address and Source LLA from
+		 * the RA itself, so check them like a neighbor's: a forged
+		 * RA would otherwise take over the gateway unnoticed */
+		ip_addr = (const uint8_t *)&ip6.ip6_src;
+		opts = icmp + 16;
+		opts_len = icmp_len - 16;
+		mac = ndp_find_lladdr_opt(opts, opts_len, 1);
+	} else if (type == ND_ROUTER_SOLICIT) {
+		/* RS: type(1) + code(1) + cksum(2) + reserved(4) + opts.
+		 * Routers cache the solicitor's Source LLA from it */
+		if (icmp_len < 8)
+			return;
+		ip_addr = (const uint8_t *)&ip6.ip6_src;
+		opts = icmp + 8;
+		opts_len = icmp_len - 8;
+		mac = ndp_find_lladdr_opt(opts, opts_len, 1);
+	} else if (type == ND_NEIGHBOR_ADVERT) {
 		/* NA: type(1) + code(1) + cksum(2) + flags(4) + target(16) + opts */
 		if (icmp_len < 24)
 			return;
@@ -769,7 +781,7 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 		return;
 	}
 
-	/* for NA, use the target address; for NS, use source IP */
+	/* for NA, use the target address; for NS, RS and RA, the source */
 	event = db_update(AF_INET6, ip_addr, mac, iface, old_mac,
 	                  &old_last_seen);
 	if (cfg.probe)

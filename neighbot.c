@@ -272,6 +272,16 @@ main(int argc, char *argv[])
 	sigaction(SIGUSR1, &sa, NULL);
 	signal(SIGPIPE, SIG_IGN);
 
+	/* resolve the run user before daemon() so a bad -u fails in the
+	 * foreground with a non-zero exit status */
+	struct passwd *pw = getpwnam(cfg.user);
+	if (!pw) {
+		log_err("unknown user: %s", cfg.user);
+		return 1;
+	}
+	uid_t run_uid = pw->pw_uid;
+	gid_t run_gid = pw->pw_gid;
+
 	db_init();
 	db_load(cfg.dbfile);
 	oui_load(cfg.ouifile);
@@ -295,18 +305,11 @@ main(int argc, char *argv[])
 
 	/* drop privileges */
 	{
-		struct passwd *pw = getpwnam(cfg.user);
-		if (!pw) {
-			log_err("unknown user: %s", cfg.user);
-			cleanup(ifaces, nifaces);
-			return 1;
-		}
-
 		/* fix ownership and permissions on DB directory and file */
 		char dbdir[PATH_MAX];
 		dbdir_from_path(cfg.dbfile, dbdir, sizeof(dbdir));
 
-		if (chown(dbdir, pw->pw_uid, pw->pw_gid) < 0)
+		if (chown(dbdir, run_uid, run_gid) < 0)
 			log_err("chown %s: %s", dbdir, strerror(errno));
 		if (chmod(dbdir, 0750) < 0)
 			log_err("chmod %s: %s", dbdir, strerror(errno));
@@ -321,7 +324,7 @@ main(int argc, char *argv[])
 				log_err("open %s: %s", cfg.dbfile,
 				    strerror(errno));
 		} else {
-			if (fchown(dbfd, pw->pw_uid, pw->pw_gid) < 0)
+			if (fchown(dbfd, run_uid, run_gid) < 0)
 				log_err("fchown %s: %s", cfg.dbfile,
 				    strerror(errno));
 			if (fchmod(dbfd, 0640) < 0)
@@ -330,17 +333,17 @@ main(int argc, char *argv[])
 			close(dbfd);
 		}
 
-		if (setgroups(1, &pw->pw_gid) < 0) {
+		if (setgroups(1, &run_gid) < 0) {
 			log_err("setgroups: %s", strerror(errno));
 			cleanup(ifaces, nifaces);
 			return 1;
 		}
-		if (setgid(pw->pw_gid) < 0) {
+		if (setgid(run_gid) < 0) {
 			log_err("setgid: %s", strerror(errno));
 			cleanup(ifaces, nifaces);
 			return 1;
 		}
-		if (setuid(pw->pw_uid) < 0) {
+		if (setuid(run_uid) < 0) {
 			log_err("setuid: %s", strerror(errno));
 			cleanup(ifaces, nifaces);
 			return 1;

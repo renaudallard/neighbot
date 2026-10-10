@@ -67,9 +67,11 @@ IP addresses of their own are automatically skipped.
 Only the VLAN subinterfaces are monitored.
 Trunks with IP addresses are kept since they carry native VLAN traffic.
 On Linux, this requires the 8021q kernel module to be loaded.
+On Linux, bridge ports and bonding slaves are skipped as well, since
+their traffic is seen on the bridge or bond device.
 Use
 .Fl i
-to explicitly monitor a trunk interface.
+to explicitly monitor a trunk interface, bridge port or bond slave.
 .It Fl m Ar mailto
 Email recipient for notifications.
 Default:

@@ -36,6 +36,7 @@
 #include <time.h>
 
 #if defined(__linux__)
+#include <sys/stat.h>
 #include <linux/if_packet.h>
 #include <stdio.h>
 #elif defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__NetBSD__)
@@ -811,6 +812,24 @@ filter_assigned_parents(char parents[][32], int count)
 	return out;
 }
 
+#if defined(__linux__)
+/* A bridge port or bonding slave hands its frames up to the bridge or
+ * bond device, which is monitored itself; capturing on both would
+ * report every station twice. */
+static int
+is_enslaved(const char *name)
+{
+	char path[128];
+	struct stat st;
+
+	snprintf(path, sizeof(path), "/sys/class/net/%s/brport", name);
+	if (stat(path, &st) == 0)
+		return 1;
+	snprintf(path, sizeof(path), "/sys/class/net/%s/bonding_slave", name);
+	return stat(path, &st) == 0;
+}
+#endif
+
 static int
 is_vlan_parent(const char *name, char parents[][32], int count)
 {
@@ -856,6 +875,16 @@ capture_open_all(struct iface *ifaces, int max)
 			    dev->name);
 			continue;
 		}
+
+#if defined(__linux__)
+		/* skip bridge ports and bond slaves when monitoring all
+		 * interfaces; the bridge or bond device is monitored */
+		if (!cfg.iface && is_enslaved(dev->name)) {
+			log_msg("skipping %s (bridge port or bond slave)",
+			    dev->name);
+			continue;
+		}
+#endif
 
 		/* filter by interface name if specified */
 		if (cfg.iface && strcmp(dev->name, cfg.iface) != 0)

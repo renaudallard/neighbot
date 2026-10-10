@@ -931,7 +931,9 @@ jobs:
           # openh264 third-party repo is unreliable and not needed for
           # building neighbot; drop it before refreshing so a flaky
           # mirror doesn't fail the job.
+          # Leap 15 names it repo-openh264, Leap 16 openSUSE:repo-openh264
           zypper -n removerepo repo-openh264 || true
+          zypper -n removerepo openSUSE:repo-openh264 || true
           zypper -n ref
           zypper -n install \
             git rpm-build make gcc \

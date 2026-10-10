@@ -271,7 +271,7 @@ db_load(const char *path)
 			continue;
 
 		if (entry_count >= MAX_ENTRIES) {
-			log_err("db_load: entry limit reached (%u), "
+			log_err("db_load: entry limit reached (%d), "
 			    "truncating", MAX_ENTRIES);
 			break;
 		}
@@ -581,7 +581,7 @@ db_update(int af, const uint8_t *ip, const uint8_t *mac,
 	/* new entry */
 	if (entry_count >= MAX_ENTRIES) {
 		if (!limit_warned) {
-			log_err("db_update: entry limit reached (%u)",
+			log_err("db_update: entry limit reached (%d)",
 			    MAX_ENTRIES);
 			limit_warned = 1;
 		}

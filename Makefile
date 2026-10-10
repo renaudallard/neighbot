@@ -63,12 +63,17 @@ install: $(BIN) oui.txt
 	install -d $(DESTDIR)$(DBDIR)
 	install -m 644 oui.txt $(DESTDIR)$(DBDIR)/oui.txt
 
+# the unit and rc script name /usr/local/sbin; point them at BINDIR
 install-systemd: install
 	install -d $(DESTDIR)/etc/systemd/system
-	install -m 644 neighbot.service $(DESTDIR)/etc/systemd/system/neighbot.service
+	sed 's|/usr/local/sbin/|$(BINDIR)/|' neighbot.service \
+	    > $(DESTDIR)/etc/systemd/system/neighbot.service
+	chmod 644 $(DESTDIR)/etc/systemd/system/neighbot.service
 
 install-rcd: install
-	install -m 755 neighbot.rc $(DESTDIR)/etc/rc.d/neighbot
+	sed 's|/usr/local/sbin/|$(BINDIR)/|' neighbot.rc \
+	    > $(DESTDIR)/etc/rc.d/neighbot
+	chmod 755 $(DESTDIR)/etc/rc.d/neighbot
 
 uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/$(BIN)

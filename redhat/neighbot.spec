@@ -78,7 +78,7 @@ fi
   reporting, and randomized, doubly-linked, capped hash indices
 - Run the expire sweep after a backward wall-clock step
 
-* Tue Jul 08 2026 Renaud Allard <renaud@allard.it> 0.5.13-1
+* Wed Jul 08 2026 Renaud Allard <renaud@allard.it> 0.5.13-1
 - Fix a local privilege escalation in the startup database chown/chmod
 - Drop off-link spoofed NDP by requiring hop limit 255 on NS/NA
 - Key neighbor entries by interface to stop false flip-flop alerts
@@ -104,7 +104,7 @@ fi
 * Fri Apr 17 2026 Renaud Allard <renaud@allard.it> 0.5.8-1
 - Learn on-link IPv6 prefixes from Router Advertisements
 
-* Wed Mar 19 2026 Renaud Allard <renaud@allard.it> 0.5.7-1
+* Thu Mar 19 2026 Renaud Allard <renaud@allard.it> 0.5.7-1
 - Detect flip-flop storms and suppress notification flood
 
 * Fri Mar 06 2026 Renaud Allard <renaud@allard.it> 0.5.6-1
@@ -114,7 +114,7 @@ fi
 - Auto-skip VLAN trunk parents when subinterfaces exist
 - Suppress cross-VLAN bogon alerts for known subnets
 
-* Thu Feb 27 2026 Renaud Allard <renaud@allard.it> 0.5.3-1
+* Fri Feb 27 2026 Renaud Allard <renaud@allard.it> 0.5.3-1
 - Skip probing the local host's own IPs to prevent false moved alerts
 - Fix false moved alerts for NDP packets without link-layer address option
 - Fix zombie leak in notify_report_open error path

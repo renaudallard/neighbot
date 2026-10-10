@@ -395,7 +395,7 @@ main(int argc, char *argv[])
 	time_t last_save = time(NULL);
 	time_t last_refresh = time(NULL);
 	time_t last_tick = 0;
-	int iface_lost = 0;
+	int failed = 0;
 
 	while (!quit) {
 		int ret = poll(pfds, nifaces, POLL_TIMEOUT_MS);
@@ -404,6 +404,7 @@ main(int argc, char *argv[])
 			if (errno == EINTR)
 				goto check_signals;
 			log_err("poll: %s", strerror(errno));
+			failed = 1;
 			break;
 		}
 
@@ -416,7 +417,7 @@ main(int argc, char *argv[])
 		int recheck = (tick != last_tick);
 
 		last_tick = tick;
-		for (int i = 0; i < nifaces && !iface_lost; i++) {
+		for (int i = 0; i < nifaces && !failed; i++) {
 			short rev = pfds[i].revents;
 
 			if (!(rev & (POLLIN | POLLHUP | POLLERR)) && !recheck)
@@ -436,9 +437,9 @@ main(int argc, char *argv[])
 			 * rename) instead of leaving it silently unwatched. */
 			log_err("interface %s is gone, exiting",
 			    ifaces[i].name);
-			iface_lost = 1;
+			failed = 1;
 		}
-		if (iface_lost)
+		if (failed)
 			break;
 
 check_signals:
@@ -508,5 +509,5 @@ check_signals:
 	log_msg("shutting down");
 	db_save(cfg.dbfile);
 	cleanup(ifaces, nifaces);
-	return iface_lost ? 1 : 0;
+	return failed;
 }

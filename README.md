@@ -361,7 +361,7 @@ Saves are atomic (write to temp file + rename). The entry limit is
 100,000 to prevent memory exhaustion from spoofed traffic. If the file
 exists but cannot be read in full (read error, not a regular file),
 neighbot exits instead of starting with a partial table that the next
-save would write over it.
+save would write over the file.
 
 ## Signals
 

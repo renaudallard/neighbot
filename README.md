@@ -204,8 +204,9 @@ in active use is kept. This also covers link-local address rotation
 (common on devices with randomized MACs). At most 256 addresses per MAC
 are tracked; a flood of addresses under one MAC beyond that is ignored
 (logged once), which a legitimate neighbor never reaches. An address moving
-to a MAC already at the limit is still reported as changed but not kept,
-and extra rows in an older database file are skipped at load. This
+to a MAC already at the limit is still reported as changed but keeps its
+previous MAC in the database, and extra rows in an older database file are
+skipped at load. This
 handling does not depend on probing and also applies with `-p`.
 
 ## Obsolete Address Cleanup

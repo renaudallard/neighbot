@@ -312,7 +312,8 @@ test_mac_cap(void)
 	}
 
 	/* an address moving to the capped MAC is still reported, but its
-	 * entry is dropped instead of growing that MAC's chain */
+	 * entry stays under its previous MAC instead of growing that
+	 * MAC's chain */
 	{
 		uint8_t other[6] = { 0x02, 0, 0, 0, 0, 0x01 };
 		uint8_t ip4[4] = { 10, 1, 2, 3 };
@@ -337,10 +338,9 @@ test_mac_cap(void)
 			    "after a change, want %d\n", n, MAX_PER_MAC);
 			exit(1);
 		}
-		if (db_update(AF_INET, ip4, other, "eth0", old, &ols) !=
-		    EVENT_NEW) {
-			fprintf(stderr, "FAIL: entry moved to capped MAC "
-			    "was kept\n");
+		if (db_update(AF_INET, ip4, other, "eth0", old, &ols) != 0) {
+			fprintf(stderr, "FAIL: entry did not keep its "
+			    "previous MAC\n");
 			exit(1);
 		}
 	}

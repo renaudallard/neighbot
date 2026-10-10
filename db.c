@@ -563,20 +563,19 @@ db_update(int af, const uint8_t *ip, const uint8_t *mac,
 					ev = EVENT_FLIPFLOP;
 				else
 					ev = EVENT_CHANGED;
+				/* the new MAC is at its cap: report the change
+				 * but keep the entry under its current MAC
+				 * rather than grow that MAC's chain past
+				 * MAX_PER_MAC. Dropping it instead would turn
+				 * the owner's next packet into a new station. */
+				if (mac_entry_count(mac) >= MAX_PER_MAC) {
+					mac_cap_warn(mac);
+					return ev;
+				}
+
 				/* the MAC changed, so move the entry to its
 				 * new MAC bucket to keep the index consistent */
 				mac_unlink(e);
-
-				/* the new MAC is at its cap: report the change
-				 * but drop the entry instead of growing that
-				 * MAC's chain past MAX_PER_MAC */
-				if (mac_entry_count(mac) >= MAX_PER_MAC) {
-					mac_cap_warn(mac);
-					bucket_remove(e);
-					free(e);
-					entry_count--;
-					return ev;
-				}
 				memcpy(e->prev_mac, e->mac, 6);
 				memcpy(e->mac, mac, 6);
 				mac_link(e);

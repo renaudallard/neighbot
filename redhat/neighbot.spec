@@ -41,7 +41,7 @@ rm -rf $RPM_BUILD_ROOT
 %doc
 %{_mandir}/man8/neighbot.8.gz
 %{_unitdir}/neighbot.service
-%dir /var/neighbot
+%attr(0750,nobody,nobody) %dir /var/neighbot
 /var/neighbot/oui.txt
 
 %post

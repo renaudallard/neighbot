@@ -230,9 +230,11 @@ The first-learn notification is intended to surface that event so the
 operator can investigate.
 .It moved
 A MAC address is seen at a new IP address while its old IP no longer
-responds to probes (requires active probing).
+responds to probes, or is answered by a different MAC (requires active
+probing).
 The obsolete IP entry is removed from the database after the
-notification is sent.
+notification is sent, unless another MAC has taken the old IP over, in
+which case that is also reported as a changed station.
 If the probed interface has no link (or is gone) when the probes time
 out, they could not have been answered, and the probe is cancelled
 instead.

@@ -36,11 +36,13 @@
 #define PROBE_TIMEOUT     5   /* seconds per attempt */
 
 int  build_arp_request(uint8_t *buf, size_t buflen,
-                       const uint8_t *src_mac, const uint8_t *target_ip);
+                       const uint8_t *src_mac, const uint8_t *src_ip,
+                       const uint8_t *target_ip);
 uint16_t icmp6_checksum(const uint8_t *src6, const uint8_t *dst6,
                         const uint8_t *icmp, size_t icmplen);
 int  build_ndp_ns(uint8_t *buf, size_t buflen,
-                  const uint8_t *src_mac, const uint8_t *target_ip6);
+                  const uint8_t *src_mac, const uint8_t *src_ip6,
+                  const uint8_t *target_ip6);
 void probe_schedule(int af, const uint8_t *ip, const uint8_t *mac,
                     int new_af, const uint8_t *new_ip,
                     const char *iface);

@@ -21,6 +21,10 @@ volatile sig_atomic_t  quit;
 volatile sig_atomic_t  save;
 
 /* stubs for symbols referenced by probe.c */
+int capture_probe_src(const char *iface, int af, const uint8_t *target,
+    uint8_t *src)
+{ (void)iface; (void)af; (void)target; memset(src, 0, 16); return 0; }
+
 void handle_moved(int new_af, const uint8_t *new_ip, const uint8_t *mac,
     int old_af, const uint8_t *old_ip, const char *iface)
 { (void)new_af; (void)new_ip; (void)mac; (void)old_af; (void)old_ip; (void)iface; }
@@ -41,14 +45,15 @@ test_build_arp_request(void)
 {
 	uint8_t buf[128];
 	uint8_t src_mac[6] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55 };
+	uint8_t src_ip[4] = { 192, 168, 1, 10 };
 	uint8_t target_ip[4] = { 192, 168, 1, 1 };
 	int len;
 
 	/* too small buffer */
-	len = build_arp_request(buf, 10, src_mac, target_ip);
+	len = build_arp_request(buf, 10, src_mac, src_ip, target_ip);
 	ASSERT(len == -1, "build_arp_request should fail on small buffer");
 
-	len = build_arp_request(buf, sizeof(buf), src_mac, target_ip);
+	len = build_arp_request(buf, sizeof(buf), src_mac, src_ip, target_ip);
 	ASSERT(len == 42, "build_arp_request should return 42 bytes");
 
 	/* Ethernet dst = broadcast */
@@ -78,9 +83,8 @@ test_build_arp_request(void)
 	/* sender hardware address = local MAC */
 	ASSERT(memcmp(buf + 22, src_mac, 6) == 0, "sha should be local MAC");
 
-	/* sender protocol address = 0.0.0.0 */
-	ASSERT(buf[28] == 0 && buf[29] == 0 && buf[30] == 0 && buf[31] == 0,
-	       "spa should be 0.0.0.0");
+	/* sender protocol address = our address */
+	ASSERT(memcmp(buf + 28, src_ip, 4) == 0, "spa should be source IP");
 
 	/* target protocol address = 192.168.1.1 */
 	ASSERT(memcmp(buf + 38, target_ip, 4) == 0,
@@ -125,6 +129,7 @@ test_build_ndp_ns(void)
 {
 	uint8_t buf[128];
 	uint8_t src_mac[6] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55 };
+	uint8_t unspec[16] = { 0 };
 	uint8_t target_ip6[16] = {
 		0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0x01
@@ -132,10 +137,10 @@ test_build_ndp_ns(void)
 	int len;
 
 	/* too small buffer */
-	len = build_ndp_ns(buf, 10, src_mac, target_ip6);
+	len = build_ndp_ns(buf, 10, src_mac, unspec, target_ip6);
 	ASSERT(len == -1, "build_ndp_ns should fail on small buffer");
 
-	len = build_ndp_ns(buf, sizeof(buf), src_mac, target_ip6);
+	len = build_ndp_ns(buf, sizeof(buf), src_mac, unspec, target_ip6);
 	ASSERT(len == 78, "build_ndp_ns should return 78 bytes");
 
 	/* Ethernet dst = solicited-node multicast MAC: 33:33:ff:00:00:01 */
@@ -186,6 +191,48 @@ test_build_ndp_ns(void)
 	ASSERT(verify == 0, "NDP NS checksum should verify to 0");
 
 	printf("  build_ndp_ns: ok\n");
+	return 0;
+}
+
+static int
+test_build_ndp_ns_src(void)
+{
+	uint8_t buf[128];
+	uint8_t src_mac[6] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55 };
+	uint8_t src_ip6[16] = {
+		0xfe, 0x80, 0, 0, 0, 0, 0, 0,
+		0x02, 0x11, 0x22, 0xff, 0xfe, 0x33, 0x44, 0x55
+	};
+	uint8_t target_ip6[16] = {
+		0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0x12, 0x34, 0x56
+	};
+	uint8_t sol_mc[16] = { 0xff, 0x02, 0, 0, 0, 0, 0, 0,
+	                       0, 0, 0, 0x01, 0xff, 0x34, 0x56, 0 };
+	int len;
+
+	sol_mc[13] = 0x12;
+	sol_mc[14] = 0x34;
+	sol_mc[15] = 0x56;
+
+	len = build_ndp_ns(buf, 85, src_mac, src_ip6, target_ip6);
+	ASSERT(len == -1, "NS with option should not fit 85 bytes");
+
+	len = build_ndp_ns(buf, sizeof(buf), src_mac, src_ip6, target_ip6);
+	ASSERT(len == 86, "NS with source should be 86 bytes");
+	ASSERT(buf[18] == 0x00 && buf[19] == 32,
+	       "payload length should be 32");
+	ASSERT(buf[21] == 255, "hop limit should be 255");
+	ASSERT(memcmp(buf + 22, src_ip6, 16) == 0,
+	       "IPv6 source should be the link-local address");
+	ASSERT(buf[78] == 1 && buf[79] == 1,
+	       "Source LLA option type 1 length 1");
+	ASSERT(memcmp(buf + 80, src_mac, 6) == 0,
+	       "Source LLA should be local MAC");
+	ASSERT(icmp6_checksum(src_ip6, sol_mc, buf + 54, 32) == 0,
+	       "NS checksum with source should verify to 0");
+
+	printf("  build_ndp_ns_src: ok\n");
 	return 0;
 }
 
@@ -258,6 +305,7 @@ main(void)
 	rc |= test_build_arp_request();
 	rc |= test_icmp6_checksum();
 	rc |= test_build_ndp_ns();
+	rc |= test_build_ndp_ns_src();
 	rc |= test_probe_schedule();
 	rc |= test_probe_mark_seen();
 

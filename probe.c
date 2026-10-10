@@ -58,11 +58,11 @@ struct probe {
 static struct probe probes[PROBE_MAX_SLOTS];
 
 /* Build ARP request: 42 bytes total.
- * spa=0.0.0.0 (RFC 5227 probe), tpa=target IP.
- * src_mac is the interface's local MAC. */
+ * spa=src_ip, tpa=target IP. src_mac is the interface's local MAC. */
 int
 build_arp_request(uint8_t *buf, size_t buflen,
-                  const uint8_t *src_mac, const uint8_t *target_ip)
+                  const uint8_t *src_mac, const uint8_t *src_ip,
+                  const uint8_t *target_ip)
 {
 	if (buflen < 42)
 		return -1;
@@ -82,10 +82,9 @@ build_arp_request(uint8_t *buf, size_t buflen,
 	buf[19] = 4;                       /* plen */
 	buf[20] = 0x00; buf[21] = 0x01;   /* oper=request */
 
-	/* sender hardware address */
+	/* sender hardware and protocol address */
 	memcpy(buf + 22, src_mac, 6);
-	/* sender protocol address: 0.0.0.0 */
-	/* (already zeroed) */
+	memcpy(buf + 28, src_ip, 4);
 
 	/* target hardware address: 00:00:00:00:00:00 */
 	/* (already zeroed) */
@@ -123,23 +122,25 @@ icmp6_checksum(const uint8_t *src6, const uint8_t *dst6,
 	return (uint16_t)~sum;
 }
 
-/* Build NDP Neighbor Solicitation: ~78 bytes.
- * src=::, dst=solicited-node multicast of target.
- * No Source LLA option (src is ::). */
+/* Build NDP Neighbor Solicitation: 86 bytes, or 78 when src_ip6 is ::.
+ * dst=solicited-node multicast of target. A Source LLA option is
+ * included unless the source is unspecified (RFC 4861 4.3). */
 int
-build_ndp_ns(uint8_t *buf, size_t buflen,
-             const uint8_t *src_mac, const uint8_t *target_ip6)
+build_ndp_ns(uint8_t *buf, size_t buflen, const uint8_t *src_mac,
+             const uint8_t *src_ip6, const uint8_t *target_ip6)
 {
+	static const uint8_t unspec[16];
 	uint8_t sol_node_mc[16];   /* ff02::1:ffXX:YYZZ */
 	uint8_t sol_node_mac[6];   /* 33:33:ff:XX:YY:ZZ */
-	uint8_t src_ip6[16];       /* :: */
 	uint16_t cksum;
-	size_t off;
+	size_t off, icmplen;
 
-	if (buflen < 78)
+	/* NS is 24 bytes, plus 8 for the Source LLA option */
+	icmplen = memcmp(src_ip6, unspec, 16) == 0 ? 24 : 32;
+	if (buflen < 54 + icmplen)
 		return -1;
 
-	memset(buf, 0, 78);
+	memset(buf, 0, 54 + icmplen);
 
 	/* solicited-node multicast address */
 	memset(sol_node_mc, 0, sizeof(sol_node_mc));
@@ -159,8 +160,6 @@ build_ndp_ns(uint8_t *buf, size_t buflen,
 	sol_node_mac[4] = target_ip6[14];
 	sol_node_mac[5] = target_ip6[15];
 
-	memset(src_ip6, 0, sizeof(src_ip6));
-
 	/* Ethernet header */
 	memcpy(buf, sol_node_mac, 6);
 	memcpy(buf + 6, src_mac, 6);
@@ -170,28 +169,31 @@ build_ndp_ns(uint8_t *buf, size_t buflen,
 
 	/* IPv6 header (40 bytes) */
 	buf[off] = 0x60;            /* version=6, traffic class=0 */
-	/* payload length = ICMPv6 (24 bytes NS, no options) */
-	buf[off + 4] = 0x00;
-	buf[off + 5] = 24;
+	buf[off + 4] = 0x00;        /* payload length = ICMPv6 */
+	buf[off + 5] = (uint8_t)icmplen;
 	buf[off + 6] = IPPROTO_ICMPV6;
 	buf[off + 7] = 255;         /* hop limit */
-	/* src = :: (already zeroed) */
+	memcpy(buf + off + 8, src_ip6, 16);        /* src */
 	memcpy(buf + off + 24, sol_node_mc, 16);   /* dst */
 	off += 40;
 
-	/* ICMPv6 Neighbor Solicitation (24 bytes, no options) */
+	/* ICMPv6 Neighbor Solicitation */
 	buf[off] = 135;             /* type: NS */
 	buf[off + 1] = 0;          /* code */
 	/* checksum at off+2..off+3, fill after */
 	/* reserved (4 bytes, zeroed) */
 	memcpy(buf + off + 8, target_ip6, 16);   /* target address */
+	if (icmplen == 32) {
+		buf[off + 24] = 1;      /* option: Source LLA */
+		buf[off + 25] = 1;      /* length in 8-byte units */
+		memcpy(buf + off + 26, src_mac, 6);
+	}
 
-	cksum = icmp6_checksum(src_ip6, sol_node_mc,
-	    buf + off, 24);
+	cksum = icmp6_checksum(src_ip6, sol_node_mc, buf + off, icmplen);
 	buf[off + 2] = (uint8_t)(cksum >> 8);
 	buf[off + 3] = (uint8_t)(cksum & 0xff);
 
-	return 78;
+	return (int)(54 + icmplen);
 }
 
 void
@@ -277,14 +279,19 @@ static int
 send_probe(struct probe *p, struct iface *ifp)
 {
 	uint8_t pkt[128];
+	uint8_t src[16];
 	int len;
 
+	/* Send from one of our own addresses. A zero source is what a
+	 * duplicate address check looks like, and a host that is just
+	 * bringing up the probed address would give it up. */
+	capture_probe_src(ifp->name, p->af, p->ip, src);
 	if (p->af == AF_INET) {
 		len = build_arp_request(pkt, sizeof(pkt),
-		    ifp->local_mac, p->ip);
+		    ifp->local_mac, src, p->ip);
 	} else {
 		len = build_ndp_ns(pkt, sizeof(pkt),
-		    ifp->local_mac, p->ip);
+		    ifp->local_mac, src, p->ip);
 	}
 
 	if (len < 0)

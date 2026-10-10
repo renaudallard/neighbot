@@ -109,8 +109,8 @@ test_own_ip(void)
 	ASSERT(capture_is_own_ip(AF_INET, ip4) == 0,
 	       "no own IPs, should not match");
 
-	capture_add_own_ip(AF_INET, ip4);
-	capture_add_own_ip(AF_INET6, ip6);
+	capture_add_own_ip("eth0", AF_INET, ip4);
+	capture_add_own_ip("eth0", AF_INET6, ip6);
 
 	ASSERT(capture_is_own_ip(AF_INET, ip4) == 1,
 	       "192.168.1.1 should be own IP");
@@ -127,6 +127,56 @@ test_own_ip(void)
 	       "after reset, should not match");
 
 	printf("  own_ip: ok\n");
+	return 0;
+}
+
+static int
+test_probe_src(void)
+{
+	uint8_t a1[4] = { 192, 168, 1, 10 }, m24[4] = { 255, 255, 255, 0 };
+	uint8_t a2[4] = { 10, 0, 0, 10 }, m8[4] = { 255, 0, 0, 0 };
+	uint8_t t1[4] = { 10, 9, 9, 9 }, t2[4] = { 172, 16, 0, 1 };
+	uint8_t g6[16] = { 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0,
+	                   0, 0, 0, 0, 0, 0, 0, 0x01 };
+	uint8_t ll6[16] = { 0xfe, 0x80, 0, 0x02, 0, 0, 0, 0,
+	                    0, 0, 0, 0, 0, 0, 0, 0x01 };
+	uint8_t src[16];
+
+	capture_reset_subnets();
+	capture_reset_own_ips();
+
+	ASSERT(capture_probe_src("eth0", AF_INET, t1, src) == 0,
+	       "no address, IPv4 source should be unspecified");
+	ASSERT(src[0] == 0 && src[3] == 0, "unspecified IPv4 source");
+
+	capture_add_subnet("eth0", AF_INET, a1, m24);
+	capture_add_subnet("eth0", AF_INET, a2, m8);
+	capture_add_subnet("eth1", AF_INET, a1, m24);
+
+	ASSERT(capture_probe_src("eth0", AF_INET, t1, src) == 1 &&
+	       memcmp(src, a2, 4) == 0,
+	       "IPv4 source should be in the target's subnet");
+	ASSERT(capture_probe_src("eth0", AF_INET, t2, src) == 1 &&
+	       memcmp(src, a1, 4) == 0,
+	       "IPv4 source should fall back to the first address");
+	ASSERT(capture_probe_src("eth2", AF_INET, t1, src) == 0,
+	       "no IPv4 address on eth2");
+
+	ASSERT(capture_probe_src("eth0", AF_INET6, g6, src) == 0,
+	       "no link-local, IPv6 source should be unspecified");
+	capture_add_own_ip("eth0", AF_INET6, g6);
+	capture_add_own_ip("eth1", AF_INET6, ll6);
+	ASSERT(capture_probe_src("eth0", AF_INET6, g6, src) == 0,
+	       "a global address is not used as NS source");
+	capture_add_own_ip("eth0", AF_INET6, ll6);
+	ASSERT(capture_probe_src("eth0", AF_INET6, g6, src) == 1 &&
+	       src[0] == 0xfe && src[1] == 0x80 && src[2] == 0 &&
+	       src[3] == 0 && src[15] == 0x01,
+	       "IPv6 source should be the link-local, scope bytes cleared");
+
+	capture_reset_subnets();
+	capture_reset_own_ips();
+	printf("  probe_src: ok\n");
 	return 0;
 }
 
@@ -354,6 +404,7 @@ main(void)
 	rc |= test_no_subnet_for_af();
 	rc |= test_ipv6_subnet();
 	rc |= test_own_ip();
+	rc |= test_probe_src();
 	rc |= test_is_local_any();
 	rc |= test_learned_subnet();
 

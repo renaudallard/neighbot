@@ -67,6 +67,7 @@ static struct subnet subnets[MAX_SUBNETS];
 static int subnet_count;
 
 struct local_ip {
+	char    iface[32];
 	int     af;
 	uint8_t ip[16];
 };
@@ -389,7 +390,7 @@ fill_local_ips(struct iface *ifaces, int count)
 	own_ip_count = 0;
 
 	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
-		int af, alen;
+		int af;
 		const uint8_t *addr;
 		int found = 0;
 
@@ -401,12 +402,10 @@ fill_local_ips(struct iface *ifaces, int count)
 			struct sockaddr_in *sin =
 			    (struct sockaddr_in *)ifa->ifa_addr;
 			addr = (const uint8_t *)&sin->sin_addr;
-			alen = 4;
 		} else if (af == AF_INET6) {
 			struct sockaddr_in6 *sin6 =
 			    (struct sockaddr_in6 *)ifa->ifa_addr;
 			addr = (const uint8_t *)&sin6->sin6_addr;
-			alen = 16;
 		} else {
 			continue;
 		}
@@ -428,18 +427,14 @@ fill_local_ips(struct iface *ifaces, int count)
 			break;
 		}
 
-		struct local_ip *l = &own_ips[own_ip_count];
-		l->af = af;
-		memset(l->ip, 0, sizeof(l->ip));
-		memcpy(l->ip, addr, alen);
-		own_ip_count++;
+		capture_add_own_ip(ifa->ifa_name, af, addr);
 	}
 
 	freeifaddrs(ifap);
 }
 
 void
-capture_add_own_ip(int af, const uint8_t *ip)
+capture_add_own_ip(const char *iface, int af, const uint8_t *ip)
 {
 	int alen = ip_len(af);
 	struct local_ip *l;
@@ -448,10 +443,64 @@ capture_add_own_ip(int af, const uint8_t *ip)
 		return;
 
 	l = &own_ips[own_ip_count];
+	snprintf(l->iface, sizeof(l->iface), "%s", iface);
 	l->af = af;
 	memset(l->ip, 0, sizeof(l->ip));
 	memcpy(l->ip, ip, alen);
 	own_ip_count++;
+}
+
+/*
+ * Pick the source address for a probe of target on iface: for IPv4 an
+ * address of iface, preferably in the target's subnet; for IPv6 the
+ * link-local address of iface. Returns 0 and fills src with zeros when
+ * iface has no such address.
+ */
+int
+capture_probe_src(const char *iface, int af, const uint8_t *target,
+                  uint8_t *src)
+{
+	int alen = ip_len(af);
+	int found = 0;
+
+	memset(src, 0, 16);
+	if (af == AF_INET) {
+		for (int i = 0; i < subnet_count; i++) {
+			struct subnet *s = &subnets[i];
+			int match = 1;
+
+			if (s->af != AF_INET || strcmp(s->iface, iface) != 0)
+				continue;
+			for (int j = 0; j < alen; j++) {
+				if ((target[j] & s->mask[j]) !=
+				    (s->addr[j] & s->mask[j])) {
+					match = 0;
+					break;
+				}
+			}
+			if (match || !found) {
+				memcpy(src, s->addr, alen);
+				found = 1;
+			}
+			if (match)
+				break;
+		}
+		return found;
+	}
+
+	for (int i = 0; i < own_ip_count; i++) {
+		struct local_ip *l = &own_ips[i];
+
+		if (l->af == AF_INET6 && strcmp(l->iface, iface) == 0 &&
+		    IS_LINKLOCAL6(l->ip)) {
+			memcpy(src, l->ip, alen);
+			/* KAME stacks may embed the scope id in bytes 2-3;
+			 * they are zero on the wire */
+			src[2] = src[3] = 0;
+			return 1;
+		}
+	}
+	return 0;
 }
 
 void

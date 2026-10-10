@@ -46,7 +46,9 @@ int  capture_is_own_ip(int af, const uint8_t *ip);
 void capture_add_subnet(const char *iface, int af,
                         const uint8_t *addr, const uint8_t *mask);
 void capture_reset_subnets(void);
-void capture_add_own_ip(int af, const uint8_t *ip);
+void capture_add_own_ip(const char *iface, int af, const uint8_t *ip);
+int  capture_probe_src(const char *iface, int af, const uint8_t *target,
+                       uint8_t *src);
 void capture_reset_own_ips(void);
 
 /*

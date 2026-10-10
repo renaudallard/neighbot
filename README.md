@@ -170,10 +170,15 @@ When a known MAC appears at a new IP, neighbot sends up to 3 probes (5s
 timeout each) to each old IP of the same address family associated with that
 MAC (dual-stack hosts are not probed across IPv4/IPv6):
 
-- **IPv4**: ARP request with sender IP `0.0.0.0` (RFC 5227)
-- **IPv6**: NDP Neighbor Solicitation with source `::`
+- **IPv4**: ARP request sent from the interface's own address, preferably
+  one in the target's subnet
+- **IPv6**: NDP Neighbor Solicitation sent from the interface's link-local
+  address, with a Source Link-Layer Address option
 
-This avoids polluting the target's neighbor cache.
+A zero source address is not used: it is what a duplicate address check
+looks like (RFC 4862, RFC 5227), and a host that is just bringing up the
+probed address would give it up. An interface with no address of the
+probed family still sends from `0.0.0.0` or `::`.
 
 | Outcome | Meaning | Action |
 |---------|---------|--------|

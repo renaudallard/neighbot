@@ -325,7 +325,8 @@ fe80::1,11:22:33:44:55:66,eth0,2026-02-23T14:30:05,2026-02-23T15:12:05,00:00:00:
 
 Timestamps are ISO 8601, local time. The `prev_mac` field stores the
 previous MAC address for flip-flop detection. Old database files without
-this field are loaded without errors.
+this field are loaded without errors. Fields are not quoted, so interfaces
+whose name contains a comma are not monitored.
 
 Saves are atomic (write to temp file + rename). The entry limit is
 100,000 to prevent memory exhaustion from spoofed traffic. If the file

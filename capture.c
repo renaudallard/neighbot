@@ -890,6 +890,14 @@ capture_open_all(struct iface *ifaces, int max)
 		if (cfg.iface && strcmp(dev->name, cfg.iface) != 0)
 			continue;
 
+		/* the name is a field of the CSV database, which has no
+		 * quoting; a comma in it would corrupt every saved row */
+		if (strchr(dev->name, ',') != NULL) {
+			log_err("skipping %s: interface names containing a "
+			    "comma are not supported", dev->name);
+			continue;
+		}
+
 		p = pcap_create(dev->name, errbuf);
 		if (!p) {
 			log_err("pcap_create(%s): %s", dev->name, errbuf);

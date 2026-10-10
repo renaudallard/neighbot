@@ -72,6 +72,8 @@ their traffic is seen on the bridge or bond device.
 Use
 .Fl i
 to explicitly monitor a trunk interface, bridge port or bond slave.
+Interfaces whose name contains a comma are never monitored, since the
+name is stored unquoted in the CSV database.
 .It Fl m Ar mailto
 Email recipient for notifications.
 Default:

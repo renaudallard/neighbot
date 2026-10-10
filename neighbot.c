@@ -313,14 +313,21 @@ main(int argc, char *argv[])
 
 	/* drop privileges */
 	{
-		/* fix ownership and permissions on DB directory and file */
+		/* Fix ownership and permissions on the DB directory only when
+		 * it is the default one. A directory named with -f may be
+		 * shared (/tmp, /etc, the current directory), and handing it
+		 * to the run user would open it to that user. */
 		char dbdir[PATH_MAX];
 		dbdir_from_path(cfg.dbfile, dbdir, sizeof(dbdir));
 
-		if (chown(dbdir, run_uid, run_gid) < 0)
-			log_err("chown %s: %s", dbdir, strerror(errno));
-		if (chmod(dbdir, 0750) < 0)
-			log_err("chmod %s: %s", dbdir, strerror(errno));
+		if (strcmp(dbdir, DEFAULT_DBDIR) == 0) {
+			if (chown(dbdir, run_uid, run_gid) < 0)
+				log_err("chown %s: %s", dbdir,
+				    strerror(errno));
+			if (chmod(dbdir, 0750) < 0)
+				log_err("chmod %s: %s", dbdir,
+				    strerror(errno));
+		}
 
 		/* Fix ownership and mode on the DB file through an
 		 * O_NOFOLLOW handle. The file lives in a directory owned by

@@ -336,8 +336,11 @@ save would write over it.
 ## Security
 
 neighbot drops to an unprivileged user (default: `nobody`) after opening
-pcap handles. All supplementary groups are dropped. The database directory
-and file are chowned to the target user before switching.
+pcap handles. All supplementary groups are dropped. The database file is
+chowned to the target user before switching. The default database
+directory `/var/neighbot` is also chowned to that user and set to mode
+0750; a directory given with `-f` is left untouched and must be writable
+by the target user.
 
 On OpenBSD, neighbot additionally restricts itself using `pledge(2)` and
 `unveil(2)`:

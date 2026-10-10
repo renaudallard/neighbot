@@ -35,10 +35,11 @@
 
 #define NEIGHBOT_VERSION "0.5.16"
 
-#define DEFAULT_DBFILE  "/var/neighbot/neighbot.csv"
+#define DEFAULT_DBDIR   "/var/neighbot"
+#define DEFAULT_DBFILE  DEFAULT_DBDIR "/neighbot.csv"
 #define DEFAULT_MAILTO  "root"
 #define DEFAULT_USER    "nobody"
-#define DEFAULT_OUIFILE  "/var/neighbot/oui.txt"
+#define DEFAULT_OUIFILE  DEFAULT_DBDIR "/oui.txt"
 #define DEFAULT_SENDMAIL "/usr/sbin/sendmail"
 #define OPENBSD_OUIFILE  "/usr/local/share/arp-scan/ieee-oui.txt"
 

@@ -190,21 +190,22 @@ jobs:
               return trimmed or [versions_sorted[-1].split(".")[0]]
 
           def latest_opensuse_leap():
-              # Ask Docker Hub, which the build job pulls from. The
-              # download.opensuse.org listing uses "./15.6/" links and
-              # still carries the pre-15 "42.x" numbering, which would
-              # sort above current releases, so skip major 42 and up.
+              # Ask Docker Hub, which the build job pulls from. Take the
+              # numeric tag that "latest" points to: a higher tag such as
+              # 16.1 can exist before that release is out, and the old
+              # "42.x" numbering would sort above every current release.
               try:
                   data = fetch_text(
                       "https://registry.hub.docker.com/v2/repositories"
                       "/opensuse/leap/tags?page_size=100")
                   results = json.loads(data).get("results", [])
-                  versions = set()
-                  for item in results:
-                      m = re.match(r"^([0-9]+)\.[0-9]+$",
-                                   item.get("name", ""))
-                      if m and int(m.group(1)) < 42:
-                          versions.add(m.group(0))
+                  digests = {item.get("name", ""): item.get("digest")
+                             for item in results}
+                  latest = digests.get("latest")
+                  versions = [t for t, d in digests.items()
+                              if re.match(r"^[0-9]+\.[0-9]+$", t)
+                              and int(t.split(".")[0]) < 42
+                              and d and d == latest]
                   if versions:
                       versions_sorted = sorted(
                           versions,
@@ -217,22 +218,47 @@ jobs:
           def latest_suse_bci():
               # registry.suse.com answers 401 without a bearer token; get
               # an anonymous pull token from the realm it advertises.
+              # Pre-release images (e.g. a beta 16.1) are tagged like
+              # releases, so check the release-stage label of each
+              # candidate and take the highest one that is released.
               try:
+                  reg = "https://registry.suse.com/v2/bci/bci-base"
                   auth = json.loads(fetch_text(
                       "https://scc.suse.com/api/registry/authorize"
                       "?service=SUSE%20Linux%20Docker%20Registry"
                       "&scope=repository:bci/bci-base:pull"))
                   token = auth.get("token") or auth.get("access_token")
-                  req = urllib.request.Request(
-                      "https://registry.suse.com/v2/bci/bci-base/tags/list",
-                      headers={"Authorization": f"Bearer {token}"})
-                  with urllib.request.urlopen(req, timeout=10) as resp:
-                      tags = json.loads(resp.read().decode()).get("tags", [])
+
+                  def get_json(url, accept=None):
+                      headers = {"Authorization": f"Bearer {token}"}
+                      if accept:
+                          headers["Accept"] = accept
+                      req = urllib.request.Request(url, headers=headers)
+                      with urllib.request.urlopen(req, timeout=10) as resp:
+                          return json.loads(resp.read().decode())
+
+                  tags = get_json(f"{reg}/tags/list").get("tags", [])
                   versions = [t for t in tags
                               if re.match(r"^[0-9]+\.[0-9]+$", t)]
-                  if versions:
-                      versions_sorted = sorted(versions, key=lambda v: [int(x) for x in v.split(".")])
-                      return versions_sorted[-1]
+                  versions.sort(key=lambda v: [int(x) for x in v.split(".")])
+                  for v in reversed(versions):
+                      index = get_json(
+                          f"{reg}/manifests/{v}",
+                          "application/vnd.oci.image.index.v1+json, "
+                          "application/vnd.docker.distribution.manifest.list.v2+json")
+                      amd64 = [m["digest"] for m in index.get("manifests", [])
+                               if m.get("platform", {}).get("architecture") == "amd64"]
+                      if not amd64:
+                          continue
+                      manifest = get_json(
+                          f"{reg}/manifests/{amd64[0]}",
+                          "application/vnd.oci.image.manifest.v1+json, "
+                          "application/vnd.docker.distribution.manifest.v2+json")
+                      config = get_json(
+                          f"{reg}/blobs/{manifest['config']['digest']}")
+                      labels = config.get("config", {}).get("Labels") or {}
+                      if labels.get("com.suse.release-stage") == "released":
+                          return v
               except Exception:
                   pass
               return "15.6"

@@ -150,10 +150,10 @@ sudo neighbot -d -u neighbot -m admin@example.com
 sudo neighbot -d -i eth0 -p
 
 # Print database report to stdout
-neighbot -r -f /var/neighbot/neighbot.csv
+sudo neighbot -r -f /var/neighbot/neighbot.csv
 
 # Email database report
-neighbot -r -m admin@example.com
+sudo neighbot -r -m admin@example.com
 ```
 
 ## Event Types

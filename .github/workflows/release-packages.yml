@@ -215,13 +215,21 @@ jobs:
               return "15.6"
 
           def latest_suse_bci():
+              # registry.suse.com answers 401 without a bearer token; get
+              # an anonymous pull token from the realm it advertises.
               try:
-                  data = fetch_text("https://registry.suse.com/v2/bci/bci-base/tags/list")
-                  tags = json.loads(data).get("tags", [])
-                  versions = []
-                  for t in tags:
-                      if all(ch.isdigit() or ch == "." for ch in t):
-                          versions.append(t)
+                  auth = json.loads(fetch_text(
+                      "https://scc.suse.com/api/registry/authorize"
+                      "?service=SUSE%20Linux%20Docker%20Registry"
+                      "&scope=repository:bci/bci-base:pull"))
+                  token = auth.get("token") or auth.get("access_token")
+                  req = urllib.request.Request(
+                      "https://registry.suse.com/v2/bci/bci-base/tags/list",
+                      headers={"Authorization": f"Bearer {token}"})
+                  with urllib.request.urlopen(req, timeout=10) as resp:
+                      tags = json.loads(resp.read().decode()).get("tags", [])
+                  versions = [t for t in tags
+                              if re.match(r"^[0-9]+\.[0-9]+$", t)]
                   if versions:
                       versions_sorted = sorted(versions, key=lambda v: [int(x) for x in v.split(".")])
                       return versions_sorted[-1]

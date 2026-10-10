@@ -141,6 +141,13 @@ oui_load(const char *path)
 			oui_alloc = new_alloc;
 		}
 
+		/* the file may be writable by the unprivileged run user;
+		 * neutralise control bytes (terminal escapes, CR) before the
+		 * name reaches a report or an alert body */
+		for (unsigned char *p = (unsigned char *)vendor; *p; p++)
+			if (*p < 0x20 || *p == 0x7f)
+				*p = '?';
+
 		oui_db[oui_count].prefix[0] = (uint8_t)a;
 		oui_db[oui_count].prefix[1] = (uint8_t)b;
 		oui_db[oui_count].prefix[2] = (uint8_t)c;

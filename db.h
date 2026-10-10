@@ -80,6 +80,16 @@ int   db_delete(int af, const uint8_t *ip, const uint8_t *mac,
 int   db_expire(time_t idle_secs);
 int   db_expire_temp(time_t idle_secs);
 
+/* Whether s contains a control byte (below 0x20, or DEL). */
+static inline int
+has_ctrl(const char *s)
+{
+	for (; *s; s++)
+		if ((unsigned char)*s < 0x20 || (unsigned char)*s == 0x7f)
+			return 1;
+	return 0;
+}
+
 static inline int
 ip_len(int af)
 {

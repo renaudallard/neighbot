@@ -379,6 +379,30 @@ test_mac_cap_load(void)
 	}
 }
 
+/* a row whose interface field holds control bytes is skipped */
+static void
+test_control_bytes_iface(void)
+{
+	int r;
+
+	write_file(TEST_TMP,
+	    "10.3.0.1,02:00:00:00:00:01,eth0\033]0;x\007,"
+	    "2026-01-01T00:00:00,2026-01-02T00:00:00\n"
+	    "10.3.0.2,02:00:00:00:00:02,eth0,"
+	    "2026-01-01T00:00:00,2026-01-02T00:00:00\n");
+
+	db_init();
+	r = db_load(TEST_TMP);
+	db_free();
+	unlink(TEST_TMP);
+
+	if (r != 1) {
+		fprintf(stderr, "FAIL: control bytes in iface: loaded %d, "
+		    "want 1\n", r);
+		exit(1);
+	}
+}
+
 static void
 test_nonexistent(void)
 {
@@ -465,6 +489,7 @@ main(void)
 	test_mac_index();
 	test_mac_cap();
 	test_mac_cap_load();
+	test_control_bytes_iface();
 	test_nonexistent();
 	test_oversized_line();
 	test_embedded_nul_line();

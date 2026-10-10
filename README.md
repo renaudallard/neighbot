@@ -349,7 +349,7 @@ fe80::1,11:22:33:44:55:66,eth0,2026-02-23T14:30:05,2026-02-23T15:12:05,00:00:00:
 Timestamps are ISO 8601, local time. The `prev_mac` field stores the
 previous MAC address for flip-flop detection. Old database files without
 this field are loaded without errors. Fields are not quoted, so interfaces
-whose name contains a comma are not monitored.
+whose name contains a comma or a control character are not monitored.
 
 Saves are atomic (write to temp file + rename). The entry limit is
 100,000 to prevent memory exhaustion from spoofed traffic. If the file
@@ -373,7 +373,11 @@ pcap handles. All supplementary groups are dropped. The default database
 directory `/var/neighbot` is chowned to that user and set to mode 0750
 before switching; a directory given with `-f` is left untouched and must be
 writable by the target user. The database file itself is never chowned by
-root: saves replace it with a file created by the target user.
+root: saves replace it with a file created by the target user. Since that
+user can write the database and OUI files, control characters in vendor
+names are replaced and database rows with control characters in the
+interface field are skipped, so they cannot inject terminal escapes into a
+report or an alert.
 
 On OpenBSD, neighbot additionally restricts itself using `pledge(2)` and
 `unveil(2)`:

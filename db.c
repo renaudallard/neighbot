@@ -286,6 +286,12 @@ db_load(const char *path)
 		if (nf < 5)
 			continue;
 
+		/* the file is writable by the unprivileged run user; skip an
+		 * interface name with control bytes rather than print
+		 * terminal escapes in a report or an alert */
+		if (has_ctrl(iface))
+			continue;
+
 		if (inet_pton(AF_INET, ipstr, ip) == 1)
 			af = AF_INET;
 		else if (inet_pton(AF_INET6, ipstr, ip) == 1)

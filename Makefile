@@ -76,6 +76,7 @@ FUZZ_CC      = clang
 FUZZ_CFLAGS  = -std=c11 -g -O1 -fno-omit-frame-pointer $(_GNU_SOURCE)
 FUZZ_CFLAGS += -fno-strict-aliasing
 FUZZ_CFLAGS += -fsanitize=fuzzer,address,undefined
+FUZZ_CFLAGS += -fno-sanitize-recover=undefined
 FUZZ_LDFLAGS = -fsanitize=fuzzer,address,undefined -lpcap
 
 fuzz: fuzz_parse fuzz_dbload fuzz_ouiload

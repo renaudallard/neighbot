@@ -401,7 +401,8 @@ make fuzz-clean                                   # remove fuzz binaries
 `-close_fd_mask=2` discards the parser's per-packet log lines on stderr;
 sanitizer and libFuzzer reports are still printed.
 
-Each target is built with ASan and UBSan enabled.
+Each target is built with ASan and UBSan enabled; any UBSan error
+aborts the run like an ASan crash.
 Crashes and slow inputs are written to the current directory.
 
 ## How It Works

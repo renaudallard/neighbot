@@ -179,6 +179,13 @@ storm_check(int af, const uint8_t *ip, const uint8_t *mac,
 			char ipstr[INET6_ADDRSTRLEN];
 			char macstr_a[18], macstr_b[18];
 
+			/* only suppress once the storm alert is out: if it
+			 * was dropped (too many notifications in flight),
+			 * suppressing now would silence this IP unnoticed,
+			 * so report the event and retry on the next one */
+			if (!cfg.quiet &&
+			    !notify_storm(af, ip, mac, old_mac, iface))
+				return 0;
 			s->suppressed = 1;
 			inet_ntop(af, ip, ipstr, sizeof(ipstr));
 			format_mac(mac, macstr_a, sizeof(macstr_a));
@@ -186,9 +193,6 @@ storm_check(int af, const uint8_t *ip, const uint8_t *mac,
 			log_msg("address conflict storm detected "
 			    "for %s (%s <-> %s) on %s, suppressing",
 			    ipstr, macstr_a, macstr_b, iface);
-			if (!cfg.quiet)
-				notify_storm(af, ip, mac, old_mac,
-				    iface);
 			return 1;
 		}
 		return 0;

@@ -83,7 +83,8 @@ close_inherited_fds(void)
 static int notify_inflight;
 static int notify_suppressed;
 
-/* Fork a notification child. Returns 0 in child, -1 in parent. */
+/* Fork a notification child. Returns 0 in the child, 1 in the parent,
+ * and -1 if no child was started. */
 static int
 notify_fork(void)
 {
@@ -105,7 +106,7 @@ notify_fork(void)
 	}
 	if (pid > 0) {
 		notify_inflight++;
-		return -1;
+		return 1;
 	}
 	return 0;
 }
@@ -532,12 +533,15 @@ notify_reappeared(int af, const uint8_t *ip, const uint8_t *mac,
 	_exit(0);
 }
 
-void
+/* Returns 1 if the alert was handed to a child, 0 if it was dropped. */
+int
 notify_storm(int af, const uint8_t *ip, const uint8_t *mac_a,
              const uint8_t *mac_b, const char *iface)
 {
-	if (notify_fork() != 0)
-		return;
+	int r = notify_fork();
+
+	if (r != 0)
+		return r > 0;
 
 	char subject[256];
 	char body[2048];

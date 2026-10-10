@@ -112,11 +112,14 @@ void notify_moved(int new_af, const uint8_t *new_ip, const uint8_t *mac,
 { (void)new_af; (void)new_ip; (void)mac; (void)old_af; (void)old_ip; (void)iface; }
 
 int notify_storm_calls;
+int notify_storm_fail;   /* number of storm alerts to drop */
 
-void notify_storm(int af, const uint8_t *ip, const uint8_t *mac_a,
+int notify_storm(int af, const uint8_t *ip, const uint8_t *mac_a,
     const uint8_t *mac_b, const char *iface)
 { (void)af; (void)ip; (void)mac_a; (void)mac_b; (void)iface;
-  notify_storm_calls++; }
+  notify_storm_calls++;
+  if (notify_storm_fail > 0) { notify_storm_fail--; return 0; }
+  return 1; }
 
 void notify_ra_learned(const char *iface, const uint8_t *prefix,
     int prefix_len, const uint8_t *router, uint32_t lifetime)
@@ -711,6 +714,44 @@ test_temp_takeover(void)
 	db_init();
 }
 
+/* a storm alert dropped by the in-flight cap must not commit the
+ * suppression; the next flip retries it */
+static void
+test_storm_alert_dropped(void)
+{
+	uint8_t pkt[42];
+	int saved_quiet = cfg.quiet;
+
+	cfg.quiet = 0;
+	storm_reset();
+	notify_storm_calls = 0;
+	notify_storm_fail = 1;
+
+	memset(pkt, 0, sizeof(pkt));
+	memset(pkt, 0xff, 6);
+	pkt[12] = 0x08; pkt[13] = 0x06;
+	pkt[15] = 0x01; pkt[16] = 0x08; pkt[18] = 6; pkt[19] = 4;
+	pkt[21] = 0x01;
+	pkt[28] = 10; pkt[29] = 9; pkt[30] = 8; pkt[31] = 7;
+	pkt[38] = 10; pkt[39] = 9; pkt[40] = 8; pkt[41] = 1;
+
+	for (int i = 0; i < 20; i++) {
+		pkt[6] = pkt[22] = 0x02;
+		pkt[11] = pkt[27] = (uint8_t)(0x40 + i % 2);
+		feed(pkt, sizeof(pkt));
+	}
+
+	if (notify_storm_calls != 2) {
+		fprintf(stderr, "FAIL: dropped storm alert: %d storm calls, "
+		    "want 2 (dropped one, then sent)\n", notify_storm_calls);
+		exit(1);
+	}
+
+	notify_storm_fail = 0;
+	storm_reset();
+	cfg.quiet = saved_quiet;
+}
+
 static void
 test_truncated(void)
 {
@@ -756,6 +797,7 @@ main(void)
 	test_three_mac_storm();
 	test_temp_takeover();
 	test_linklocal_two_links();
+	test_storm_alert_dropped();
 	test_truncated();
 
 	/* reset and run batch */

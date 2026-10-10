@@ -61,6 +61,10 @@ fi
 %postun
 if [ -x /usr/bin/systemctl ]; then
     /usr/bin/systemctl daemon-reload >/dev/null 2>&1 || :
+    # on upgrade, restart a running daemon so the new binary is used
+    if [ $1 -ge 1 ]; then
+        /usr/bin/systemctl try-restart neighbot.service >/dev/null 2>&1 || :
+    fi
 fi
 
 %changelog

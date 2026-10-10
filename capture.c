@@ -132,7 +132,7 @@ capture_add_learned_subnet(const char *iface, int af,
 	int alen = ip_len(af);
 	uint8_t mask[16];
 	uint8_t netaddr[16];
-	time_t now = time(NULL);
+	time_t now = mono_now();
 	time_t exp;
 	int oldest = -1;
 	time_t oldest_exp = 0;
@@ -537,7 +537,7 @@ static int
 is_local(const char *iface, int af, const uint8_t *ip)
 {
 	int has_subnet = 0;
-	time_t now = time(NULL);
+	time_t now = mono_now();
 
 	/* link-local addresses are always valid on the local link */
 	if (af == AF_INET6 && IS_LINKLOCAL6(ip))
@@ -651,7 +651,7 @@ capture_is_local_fresh(const char *iface, int af, const uint8_t *ip)
 
 	if (capture_is_local(iface, af, ip))
 		return 1;
-	now = time(NULL);
+	now = mono_now();
 	if (mon_ifaces == NULL || now == last)
 		return 0;
 	last = now;

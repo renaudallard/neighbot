@@ -117,7 +117,7 @@ storm_check(int af, const uint8_t *ip, const uint8_t *mac,
             const uint8_t *old_mac, const char *iface)
 {
 	int ilen = ip_len(af);
-	time_t now = time(NULL);
+	time_t now = mono_now();
 	int found = -1;
 	int empty = -1;
 	int oldest = 0;
@@ -457,7 +457,7 @@ handle_bogon(int af, const uint8_t *ip, const uint8_t *mac,
 	char ipstr[INET6_ADDRSTRLEN];
 	char macstr[18];
 
-	time_t now = time(NULL);
+	time_t now = mono_now();
 
 	/* Decide with both rate limits before mutating either, so a report
 	 * dropped by the global cap does not stamp the per-address cooldown

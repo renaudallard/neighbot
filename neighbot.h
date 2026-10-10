@@ -91,4 +91,17 @@ extern struct config cfg;
 extern volatile sig_atomic_t quit;
 extern volatile sig_atomic_t save;
 
+/* Seconds on the monotonic clock, for timers kept in memory (probes,
+ * storm and bogon caches, learned prefixes) so that a wall-clock step
+ * cannot stretch or cut them. Never 0, which marks unused cache slots. */
+static inline time_t
+mono_now(void)
+{
+	struct timespec ts;
+
+	if (clock_gettime(CLOCK_MONOTONIC, &ts) < 0)
+		return time(NULL);
+	return ts.tv_sec + 1;
+}
+
 #endif

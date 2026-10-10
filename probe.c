@@ -57,18 +57,6 @@ struct probe {
 
 static struct probe probes[PROBE_MAX_SLOTS];
 
-/* Probe timeouts use the monotonic clock so a wall-clock step cannot
- * stall a probe or cut its wait short. */
-static time_t
-mono_now(void)
-{
-	struct timespec ts;
-
-	if (clock_gettime(CLOCK_MONOTONIC, &ts) < 0)
-		return time(NULL);
-	return ts.tv_sec;
-}
-
 /* Build ARP request: 42 bytes total.
  * spa=src_ip, tpa=target IP. src_mac is the interface's local MAC. */
 int

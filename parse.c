@@ -670,7 +670,7 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 {
 	struct ip6_hdr ip6;
 	const uint8_t *icmp;
-	uint8_t type;
+	uint8_t type, nxt;
 	size_t icmp_off, icmp_len;
 	const uint8_t *ip_addr;
 	const uint8_t *mac;
@@ -688,11 +688,21 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 	 * on it would be misaligned and dereferencing it is undefined */
 	memcpy(&ip6, pkt, sizeof(ip6));
 
-	/* require ICMPv6 directly, skip packets with extension headers */
-	if (ip6.ip6_nxt != IPPROTO_ICMPV6)
-		return;
-
+	/* Step over hop-by-hop, routing and destination options headers:
+	 * hosts process ND messages placed behind them, a known way past
+	 * RA-Guard, so they must be seen here too. ND must not be
+	 * fragmented (RFC 6980), so a fragment header ends the walk. */
+	nxt = ip6.ip6_nxt;
 	icmp_off = sizeof(struct ip6_hdr);
+	for (int n = 0; n < 8 && (nxt == IPPROTO_HOPOPTS ||
+	    nxt == IPPROTO_ROUTING || nxt == IPPROTO_DSTOPTS); n++) {
+		if (len < icmp_off + 2)
+			return;
+		nxt = pkt[icmp_off];
+		icmp_off += ((size_t)pkt[icmp_off + 1] + 1) * 8;
+	}
+	if (nxt != IPPROTO_ICMPV6)
+		return;
 	if (len < icmp_off + 4)
 		return;
 

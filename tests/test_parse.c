@@ -960,6 +960,44 @@ test_ra_rs_lladdr(void)
 	cfg.quiet = saved_quiet;
 }
 
+/* an NA behind a Destination Options header is processed */
+static void
+test_na_ext_header(void)
+{
+	uint8_t pkt[94];
+	int saved_quiet = cfg.quiet;
+	int before;
+
+	cfg.quiet = 0;
+	memset(pkt, 0, sizeof(pkt));
+	pkt[0] = 0x33; pkt[1] = 0x33; pkt[5] = 0x01;
+	pkt[6] = 0x02; pkt[11] = 0x44;
+	pkt[12] = 0x86; pkt[13] = 0xdd;
+	pkt[14] = 0x60;
+	pkt[19] = 40;                            /* 8 dstopts + 32 NA */
+	pkt[20] = 60;                            /* next: dest options */
+	pkt[21] = 255;
+	inet_pton(AF_INET6, "2001:db8:9::44", pkt + 22);
+	pkt[38] = 0xff; pkt[39] = 0x02; pkt[53] = 0x01;
+	pkt[54] = 58;                            /* next: ICMPv6 */
+	pkt[55] = 0;                             /* 8 bytes */
+	pkt[56] = 1; pkt[57] = 4;                /* PadN */
+	pkt[62] = 136;                           /* NA */
+	pkt[66] = 0x20;
+	inet_pton(AF_INET6, "2001:db8:9::44", pkt + 70);
+	pkt[86] = 2; pkt[87] = 1;
+	pkt[88] = 0x02; pkt[93] = 0x44;
+
+	before = notify_new_calls;
+	feed(pkt, sizeof(pkt));
+	if (notify_new_calls != before + 1) {
+		fprintf(stderr, "FAIL: NA behind a dest options header was "
+		    "ignored\n");
+		exit(1);
+	}
+	cfg.quiet = saved_quiet;
+}
+
 static void
 test_truncated(void)
 {
@@ -1012,6 +1050,7 @@ main(void)
 	test_arp_hwtype6();
 	test_broadcast_mac_claim();
 	test_ra_rs_lladdr();
+	test_na_ext_header();
 	test_truncated();
 
 	/* reset and run batch */

@@ -482,7 +482,9 @@ Crashes and slow inputs are written to the current directory.
    a bridge being captured in promiscuous mode to see unicast between its
    ports)
 2. Opens one pcap handle per interface with BPF filter:
-   `arp or (icmp6 and (ip6[40] == 136 or ip6[40] == 135 or ip6[40] == 134 or ip6[40] == 133))`
+   ARP, ND messages (ICMPv6 types 133 to 136), and IPv6 packets that start
+   with a hop-by-hop, routing or destination options header, which the
+   parser walks so that ND hidden behind them (an RA-Guard evasion) is seen
 3. Main loop: `poll()` on all handles (1s timeout)
 4. **ARP**: extracts sender IP + MAC from requests/replies (skips probes);
    hardware type 6 (IEEE 802) is accepted like Ethernet, as hosts honour it

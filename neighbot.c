@@ -143,7 +143,7 @@ main(int argc, char *argv[])
 
 			errno = 0;
 			val = strtol(optarg, &end, 10);
-			if (*end != '\0' || errno != 0 ||
+			if (end == optarg || *end != '\0' || errno != 0 ||
 			    val < 0 || val > INT_MAX) {
 				fprintf(stderr, "invalid bogon cooldown\n");
 				return 1;
@@ -160,7 +160,7 @@ main(int argc, char *argv[])
 
 			errno = 0;
 			val = strtol(optarg, &end, 10);
-			if (*end != '\0' || errno != 0 ||
+			if (end == optarg || *end != '\0' || errno != 0 ||
 			    val < 0 || val > INT_MAX / 86400) {
 				fprintf(stderr, "invalid expire days\n");
 				return 1;

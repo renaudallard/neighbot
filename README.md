@@ -289,10 +289,11 @@ sudo rcctl enable neighbot
 sudo rcctl start neighbot
 ```
 
-Override flags in `/etc/rc.conf.local`:
+Override flags in `/etc/rc.conf.local`. They replace the script's default
+flags, so keep `-u _neighbot` (`-d` is already part of the rc script):
 
 ```
-neighbot_flags=-d -m admin@example.com
+neighbot_flags=-u _neighbot -o /usr/local/share/arp-scan/ieee-oui.txt -m admin@example.com
 ```
 
 </details>

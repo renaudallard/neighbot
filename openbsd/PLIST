@@ -1,5 +1,7 @@
 @comment $OpenBSD$
 @pkgpath net/neighbot
+@newgroup _neighbot:904
+@newuser _neighbot:904:_neighbot::neighbot daemon:/var/empty:/sbin/nologin
 @cwd /usr/local
 sbin/neighbot
 share/man/man8/neighbot.8

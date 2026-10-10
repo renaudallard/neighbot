@@ -112,6 +112,19 @@ test_own_ip(void)
 	capture_add_own_ip("eth0", AF_INET, ip4);
 	capture_add_own_ip("eth0", AF_INET6, ip6);
 
+	/* a link-local with a KAME-embedded scope id matches the address
+	 * as seen on the wire */
+	{
+		uint8_t kame[16] = { 0xfe, 0x80, 0x00, 0x03, 0, 0, 0, 0,
+		                     0, 0, 0, 0, 0, 0, 0, 0x77 };
+		uint8_t wire[16] = { 0xfe, 0x80, 0x00, 0x00, 0, 0, 0, 0,
+		                     0, 0, 0, 0, 0, 0, 0, 0x77 };
+
+		capture_add_own_ip("eth0", AF_INET6, kame);
+		ASSERT(capture_is_own_ip(AF_INET6, wire) == 1,
+		       "scoped link-local should match the wire address");
+	}
+
 	ASSERT(capture_is_own_ip(AF_INET, ip4) == 1,
 	       "192.168.1.1 should be own IP");
 	ASSERT(capture_is_own_ip(AF_INET, ip4_other) == 0,

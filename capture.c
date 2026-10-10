@@ -448,6 +448,11 @@ capture_add_own_ip(const char *iface, int af, const uint8_t *ip)
 	l->af = af;
 	memset(l->ip, 0, sizeof(l->ip));
 	memcpy(l->ip, ip, alen);
+	/* KAME stacks (OpenBSD, NetBSD) return link-local addresses from
+	 * getifaddrs() with the scope id embedded in bytes 2-3; those bytes
+	 * are zero on the wire, so clear them to compare with packets */
+	if (af == AF_INET6 && IS_LINKLOCAL6(l->ip))
+		l->ip[2] = l->ip[3] = 0;
 	own_ip_count++;
 }
 
@@ -495,9 +500,6 @@ capture_probe_src(const char *iface, int af, const uint8_t *target,
 		if (l->af == AF_INET6 && strcmp(l->iface, iface) == 0 &&
 		    IS_LINKLOCAL6(l->ip)) {
 			memcpy(src, l->ip, alen);
-			/* KAME stacks may embed the scope id in bytes 2-3;
-			 * they are zero on the wire */
-			src[2] = src[3] = 0;
 			return 1;
 		}
 	}

@@ -301,10 +301,20 @@ jobs:
                       m = re.search(r'href="([0-9]+\.[0-9]+)/"', line)
                       if m:
                           versions.add(m.group(1))
-                  supported = sorted(
-                      versions,
-                      key=lambda v: [int(x) for x in v.split(".")]
-                  )[-count:]
+                  # a directory for the next release appears (with
+                  # packages/ only) before it is out; count a version
+                  # only once its amd64 sets are published
+                  supported = []
+                  for v in sorted(versions,
+                                  key=lambda v: [int(x) for x in v.split(".")],
+                                  reverse=True):
+                      try:
+                          fetch_text(f"https://cdn.openbsd.org/pub/OpenBSD/{v}/amd64/")
+                      except Exception:
+                          continue
+                      supported.insert(0, v)
+                      if len(supported) == count:
+                          break
 
                   vma = fetch_text(
                       "https://api.github.com/repos/vmactions/openbsd-vm"

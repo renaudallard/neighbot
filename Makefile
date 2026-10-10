@@ -1,6 +1,9 @@
+# OpenBSD and NetBSD look for local manual pages in PREFIX/man
+_MANSUB != case "$$(uname -s)" in OpenBSD|NetBSD) echo man ;; *) echo share/man ;; esac
+
 PREFIX  ?= /usr/local
 BINDIR  ?= $(PREFIX)/sbin
-MANDIR  ?= $(PREFIX)/share/man
+MANDIR  ?= $(PREFIX)/$(_MANSUB)
 DBDIR   ?= /var/neighbot
 
 CC      ?= cc

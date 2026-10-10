@@ -4,7 +4,7 @@
 @newuser _neighbot:904:_neighbot::neighbot daemon:/var/empty:/sbin/nologin
 @cwd /usr/local
 sbin/neighbot
-share/man/man8/neighbot.8
+man/man8/neighbot.8
 @cwd /etc/rc.d
 @mode 0755
 neighbot

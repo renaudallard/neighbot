@@ -78,7 +78,9 @@ sudo make install-rcd      # + rc.d script (OpenBSD)
 make oui-update            # re-download IEEE OUI database
 ```
 
-Installs to `/usr/local/sbin` by default. Override with `PREFIX`:
+Installs to `/usr/local/sbin` by default, with the manual page under
+`PREFIX/share/man` (`PREFIX/man` on OpenBSD and NetBSD, where `man` looks
+for it). Override with `PREFIX`, `BINDIR` or `MANDIR`:
 
 ```sh
 sudo make PREFIX=/usr install

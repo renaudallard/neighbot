@@ -1039,9 +1039,9 @@ jobs:
             # for both.
             osflavor="openbsd$(echo "$osver" | tr -d .)"
             make
-            mkdir -p stage/usr/local/sbin stage/usr/local/share/man/man8 stage/etc/rc.d
+            mkdir -p stage/usr/local/sbin stage/usr/local/man/man8 stage/etc/rc.d
             install -m 755 neighbot stage/usr/local/sbin/neighbot
-            install -m 644 neighbot.8 stage/usr/local/share/man/man8/neighbot.8
+            install -m 644 neighbot.8 stage/usr/local/man/man8/neighbot.8
             install -m 755 neighbot.rc stage/etc/rc.d/neighbot
             mkdir -p artifacts
             pkg_create \

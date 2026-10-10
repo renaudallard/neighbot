@@ -24,19 +24,22 @@ struct config          cfg;
 volatile sig_atomic_t  quit;
 volatile sig_atomic_t  save;
 
-/* stubs. capture_is_local_fresh returns 1 so packets are always processed */
+/* stubs. capture_is_local_fresh returns stub_local (1 by default) so
+ * packets are processed unless a test makes addresses foreign */
+int stub_local = 1;
+
 int
 capture_is_local_fresh(const char *iface, int af, const uint8_t *ip)
 {
 	(void)iface; (void)af; (void)ip;
-	return 1;
+	return stub_local;
 }
 
 int
 capture_is_local_any(int af, const uint8_t *ip)
 {
 	(void)af; (void)ip;
-	return 1;
+	return stub_local;
 }
 
 int
@@ -102,9 +105,11 @@ void notify_flipflop(int af, const uint8_t *ip, const uint8_t *mac,
     const uint8_t *old_mac, const char *iface, time_t prev_seen)
 { (void)af; (void)ip; (void)mac; (void)old_mac; (void)iface; (void)prev_seen; }
 
+int notify_bogon_calls;
+
 void notify_bogon(int af, const uint8_t *ip, const uint8_t *mac,
     const char *iface)
-{ (void)af; (void)ip; (void)mac; (void)iface; }
+{ (void)af; (void)ip; (void)mac; (void)iface; notify_bogon_calls++; }
 
 void notify_reappeared(int af, const uint8_t *ip, const uint8_t *mac,
     const char *iface, time_t prev_seen)
@@ -777,6 +782,35 @@ test_temp_rotation_probes(void)
 	cfg.probe = saved_probe;
 }
 
+/* an address recorded under the same MAC is not a bogon when its prefix
+ * is not (yet) known, e.g. after a restart before the next RA; another
+ * MAC claiming it is */
+static void
+test_known_not_bogon(void)
+{
+	const uint8_t mac[6] = { 0x02, 0, 0, 0, 0, 0x0e };
+	const uint8_t other[6] = { 0x02, 0, 0, 0, 0, 0x0f };
+	int saved_quiet = cfg.quiet;
+
+	cfg.quiet = 0;
+	feed_na(mac, "2001:db8:7::1");
+	stub_local = 0;
+	notify_bogon_calls = 0;
+	feed_na(mac, "2001:db8:7::1");
+	if (notify_bogon_calls != 0) {
+		fprintf(stderr, "FAIL: known station reported as bogon\n");
+		exit(1);
+	}
+	feed_na(other, "2001:db8:7::1");
+	if (notify_bogon_calls != 1) {
+		fprintf(stderr, "FAIL: another MAC on a foreign address was "
+		    "not reported as bogon\n");
+		exit(1);
+	}
+	stub_local = 1;
+	cfg.quiet = saved_quiet;
+}
+
 static void
 test_truncated(void)
 {
@@ -824,6 +858,7 @@ main(void)
 	test_linklocal_two_links();
 	test_storm_alert_dropped();
 	test_temp_rotation_probes();
+	test_known_not_bogon();
 	test_truncated();
 
 	/* reset and run batch */

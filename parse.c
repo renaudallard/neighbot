@@ -512,7 +512,10 @@ parse_arp(const u_char *pkt, size_t len, const char *iface)
 	if (arp->spa[0] >= 224)
 		return;
 
-	if (!capture_is_local_fresh(iface, AF_INET, arp->spa)) {
+	/* an address already recorded on this interface with this MAC
+	 * is not a bogon (see parse_ndp) */
+	if (!db_known(AF_INET, arp->spa, arp->sha, iface) &&
+	    !capture_is_local_fresh(iface, AF_INET, arp->spa)) {
 		if (!capture_is_local_any(AF_INET, arp->spa))
 			handle_bogon(AF_INET, arp->spa, arp->sha, iface);
 		return;
@@ -752,7 +755,11 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 	if (is_zero_ip6(ip_addr))
 		return;
 
-	if (!capture_is_local_fresh(iface, AF_INET6, ip_addr)) {
+	/* an address already recorded on this interface with this MAC
+	 * is not a bogon: after a restart the RA-learned prefix that made
+	 * it local is only known again once the router re-advertises it */
+	if (!db_known(AF_INET6, ip_addr, mac, iface) &&
+	    !capture_is_local_fresh(iface, AF_INET6, ip_addr)) {
 		if (!capture_is_local_any(AF_INET6, ip_addr))
 			handle_bogon(AF_INET6, ip_addr, mac, iface);
 		return;

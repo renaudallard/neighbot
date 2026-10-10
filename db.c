@@ -680,6 +680,21 @@ db_find_other_entries(const uint8_t *mac, int exclude_af,
 	return count;
 }
 
+/* Whether (iface, af, ip) is recorded with this MAC. */
+int
+db_known(int af, const uint8_t *ip, const uint8_t *mac, const char *iface)
+{
+	unsigned idx = hash_key(iface, af, ip);
+	int ilen = ip_len(af);
+
+	for (struct entry *e = buckets[idx]; e; e = e->next) {
+		if (e->af == af && memcmp(e->ip, ip, ilen) == 0 &&
+		    strcmp(e->iface, iface) == 0)
+			return memcmp(e->mac, mac, 6) == 0;
+	}
+	return 0;
+}
+
 /* Remove the entry at (iface, af, ip) if its current MAC matches.
  * Returns 1 if removed, 0 otherwise. */
 int

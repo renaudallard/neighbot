@@ -198,6 +198,9 @@ An IP address is seen that does not belong to any subnet configured
 on any monitored interface.
 This may indicate ARP or NDP spoofing.
 Bogon packets are not added to the database.
+An address already recorded on the receiving interface with the same
+MAC is not reported, so stations in an RA-learned prefix stay known
+after a restart until the router advertises the prefix again.
 IPs that are foreign to the receiving interface but match another
 monitored interface's subnet are silently ignored (common with
 access points on VLAN trunks).

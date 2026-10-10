@@ -35,7 +35,9 @@
 
 #define NEIGHBOT_VERSION "0.5.16"
 
-#define DEFAULT_DBDIR   "/var/neighbot"
+#ifndef DEFAULT_DBDIR
+#define DEFAULT_DBDIR   "/var/neighbot"   /* set from DBDIR by the Makefile */
+#endif
 #define DEFAULT_DBFILE  DEFAULT_DBDIR "/neighbot.csv"
 #define DEFAULT_MAILTO  "root"
 #define DEFAULT_USER    "nobody"

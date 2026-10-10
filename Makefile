@@ -23,6 +23,7 @@ _STD = -std=c11
 _GNU_SOURCE != [ "$$(uname -s)" = Linux ] && echo -D_GNU_SOURCE || true
 _ALIAS = -fno-strict-aliasing
 _LIBS = -lpcap
+_DEFS = -DDEFAULT_DBDIR='"$(DBDIR)"'
 
 SRCS = neighbot.c log.c db.c parse.c notify.c capture.c oui.c probe.c
 OBJS = $(SRCS:.c=.o)
@@ -35,7 +36,7 @@ $(BIN): $(OBJS)
 	$(CC) $(OBJS) $(LDFLAGS) $(_LIBS) -o $@
 
 .c.o:
-	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(CFLAGS) -MMD -MP -c $<
+	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(_DEFS) $(CFLAGS) -MMD -MP -c $<
 
 -include $(DEPS)
 

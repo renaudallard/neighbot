@@ -80,7 +80,9 @@ make oui-update            # re-download IEEE OUI database
 
 Installs to `/usr/local/sbin` by default, with the manual page under
 `PREFIX/share/man` (`PREFIX/man` on OpenBSD and NetBSD, where `man` looks
-for it). Override with `PREFIX`, `BINDIR` or `MANDIR`:
+for it). Override with `PREFIX`, `BINDIR` or `MANDIR`. `DBDIR` (default
+`/var/neighbot`) sets the database directory built into the binary and
+where `oui.txt` is installed:
 
 ```sh
 sudo make PREFIX=/usr install

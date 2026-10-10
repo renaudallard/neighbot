@@ -48,7 +48,9 @@ Drop entries that have not been seen for more than
 .Ar days
 days.
 The check runs once per hour.
-Set to 0 (default) to keep entries indefinitely.
+Set to 0 (default) to disable this expiry; non-EUI-64, non-link-local
+IPv6 entries are still dropped after 7 days unseen (see
+.Sx OBSOLETE ADDRESS CLEANUP ) .
 This is independent of probe-driven cleanup, which always removes
 entries whose IP no longer responds at the recorded MAC.
 .It Fl f Ar dbfile

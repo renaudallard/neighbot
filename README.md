@@ -131,7 +131,7 @@ neighbot [-B seconds] [-d] [-e days] [-f dbfile] [-i iface] [-m mailto] [-o ouif
 |------|-------------|
 | `-B seconds` | Bogon log and notification cooldown in seconds (default: 1800). Set to 0 to disable the per-address cooldown (a global flood cap still applies) |
 | `-d` | Daemonize (log to syslog instead of stderr) |
-| `-e days` | Drop entries unseen for more than `days` days (checked hourly). 0 disables (default) |
+| `-e days` | Drop entries unseen for more than `days` days (checked hourly). 0 disables (default); the 7-day stale non-EUI-64 IPv6 sweep runs regardless |
 | `-f path` | Database file (default: `/var/neighbot/neighbot.csv`) |
 | `-i iface` | Monitor only this interface (default: all Ethernet interfaces) |
 | `-m addr` | Email recipient (default: `root`) |

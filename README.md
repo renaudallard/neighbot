@@ -303,12 +303,14 @@ Two file formats are supported:
 On OpenBSD, install the `arp-scan,-mac` package and point neighbot at
 `/usr/local/share/arp-scan/ieee-oui.txt`.
 
-To keep the bundled format current, add a daily cron job:
+To keep the bundled format current, add a daily job to `/etc/crontab`
+(one line). It runs as the user neighbot drops to (`nobody` by default,
+`_neighbot` with the OpenBSD rc script), which owns `/var/neighbot`, so
+root never writes into a directory an unprivileged user controls, and the
+file is only replaced by a complete download:
 
-```sh
-0 3 * * * curl -sL https://standards-oui.ieee.org/oui/oui.txt \
-  | awk '/\(hex\)/ { gsub(/-/,":",$1); v=""; for(i=3;i<=NF;i++) v=v(i>3?" ":"")$i; print tolower($1)" "v }' \
-  > /var/neighbot/oui.txt
+```
+0 3 * * * nobody cd /var/neighbot && curl -fsSL -o oui.raw https://standards-oui.ieee.org/oui/oui.txt && awk '/\(hex\)/ { gsub(/-/,":",$1); v=""; for(i=3;i<=NF;i++) v=v(i>3?" ":"")$i; print tolower($1)" "v }' oui.raw > oui.new && test -s oui.new && mv oui.new oui.txt; rm -f oui.raw oui.new
 ```
 
 neighbot will pick up the new data on its next restart.

@@ -236,6 +236,9 @@ active use is kept.
 .It Em per-MAC cap
 At most 256 addresses per MAC are tracked; further new addresses for
 that MAC are ignored (logged once).
+An address that moves to a MAC already at the limit is still reported
+as changed, but its entry is dropped, and rows beyond the limit in the
+database file are skipped at load.
 This bounds a flood of addresses under a single MAC, keeping every
 per-MAC operation constant-time; a legitimate neighbour stays well
 below the limit.

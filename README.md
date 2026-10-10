@@ -199,7 +199,9 @@ gone idle are silently dropped from the database, while an address still
 in active use is kept. This also covers link-local address rotation
 (common on devices with randomized MACs). At most 256 addresses per MAC
 are tracked; a flood of addresses under one MAC beyond that is ignored
-(logged once), which a legitimate neighbor never reaches.
+(logged once), which a legitimate neighbor never reaches. An address moving
+to a MAC already at the limit is still reported as changed but not kept,
+and extra rows in an older database file are skipped at load.
 
 Disable with `-p` for purely passive monitoring.
 

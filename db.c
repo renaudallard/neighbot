@@ -156,6 +156,35 @@ format_mac(const uint8_t *mac, char *buf, size_t len)
 	         mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 }
 
+/* Count entries currently sharing this MAC, stopping at the cap so the
+ * walk (and thus every per-MAC operation) stays bounded. */
+static int
+mac_entry_count(const uint8_t *mac)
+{
+	int count = 0;
+
+	for (struct entry *e = mac_buckets[mac_hash(mac)]; e; e = e->mac_next) {
+		if (memcmp(e->mac, mac, 6) != 0)
+			continue;
+		if (++count >= MAX_PER_MAC)
+			break;
+	}
+	return count;
+}
+
+static void
+mac_cap_warn(const uint8_t *mac)
+{
+	char macstr[18];
+
+	if (mac_cap_warned)
+		return;
+	format_mac(mac, macstr, sizeof(macstr));
+	log_msg("db: %d address cap reached for %s, ignoring further",
+	    MAX_PER_MAC, macstr);
+	mac_cap_warned = 1;
+}
+
 static uint32_t
 read_hash_seed(void)
 {
@@ -305,12 +334,22 @@ db_load(const char *path)
 
 		/* parse MAC */
 		unsigned m[6];
+		uint8_t mac[6];
 		if (sscanf(macstr, "%x:%x:%x:%x:%x:%x",
 		           &m[0], &m[1], &m[2], &m[3], &m[4], &m[5]) != 6)
 			continue;
 		if (m[0] > 0xff || m[1] > 0xff || m[2] > 0xff ||
 		    m[3] > 0xff || m[4] > 0xff || m[5] > 0xff)
 			continue;
+		for (int i = 0; i < 6; i++)
+			mac[i] = (uint8_t)m[i];
+
+		/* a file saved before the per-MAC cap existed may hold
+		 * more; keep the in-memory chains bounded */
+		if (mac_entry_count(mac) >= MAX_PER_MAC) {
+			mac_cap_warn(mac);
+			continue;
+		}
 
 		/* parse timestamps; skip the row if either is malformed, as
 		 * with the other field checks, so a corrupt row is not kept
@@ -339,8 +378,7 @@ db_load(const char *path)
 
 		e->af = af;
 		memcpy(e->ip, ip, ilen);
-		for (int i = 0; i < 6; i++)
-			e->mac[i] = (uint8_t)m[i];
+		memcpy(e->mac, mac, 6);
 
 		if (nf >= 6 && prevmacstr[0] != '\0') {
 			unsigned pm[6];
@@ -496,22 +534,6 @@ is_zero_mac(const uint8_t *mac)
 	return 1;
 }
 
-/* Count entries currently sharing this MAC, stopping at the cap so the
- * walk (and thus every per-MAC operation) stays bounded. */
-static int
-mac_entry_count(const uint8_t *mac)
-{
-	int count = 0;
-
-	for (struct entry *e = mac_buckets[mac_hash(mac)]; e; e = e->mac_next) {
-		if (memcmp(e->mac, mac, 6) != 0)
-			continue;
-		if (++count >= MAX_PER_MAC)
-			break;
-	}
-	return count;
-}
-
 /* Returns EVENT_NEW, EVENT_CHANGED, EVENT_FLIPFLOP, EVENT_REAPPEARED,
  * or 0 (no change).
  * If EVENT_CHANGED or EVENT_FLIPFLOP, old_mac is filled with the previous MAC.
@@ -544,6 +566,17 @@ db_update(int af, const uint8_t *ip, const uint8_t *mac,
 				/* the MAC changed, so move the entry to its
 				 * new MAC bucket to keep the index consistent */
 				mac_unlink(e);
+
+				/* the new MAC is at its cap: report the change
+				 * but drop the entry instead of growing that
+				 * MAC's chain past MAX_PER_MAC */
+				if (mac_entry_count(mac) >= MAX_PER_MAC) {
+					mac_cap_warn(mac);
+					bucket_remove(e);
+					free(e);
+					entry_count--;
+					return ev;
+				}
 				memcpy(e->prev_mac, e->mac, 6);
 				memcpy(e->mac, mac, 6);
 				mac_link(e);
@@ -568,19 +601,13 @@ db_update(int af, const uint8_t *ip, const uint8_t *mac,
 		return 0;
 	}
 
-	/* Cap total entries per MAC. This bounds every per-MAC chain walk, so
-	 * an on-link flood under one MAC (privacy-address churn, or an IPv4
-	 * subnet swept under one MAC) cannot make per-packet work grow with
-	 * the table. A legitimate neighbour stays far below the limit. */
+	/* Cap total entries per MAC. Enforced here, on a MAC change above and
+	 * in db_load, this bounds every per-MAC chain walk, so an on-link
+	 * flood under one MAC (privacy-address churn, or an IPv4 subnet swept
+	 * under one MAC) cannot make per-packet work grow with the table. A
+	 * legitimate neighbour stays far below the limit. */
 	if (mac_entry_count(mac) >= MAX_PER_MAC) {
-		if (!mac_cap_warned) {
-			char macstr[18];
-
-			format_mac(mac, macstr, sizeof(macstr));
-			log_msg("db_update: %d address cap reached for %s, "
-			    "ignoring further", MAX_PER_MAC, macstr);
-			mac_cap_warned = 1;
-		}
+		mac_cap_warn(mac);
 		return 0;
 	}
 

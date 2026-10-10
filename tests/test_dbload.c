@@ -311,7 +311,72 @@ test_mac_cap(void)
 		exit(1);
 	}
 
+	/* an address moving to the capped MAC is still reported, but its
+	 * entry is dropped instead of growing that MAC's chain */
+	{
+		uint8_t other[6] = { 0x02, 0, 0, 0, 0, 0x01 };
+		uint8_t ip4[4] = { 10, 1, 2, 3 };
+		uint8_t none[16] = { 0 };
+		static struct db_entry_info info[MAX_PER_MAC + 8];
+		int n;
+
+		if (db_update(AF_INET, ip4, other, "eth0", old, &ols) !=
+		    EVENT_NEW ||
+		    db_update(AF_INET, ip4, mac, "eth0", old, &ols) !=
+		    EVENT_CHANGED) {
+			fprintf(stderr, "FAIL: change to capped MAC "
+			    "not reported\n");
+			exit(1);
+		}
+		n = db_find_other_entries(mac, AF_INET6, none, info,
+		    MAX_PER_MAC + 8);
+		n += db_find_other_entries(mac, AF_INET, none, info,
+		    MAX_PER_MAC + 8);
+		if (n != MAX_PER_MAC) {
+			fprintf(stderr, "FAIL: capped MAC holds %d entries "
+			    "after a change, want %d\n", n, MAX_PER_MAC);
+			exit(1);
+		}
+		if (db_update(AF_INET, ip4, other, "eth0", old, &ols) !=
+		    EVENT_NEW) {
+			fprintf(stderr, "FAIL: entry moved to capped MAC "
+			    "was kept\n");
+			exit(1);
+		}
+	}
+
 	db_free();
+}
+
+static void
+test_mac_cap_load(void)
+{
+	FILE *fp;
+	int r;
+
+	/* a file written before the cap existed may hold more addresses
+	 * under one MAC; only MAX_PER_MAC of them are loaded */
+	fp = fopen(TEST_TMP, "w");
+	if (!fp) {
+		perror(TEST_TMP);
+		exit(1);
+	}
+	for (int i = 0; i < MAX_PER_MAC + 40; i++)
+		fprintf(fp, "10.2.%d.%d,02:00:00:00:00:99,eth0,"
+		    "2026-01-01T00:00:00,2026-01-02T00:00:00\n",
+		    i / 250, 1 + i % 250);
+	fclose(fp);
+
+	db_init();
+	r = db_load(TEST_TMP);
+	db_free();
+	unlink(TEST_TMP);
+
+	if (r != MAX_PER_MAC) {
+		fprintf(stderr, "FAIL: load kept %d entries under one MAC, "
+		    "want %d\n", r, MAX_PER_MAC);
+		exit(1);
+	}
 }
 
 static void
@@ -399,6 +464,7 @@ main(void)
 	test_fifo_rejected();
 	test_mac_index();
 	test_mac_cap();
+	test_mac_cap_load();
 	test_nonexistent();
 	test_oversized_line();
 	test_embedded_nul_line();

@@ -657,6 +657,16 @@ capture_is_local_fresh(const char *iface, int af, const uint8_t *ip)
 	return capture_is_local(iface, af, ip);
 }
 
+static int
+is_vlan_parent(const char *name, char parents[][32], int count)
+{
+	for (int i = 0; i < count; i++) {
+		if (strcmp(name, parents[i]) == 0)
+			return 1;
+	}
+	return 0;
+}
+
 #if defined(__linux__)
 int
 capture_parse_vlan_parents(const char *path,
@@ -679,14 +689,7 @@ capture_parse_vlan_parents(const char *path,
 			continue;
 
 		/* deduplicate */
-		int dup = 0;
-		for (int i = 0; i < count; i++) {
-			if (strcmp(parents[i], parent) == 0) {
-				dup = 1;
-				break;
-			}
-		}
-		if (!dup) {
+		if (!is_vlan_parent(parent, parents, count)) {
 			snprintf(parents[count], 32, "%s", parent);
 			count++;
 		}
@@ -728,16 +731,8 @@ find_vlan_parents(const pcap_if_t *alldevs, char parents[][32], int max)
 		if (ifp.ifp_parent[0] == '\0')
 			continue;
 
-		int dup = 0;
-		for (int i = 0; i < count; i++) {
-			if (strcmp(parents[i], ifp.ifp_parent) == 0) {
-				dup = 1;
-				break;
-			}
-		}
-		if (!dup) {
-			snprintf(parents[count], 32, "%s",
-			    ifp.ifp_parent);
+		if (!is_vlan_parent(ifp.ifp_parent, parents, count)) {
+			snprintf(parents[count], 32, "%s", ifp.ifp_parent);
 			count++;
 		}
 	}
@@ -767,16 +762,8 @@ find_vlan_parents(const pcap_if_t *alldevs, char parents[][32], int max)
 		if (vreq.vlr_parent[0] == '\0')
 			continue;
 
-		int dup = 0;
-		for (int i = 0; i < count; i++) {
-			if (strcmp(parents[i], vreq.vlr_parent) == 0) {
-				dup = 1;
-				break;
-			}
-		}
-		if (!dup) {
-			snprintf(parents[count], 32, "%s",
-			    vreq.vlr_parent);
+		if (!is_vlan_parent(vreq.vlr_parent, parents, count)) {
+			snprintf(parents[count], 32, "%s", vreq.vlr_parent);
 			count++;
 		}
 	}
@@ -862,16 +849,6 @@ sysfs_net_has(const char *name, const char *attr)
 	return stat(path, &st) == 0;
 }
 #endif
-
-static int
-is_vlan_parent(const char *name, char parents[][32], int count)
-{
-	for (int i = 0; i < count; i++) {
-		if (strcmp(name, parents[i]) == 0)
-			return 1;
-	}
-	return 0;
-}
 
 int
 capture_open_all(struct iface *ifaces, int max)

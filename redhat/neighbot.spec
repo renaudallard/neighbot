@@ -22,9 +22,10 @@ beyond libpcap.
 
 %build
 # set_build_flags exports the distro LDFLAGS (hardening, PIE on EL9),
-# which the Makefile appends to; CFLAGS is passed as before
+# which the Makefile appends to. CFLAGS replaces the Makefile's, so keep
+# its stack protector level: SUSE optflags only have -fstack-protector.
 %{?set_build_flags}
-make %{?_smp_mflags} CFLAGS="%{optflags}"
+make %{?_smp_mflags} CFLAGS="%{optflags} -fstack-protector-strong"
 
 %install
 rm -rf $RPM_BUILD_ROOT

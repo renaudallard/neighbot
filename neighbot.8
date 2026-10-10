@@ -297,8 +297,9 @@ memory exhaustion from spoofed traffic.
 .Sh SIGNALS
 .Bl -tag -width SIGTERM
 .It Dv SIGHUP
-Save the database to disk, clear any active storm suppression and
-re-read the interface addresses.
+Save the database to disk (no sooner than 10 seconds after the previous
+save), clear any active storm suppression and re-read the interface
+addresses.
 .It Dv SIGTERM , Dv SIGINT
 Save the database and exit.
 .It Dv SIGUSR1

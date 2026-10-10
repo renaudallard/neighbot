@@ -378,7 +378,7 @@ save would write over the file.
 
 | Signal | Action |
 |--------|--------|
-| `SIGHUP` | Save database to disk, clear storm suppression and re-read interface addresses |
+| `SIGHUP` | Save database to disk (no sooner than 10 seconds after the previous save), clear storm suppression and re-read interface addresses |
 | `SIGTERM` / `SIGINT` | Save database and exit |
 | `SIGUSR1` | Dump active probe state to the log |
 | `SIGPIPE` | Ignored |

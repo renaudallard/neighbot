@@ -10,6 +10,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <arpa/inet.h>
 #include <pcap.h>
 
@@ -603,6 +605,80 @@ test_three_mac_storm(void)
 	cfg.quiet = saved_quiet;
 }
 
+/* Neighbor Advertisement for target, Target LLA option set to mac */
+static void
+feed_na(const uint8_t *mac, const char *target)
+{
+	uint8_t pkt[86];
+
+	memset(pkt, 0, sizeof(pkt));
+	pkt[0] = 0x33; pkt[1] = 0x33; pkt[5] = 0x01;
+	memcpy(pkt + 6, mac, 6);
+	pkt[12] = 0x86; pkt[13] = 0xdd;
+	pkt[14] = 0x60;
+	pkt[19] = 32;                            /* payload: 24 NA + 8 option */
+	pkt[20] = 58;
+	pkt[21] = 255;
+	inet_pton(AF_INET6, target, pkt + 22);   /* src = target */
+	pkt[38] = 0xff; pkt[39] = 0x02; pkt[53] = 0x01;
+	pkt[54] = 136;
+	pkt[58] = 0x20;                          /* O flag */
+	inet_pton(AF_INET6, target, pkt + 62);
+	pkt[78] = 2; pkt[79] = 1;
+	memcpy(pkt + 80, mac, 6);
+	feed(pkt, sizeof(pkt));
+}
+
+/* A spoofed new temporary address from the owner's MAC must not clear
+ * the owner's idle address, or another MAC with a temporary address in
+ * the same /64 could take it over as a "new temporary" without any
+ * changed alert. */
+static void
+test_temp_takeover(void)
+{
+	const uint8_t owner[6] = { 0x02, 0, 0, 0, 0, 0x0a };
+	const uint8_t attacker[6] = { 0x02, 0, 0, 0, 0, 0x0b };
+	const char *path = "tmp/test_parse_takeover.csv";
+	int saved_quiet = cfg.quiet;
+	FILE *fp;
+
+	mkdir("tmp", 0755);
+	fp = fopen(path, "w");
+	if (!fp) {
+		perror(path);
+		exit(1);
+	}
+	/* owner's address and the attacker's temporary, both long idle */
+	fprintf(fp, "fd00::aaaa:1,02:00:00:00:00:0a,test0,"
+	    "2020-01-01T00:00:00,2020-01-02T00:00:00\n"
+	    "fd00::bbbb:1,02:00:00:00:00:0b,test0,"
+	    "2020-01-01T00:00:00,2020-01-02T00:00:00\n");
+	fclose(fp);
+
+	db_free();
+	db_init();
+	if (db_load(path) != 2) {
+		fprintf(stderr, "FAIL: takeover fixture did not load\n");
+		exit(1);
+	}
+	unlink(path);
+
+	cfg.quiet = 0;
+	notify_changed_calls = 0;
+	feed_na(owner, "fd00::aaaa:2");          /* spoofed rotation */
+	feed_na(attacker, "fd00::aaaa:1");       /* claim the owner's IP */
+	if (notify_changed_calls != 1) {
+		fprintf(stderr, "FAIL: takeover after a spoofed rotation "
+		    "raised %d changed alerts, want 1\n",
+		    notify_changed_calls);
+		exit(1);
+	}
+
+	cfg.quiet = saved_quiet;
+	db_free();
+	db_init();
+}
+
 static void
 test_truncated(void)
 {
@@ -646,6 +722,7 @@ main(void)
 	test_ndp_ra_withdraw_no_l_flag();
 	test_ndp_hlim();
 	test_three_mac_storm();
+	test_temp_takeover();
 	test_truncated();
 
 	/* reset and run batch */

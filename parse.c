@@ -225,21 +225,18 @@ handle_event(int event, int af, const uint8_t *ip, const uint8_t *mac,
 		/* detect temporary IPv6 address rotation: if this
 		 * non-EUI-64 address shares a /64 with an existing
 		 * non-EUI-64 entry for this MAC, suppress "new
-		 * station" and let probing report "moved" instead */
+		 * station". Older temporaries are not dropped here: a
+		 * spoofed new address from the owner's MAC would
+		 * otherwise remove the owner's entry, letting another
+		 * MAC take it over as a new address without a changed
+		 * alert. The stale-temporary sweep reaps them. */
 		int temp_rotate = (af == AF_INET6 &&
 		    !is_eui64(ip, mac) &&
 		    db_has_temp_in_prefix(mac, ip));
 
 		if (temp_rotate) {
-			int dropped = db_drop_temp_in_prefix(mac, ip,
-			    TEMP_ROTATE_IDLE);
-
 			log_msg("new temporary %s %s on %s", ipstr, macstr,
 			    iface);
-			if (dropped > 0)
-				log_msg("dropped %d obsolete temporary "
-				    "address(es) for %s on %s",
-				    dropped, macstr, iface);
 		} else {
 			log_msg("new station %s %s on %s",
 			    ipstr, macstr, iface);

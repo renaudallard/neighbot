@@ -198,10 +198,12 @@ Disable probing with `-p` for purely passive monitoring.
 **IPv6 temporary addresses (RFC 4941):** When a device using privacy
 extensions rotates its temporary address, neighbot detects that the same
 MAC already has a non-EUI-64 address in the same /64 prefix and suppresses
-the "new station" email. Prior non-EUI-64 entries in that /64 that have
-gone idle are silently dropped from the database, while an address still
-in active use is kept. This also covers link-local address rotation
-(common on devices with randomized MACs). At most 256 addresses per MAC
+the "new station" email. Older temporary addresses are not dropped at that
+point, since a spoofed address from the owner's MAC could otherwise clear
+the way for another MAC to take one over unreported; they are reaped by the
+stale non-EUI-64 sweep below. This also covers link-local address rotation
+(common on devices with randomized MACs), although link-local entries are
+only removed by `-e` idle expiration. At most 256 addresses per MAC
 are tracked; a flood of addresses under one MAC beyond that is ignored
 (logged once), which a legitimate neighbor never reaches. An address moving
 to a MAC already at the limit is still reported as changed but keeps its
@@ -216,7 +218,6 @@ neighbot removes entries it knows are no longer valid:
 | Source | Trigger | Notification |
 |--------|---------|--------------|
 | Probe timeout | Old IP no longer responds at the recorded MAC after a probe fires | "moved" email |
-| Temp address rotation | New non-EUI-64 IPv6 address arrives in a /64 prefix the MAC already uses | silent (logged only) |
 | Stale non-EUI-64 IPv6 | Non-EUI-64, non-link-local IPv6 entry unseen for more than 7 days, checked once per hour | silent (logged only) |
 | Idle expiration (`-e days`) | `last_seen` older than `days` days, checked once per hour | silent (logged only) |
 

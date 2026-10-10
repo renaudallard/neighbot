@@ -124,31 +124,6 @@ mac_unlink(struct entry *e)
 	e->mac_prev = NULL;
 }
 
-/*
- * Unlink e from its (iface, af, ip) bucket chain. Walks the bucket to
- * find e's predecessor, so it is O(bucket length); used on the rare
- * removal path that iterates the MAC chain and so does not already hold
- * that predecessor. The bucket chains are bounded by the load factor.
- */
-static void
-bucket_remove(struct entry *e)
-{
-	unsigned idx = hash_key(e->iface, e->af, e->ip);
-	struct entry *prev = NULL;
-
-	for (struct entry *b = buckets[idx]; b; prev = b, b = b->next) {
-		if (b == e) {
-			if (prev)
-				prev->next = e->next;
-			else
-				buckets[idx] = e->next;
-			e->next = NULL;
-			return;
-		}
-	}
-}
-
-
 void
 format_mac(const uint8_t *mac, char *buf, size_t len)
 {
@@ -729,40 +704,6 @@ db_delete(int af, const uint8_t *ip, const uint8_t *mac, const char *iface)
 	return 0;
 }
 
-/* Remove same-MAC non-EUI-64 IPv6 entries that share the /64 with ip6,
- * excluding ip6 itself and any sibling still seen within idle_secs.  An
- * address that is still transmitting during the RFC 4941 overlap window
- * is not obsolete, and dropping it would make its next packet look like a
- * new station, ping-ponging the two addresses.  Returns the count removed. */
-int
-db_drop_temp_in_prefix(const uint8_t *mac, const uint8_t *ip6, time_t idle_secs)
-{
-	time_t now = time(NULL);
-	int removed = 0;
-	struct entry *e = mac_buckets[mac_hash(mac)];
-
-	/* walk only this MAC's chain (bounded by MAX_PER_MAC) rather than the
-	 * whole table, so a temp-rotation flood cannot make this O(entries) */
-	while (e) {
-		struct entry *next = e->mac_next;
-
-		if (e->af == AF_INET6 &&
-		    memcmp(e->mac, mac, 6) == 0 &&
-		    memcmp(e->ip, ip6, 8) == 0 &&
-		    memcmp(e->ip, ip6, 16) != 0 &&
-		    !is_eui64(e->ip, mac) &&
-		    now - e->last_seen > idle_secs) {
-			bucket_remove(e);
-			mac_unlink(e);
-			free(e);
-			entry_count--;
-			removed++;
-		}
-		e = next;
-	}
-	return removed;
-}
-
 /* Remove entries whose last_seen is older than idle_secs.
  * Returns the number of entries removed. */
 int
@@ -802,9 +743,9 @@ db_expire(time_t idle_secs)
 }
 
 /* Remove non-EUI-64, non-link-local IPv6 entries idle for longer than
- * idle_secs.  Reaps stale RFC 4941 temporary addresses left behind when
- * db_drop_temp_in_prefix has no chance to fire (device offline, prefix
- * change, or probing disabled).  Returns the number of entries removed. */
+ * idle_secs.  Reaps stale RFC 4941 temporary addresses left behind by
+ * address rotation, an offline device or a prefix change.  Returns the
+ * number of entries removed. */
 int
 db_expire_temp(time_t idle_secs)
 {

@@ -106,9 +106,12 @@ jobs:
               return None
 
           def latest_ubuntu_non_lts():
+              # between two interim releases none may be supported;
+              # return nothing then, and the build job is skipped,
+              # rather than "latest", which is the LTS built again
               v = _ubuntu_pick("https://changelogs.ubuntu.com/meta-release",
                                want_lts=False)
-              return v if v else "latest"
+              return v if v else ""
 
           def latest_ubuntu_lts():
               v = _ubuntu_pick(
@@ -395,6 +398,7 @@ jobs:
 
   build-deb-ubuntu-stable:
     name: Build .deb (Ubuntu Stable)
+    if: ${{ needs.detect-versions.outputs.ubuntu_stable != '' }}
     runs-on: ubuntu-latest
     needs:
       - detect-versions

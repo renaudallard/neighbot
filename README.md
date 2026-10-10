@@ -99,7 +99,7 @@ and attached as release assets. Supported distributions:
 
 | Format | Distributions |
 |--------|---------------|
-| `.deb` | Ubuntu (stable, LTS), Debian (stable, oldstable) |
+| `.deb` | Ubuntu (latest supported interim release, if any, and LTS), Debian (stable, oldstable) |
 | `.rpm` | Fedora, Rocky Linux (2 versions), openSUSE Leap, SUSE BCI |
 | `.apk` | Alpine Linux |
 | `.tgz` | OpenBSD (2 latest supported releases) |

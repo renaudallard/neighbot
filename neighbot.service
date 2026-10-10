@@ -1,6 +1,7 @@
 [Unit]
 Description=Network neighbor monitoring daemon
-After=network.target
+Wants=network-online.target
+After=network-online.target
 
 [Service]
 Type=simple

@@ -403,6 +403,7 @@ On OpenBSD, neighbot additionally restricts itself using `pledge(2)` and
 |------|--------|--------|
 | Quiet (`-q`) | `stdio rpath wpath cpath route` | DB directory only |
 | With email | `stdio rpath wpath cpath route proc exec dns` | disabled |
+| Report (`-r`) | `stdio`, or `stdio proc exec` with `-m` | not used |
 
 All pcap/BPF handles are opened before pledge, so no `bpf` promise is needed.
 `route` lets `getifaddrs(3)` re-read the interface addresses every minute.

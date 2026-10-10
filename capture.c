@@ -310,6 +310,14 @@ fill_local_subnets(struct iface *ifaces, int count)
 			continue;
 		}
 
+		/* skip link-local subnets: link-local sources are accepted
+		 * before any subnet check, so such an entry never matches and
+		 * would only make an interface with no other address look as
+		 * if it had a configured subnet */
+		if ((af == AF_INET && IS_LINKLOCAL4(addr)) ||
+		    (af == AF_INET6 && IS_LINKLOCAL6(addr)))
+			continue;
+
 		/* only track subnets for monitored interfaces */
 		for (int i = 0; i < count; i++) {
 			if (strcmp(ifaces[i].name, ifa->ifa_name) == 0) {

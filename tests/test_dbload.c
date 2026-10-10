@@ -379,6 +379,29 @@ test_mac_cap_load(void)
 	}
 }
 
+/* rows dated before the epoch are skipped */
+static void
+test_pre_epoch(void)
+{
+	int r;
+
+	write_file(TEST_TMP,
+	    "10.4.0.1,02:00:00:00:00:01,eth0,"
+	    "1950-01-01T00:00:00,1950-01-02T00:00:00\n"
+	    "10.4.0.2,02:00:00:00:00:02,eth0,"
+	    "2026-01-01T00:00:00,2026-01-02T00:00:00\n");
+
+	db_init();
+	r = db_load(TEST_TMP);
+	db_free();
+	unlink(TEST_TMP);
+
+	if (r != 1) {
+		fprintf(stderr, "FAIL: pre-epoch row: loaded %d, want 1\n", r);
+		exit(1);
+	}
+}
+
 /* a row whose interface field holds control bytes is skipped */
 static void
 test_control_bytes_iface(void)
@@ -490,6 +513,7 @@ main(void)
 	test_mac_cap();
 	test_mac_cap_load();
 	test_control_bytes_iface();
+	test_pre_epoch();
 	test_nonexistent();
 	test_oversized_line();
 	test_embedded_nul_line();

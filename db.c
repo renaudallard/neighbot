@@ -350,6 +350,12 @@ db_load(const char *path)
 			continue;
 		last_seen = mktime(&tm);
 
+		/* a time before the epoch, or one mktime() cannot represent
+		 * (-1), would make later "now - last_seen" overflow where
+		 * time_t is 32 bits; neighbot never writes such a row */
+		if (first_seen < 0 || last_seen < 0)
+			continue;
+
 		e = calloc(1, sizeof(*e));
 		if (!e) {
 			log_err("db_load: out of memory");

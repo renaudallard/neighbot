@@ -57,6 +57,18 @@ struct probe {
 
 static struct probe probes[PROBE_MAX_SLOTS];
 
+/* Probe timeouts use the monotonic clock so a wall-clock step cannot
+ * stall a probe or cut its wait short. */
+static time_t
+mono_now(void)
+{
+	struct timespec ts;
+
+	if (clock_gettime(CLOCK_MONOTONIC, &ts) < 0)
+		return time(NULL);
+	return ts.tv_sec;
+}
+
 /* Build ARP request: 42 bytes total.
  * spa=src_ip, tpa=target IP. src_mac is the interface's local MAC. */
 int
@@ -314,7 +326,7 @@ send_probe(struct probe *p, struct iface *ifp)
 void
 probe_tick(struct iface *ifaces, int nifaces)
 {
-	time_t now = time(NULL);
+	time_t now = mono_now();
 
 	for (int i = 0; i < PROBE_MAX_SLOTS; i++) {
 		struct probe *p = &probes[i];
@@ -364,9 +376,9 @@ probe_tick(struct iface *ifaces, int nifaces)
 				p->active = 0;
 				continue;
 			}
-			p->tries++;
-			if (p->first_sent == 0)
+			if (p->tries == 0)
 				p->first_sent = now;
+			p->tries++;
 			p->last_sent = now;
 		}
 	}
@@ -375,7 +387,7 @@ probe_tick(struct iface *ifaces, int nifaces)
 void
 probe_dump(void)
 {
-	time_t now = time(NULL);
+	time_t now = mono_now();
 	int active = 0;
 
 	for (int i = 0; i < PROBE_MAX_SLOTS; i++) {
@@ -390,7 +402,7 @@ probe_dump(void)
 		format_mac(p->mac, macstr, sizeof(macstr));
 		log_msg("probe[%d]: %s %s tries=%d age=%lds on %s",
 		    i, ipstr, macstr, p->tries,
-		    p->first_sent ? (long)(now - p->first_sent) : 0L,
+		    p->tries ? (long)(now - p->first_sent) : 0L,
 		    p->iface);
 		active++;
 	}

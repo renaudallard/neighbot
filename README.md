@@ -82,9 +82,9 @@ make oui-update            # re-download oui.txt (then make install)
 
 Installs to `/usr/local/sbin` by default, with the manual page under
 `PREFIX/share/man` (`PREFIX/man` on OpenBSD and NetBSD, where `man` looks
-for it). Override with `PREFIX`, `BINDIR` or `MANDIR`. `DBDIR` (default
-`/var/neighbot`) sets the database directory built into the binary and
-where `oui.txt` is installed:
+for it). Override with `PREFIX`, `BINDIR` or `MANDIR`. The database
+directory is always `/var/neighbot`; use `-f` and `-o` to keep the files
+elsewhere:
 
 ```sh
 sudo make PREFIX=/usr install

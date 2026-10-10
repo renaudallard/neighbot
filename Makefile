@@ -4,7 +4,6 @@ _MANSUB != case "$$(uname -s)" in OpenBSD|NetBSD) echo man ;; *) echo share/man 
 PREFIX  ?= /usr/local
 BINDIR  ?= $(PREFIX)/sbin
 MANDIR  ?= $(PREFIX)/$(_MANSUB)
-DBDIR   ?= /var/neighbot
 
 CC      ?= cc
 CFLAGS  ?= -O2 -pipe
@@ -23,7 +22,8 @@ _STD = -std=c11
 _GNU_SOURCE != [ "$$(uname -s)" = Linux ] && echo -D_GNU_SOURCE || true
 _ALIAS = -fno-strict-aliasing
 _LIBS = -lpcap
-_DEFS = -DDEFAULT_DBDIR='"$(DBDIR)"'
+# fixed in neighbot.h (DEFAULT_DBDIR); -f and -o relocate the files
+_DBDIR = /var/neighbot
 
 SRCS = neighbot.c log.c db.c parse.c notify.c capture.c oui.c probe.c
 OBJS = $(SRCS:.c=.o)
@@ -36,7 +36,7 @@ $(BIN): $(OBJS)
 	$(CC) $(OBJS) $(LDFLAGS) $(_LIBS) -o $@
 
 .c.o:
-	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(_DEFS) $(CFLAGS) -MMD -MP -c $<
+	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(CFLAGS) -MMD -MP -c $<
 
 -include $(DEPS)
 
@@ -64,8 +64,8 @@ install: $(BIN) oui.txt
 	install -m 755 $(BIN) $(DESTDIR)$(BINDIR)/$(BIN)
 	install -d $(DESTDIR)$(MANDIR)/man8
 	install -m 644 neighbot.8 $(DESTDIR)$(MANDIR)/man8/neighbot.8
-	install -d $(DESTDIR)$(DBDIR)
-	install -m 644 oui.txt $(DESTDIR)$(DBDIR)/oui.txt
+	install -d $(DESTDIR)$(_DBDIR)
+	install -m 644 oui.txt $(DESTDIR)$(_DBDIR)/oui.txt
 
 # the unit and rc script name /usr/local/sbin; point them at BINDIR
 install-systemd: install
@@ -83,7 +83,7 @@ install-rcd: install
 uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/$(BIN)
 	rm -f $(DESTDIR)$(MANDIR)/man8/neighbot.8
-	rm -f $(DESTDIR)$(DBDIR)/oui.txt
+	rm -f $(DESTDIR)$(_DBDIR)/oui.txt
 	rm -f $(DESTDIR)/etc/systemd/system/neighbot.service
 	rm -f $(DESTDIR)/etc/rc.d/neighbot
 

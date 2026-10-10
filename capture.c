@@ -717,8 +717,9 @@ find_vlan_parents(const pcap_if_t *alldevs, char parents[][32], int max)
 	for (dev = alldevs; dev && count < max; dev = dev->next) {
 		struct if_parent ifp;
 
-		/* only consider actual VLAN interfaces */
-		if (strncmp(dev->name, "vlan", 4) != 0)
+		/* only consider VLAN interfaces: vlan(4) and svlan(4) */
+		if (strncmp(dev->name, "vlan", 4) != 0 &&
+		    strncmp(dev->name, "svlan", 5) != 0)
 			continue;
 
 		memset(&ifp, 0, sizeof(ifp));

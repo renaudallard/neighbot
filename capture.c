@@ -813,18 +813,17 @@ filter_assigned_parents(char parents[][32], int count)
 }
 
 #if defined(__linux__)
-/* A bridge port or bonding slave hands its frames up to the bridge or
- * bond device, which is monitored itself; capturing on both would
- * report every station twice. */
+/* A bonding slave hands its frames up to the bond device, which is
+ * monitored itself; capturing on both would report every station
+ * twice. Bridge ports are kept: the bridge device, opened without
+ * promiscuous mode, does not see unicast frames forwarded between
+ * ports, such as a spoofed ARP reply sent to one host. */
 static int
-is_enslaved(const char *name)
+is_bond_slave(const char *name)
 {
 	char path[128];
 	struct stat st;
 
-	snprintf(path, sizeof(path), "/sys/class/net/%s/brport", name);
-	if (stat(path, &st) == 0)
-		return 1;
 	snprintf(path, sizeof(path), "/sys/class/net/%s/bonding_slave", name);
 	return stat(path, &st) == 0;
 }
@@ -877,11 +876,10 @@ capture_open_all(struct iface *ifaces, int max)
 		}
 
 #if defined(__linux__)
-		/* skip bridge ports and bond slaves when monitoring all
-		 * interfaces; the bridge or bond device is monitored */
-		if (!cfg.iface && is_enslaved(dev->name)) {
-			log_msg("skipping %s (bridge port or bond slave)",
-			    dev->name);
+		/* skip bond slaves when monitoring all interfaces; the bond
+		 * device is monitored */
+		if (!cfg.iface && is_bond_slave(dev->name)) {
+			log_msg("skipping %s (bond slave)", dev->name);
 			continue;
 		}
 #endif

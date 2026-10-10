@@ -194,62 +194,6 @@ format_delta(time_t delta, char *buf, size_t len)
 		    d / 86400 == 1 ? "" : "s");
 }
 
-static void
-send_mail(const char *subject, const char *body)
-{
-	int pfd[2];
-	pid_t pid;
-
-	if (pipe(pfd) < 0) {
-		log_err("notify: pipe: %s", strerror(errno));
-		return;
-	}
-
-	pid = fork();
-	if (pid < 0) {
-		log_err("notify: fork: %s", strerror(errno));
-		close(pfd[0]);
-		close(pfd[1]);
-		return;
-	}
-
-	if (pid == 0) {
-		/* child */
-		close(pfd[1]);
-		if (dup2(pfd[0], STDIN_FILENO) < 0)
-			_exit(127);
-		if (pfd[0] != STDIN_FILENO)
-			close(pfd[0]);
-
-		/* close inherited fds (pcap handles) before exec */
-		close_inherited_fds();
-
-		execl(cfg.sendmail, "sendmail", "-t", (char *)NULL);
-		_exit(127);
-	}
-
-	/* parent */
-	close(pfd[0]);
-
-	dprintf(pfd[1], "To: %s\n", cfg.mailto);
-	dprintf(pfd[1], "Subject: %s\n", subject);
-	dprintf(pfd[1], "Content-Type: text/plain; charset=utf-8\n");
-	dprintf(pfd[1], "\n");
-	dprintf(pfd[1], "%s", body);
-	close(pfd[1]);
-
-	int status;
-	while (waitpid(pid, &status, 0) < 0) {
-		if (errno == EINTR)
-			continue;
-		log_err("notify: waitpid: %s", strerror(errno));
-		return;
-	}
-	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
-		log_err("notify: sendmail exited with status %d",
-		        WIFEXITED(status) ? WEXITSTATUS(status) : -1);
-}
-
 static pid_t report_child;
 
 FILE *
@@ -323,6 +267,19 @@ notify_report_close(FILE *fp)
 		return -1;
 	}
 	return 0;
+}
+
+/* Mail subject and body through sendmail. Runs in a notification child,
+ * which has its own report_child. */
+static void
+send_mail(const char *subject, const char *body)
+{
+	FILE *fp = notify_report_open(subject);
+
+	if (fp == NULL)
+		return;
+	fputs(body, fp);
+	notify_report_close(fp);
 }
 
 void

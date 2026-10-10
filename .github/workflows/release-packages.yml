@@ -51,12 +51,10 @@ jobs:
       debian_stable: ${{ steps.detect.outputs.debian_stable }}
       debian_oldstable: ${{ steps.detect.outputs.debian_oldstable }}
       fedora_release: ${{ steps.detect.outputs.fedora_release }}
-      rocky_release: ${{ steps.detect.outputs.rocky_release }}
       rocky_previous: ${{ steps.detect.outputs.rocky_previous }}
       rocky_latest: ${{ steps.detect.outputs.rocky_latest }}
       rocky_container_previous: ${{ steps.detect.outputs.rocky_container_previous }}
       rocky_container_latest: ${{ steps.detect.outputs.rocky_container_latest }}
-      rocky_releases: ${{ steps.detect.outputs.rocky_releases }}
       opensuse_leap: ${{ steps.detect.outputs.opensuse_leap }}
       suse_bci: ${{ steps.detect.outputs.suse_bci }}
       alpine_release: ${{ steps.detect.outputs.alpine_release }}
@@ -345,7 +343,6 @@ jobs:
           rocky_latest = rocky_releases[-1]
           rocky_previous = rocky_releases[-2] if len(rocky_releases) > 1 else rocky_releases[-1]
           rocky_container_latest, rocky_container_previous = rocky_container_tags(rocky_releases, count=2)
-          rocky_release = rocky_latest
           opensuse_leap = latest_opensuse_leap()
           suse_bci = latest_suse_bci()
           alpine_release = latest_alpine_release()
@@ -357,12 +354,10 @@ jobs:
               fh.write(f"debian_stable={debian_stable}\n")
               fh.write(f"debian_oldstable={debian_oldstable}\n")
               fh.write(f"fedora_release={fedora_release}\n")
-              fh.write(f"rocky_release={rocky_release}\n")
               fh.write(f"rocky_previous={rocky_previous}\n")
               fh.write(f"rocky_latest={rocky_latest}\n")
               fh.write(f"rocky_container_latest={rocky_container_latest}\n")
               fh.write(f"rocky_container_previous={rocky_container_previous}\n")
-              fh.write(f"rocky_releases={json.dumps(rocky_releases)}\n")
               fh.write(f"opensuse_leap={opensuse_leap}\n")
               fh.write(f"suse_bci={suse_bci}\n")
               fh.write(f"alpine_release={alpine_release}\n")

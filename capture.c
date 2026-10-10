@@ -980,17 +980,17 @@ capture_open_all(struct iface *ifaces, int max)
 		    "not monitored", max);
 
 	pcap_freealldevs(alldevs);
-	fill_local_macs(ifaces, count);
 	capture_refresh_addrs(ifaces, count);
 	return count;
 }
 
-/* Re-read the subnets and addresses of the monitored interfaces, so
- * addresses assigned or changed after startup (DHCP, SLAAC,
- * renumbering) are taken into account. */
+/* Re-read the MACs, subnets and addresses of the monitored interfaces,
+ * so changes made after startup (DHCP, SLAAC, renumbering, a new MAC
+ * address) are taken into account; probes are built from these. */
 void
 capture_refresh_addrs(struct iface *ifaces, int count)
 {
+	fill_local_macs(ifaces, count);
 	fill_local_subnets(ifaces, count);
 	fill_local_ips(ifaces, count);
 }

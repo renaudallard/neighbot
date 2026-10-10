@@ -199,6 +199,24 @@ dbdir_from_path(const char *path, char *dir, size_t dirlen)
 		snprintf(dir, dirlen, ".");
 }
 
+/* Parse "xx:xx:xx:xx:xx:xx" into mac. Returns 0, or -1 if malformed,
+ * in which case mac may be partly written. */
+static int
+parse_mac(const char *s, uint8_t *mac)
+{
+	unsigned m[6];
+
+	if (sscanf(s, "%x:%x:%x:%x:%x:%x",
+	    &m[0], &m[1], &m[2], &m[3], &m[4], &m[5]) != 6)
+		return -1;
+	for (int i = 0; i < 6; i++) {
+		if (m[i] > 0xff)
+			return -1;
+		mac[i] = (uint8_t)m[i];
+	}
+	return 0;
+}
+
 int
 db_load(const char *path)
 {
@@ -313,17 +331,9 @@ db_load(const char *path)
 		if (dup)
 			continue;
 
-		/* parse MAC */
-		unsigned m[6];
 		uint8_t mac[6];
-		if (sscanf(macstr, "%x:%x:%x:%x:%x:%x",
-		           &m[0], &m[1], &m[2], &m[3], &m[4], &m[5]) != 6)
+		if (parse_mac(macstr, mac) < 0)
 			continue;
-		if (m[0] > 0xff || m[1] > 0xff || m[2] > 0xff ||
-		    m[3] > 0xff || m[4] > 0xff || m[5] > 0xff)
-			continue;
-		for (int i = 0; i < 6; i++)
-			mac[i] = (uint8_t)m[i];
 
 		/* a file saved before the per-MAC cap existed may hold
 		 * more; keep the in-memory chains bounded */
@@ -367,19 +377,10 @@ db_load(const char *path)
 		memcpy(e->ip, ip, ilen);
 		memcpy(e->mac, mac, 6);
 
-		if (nf >= 6 && prevmacstr[0] != '\0') {
-			unsigned pm[6];
-			if (sscanf(prevmacstr,
-			    "%x:%x:%x:%x:%x:%x",
-			    &pm[0], &pm[1], &pm[2],
-			    &pm[3], &pm[4], &pm[5]) == 6 &&
-			    pm[0] <= 0xff && pm[1] <= 0xff &&
-			    pm[2] <= 0xff && pm[3] <= 0xff &&
-			    pm[4] <= 0xff && pm[5] <= 0xff) {
-				for (int i = 0; i < 6; i++)
-					e->prev_mac[i] = (uint8_t)pm[i];
-			}
-		}
+		/* a malformed previous MAC is left as zero (none) */
+		if (nf >= 6 && prevmacstr[0] != '\0' &&
+		    parse_mac(prevmacstr, e->prev_mac) < 0)
+			memset(e->prev_mac, 0, 6);
 
 		snprintf(e->iface, sizeof(e->iface), "%s", iface);
 

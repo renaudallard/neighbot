@@ -40,6 +40,8 @@
 #include <sys/stat.h>
 #include <linux/ethtool.h>
 #include <linux/if_packet.h>
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>
 #include <linux/sockios.h>
 #include <net/if.h>
 #include <stdio.h>
@@ -624,10 +626,98 @@ capture_prefix_configured(const char *iface, int af, const uint8_t *prefix,
 	return 0;
 }
 
+#if defined(__linux__)
+/*
+ * Whether the host reaches ip without a gateway through iface, or through
+ * any monitored interface when iface is NULL, as with a route added by
+ * "ip route add 198.51.100.0/24 dev eth0" and no address of the host in
+ * it: hosts resolve and cache such neighbours like those of a subnet. The
+ * kernel is asked for the route to ip alone, as "ip route get" does, which
+ * costs the same however large the routing table is. Its reply is queued
+ * before send() returns, so it is read without waiting.
+ */
+static int
+onlink_route(const char *iface, int af, const uint8_t *ip)
+{
+	struct {
+		struct nlmsghdr nh;
+		struct rtmsg    rt;
+		struct rtattr   rta;
+		uint8_t         dst[16];
+	} req;
+	union {
+		struct nlmsghdr nh;
+		char            buf[4096];
+	} resp;
+	const struct rtmsg *rt;
+	const struct rtattr *rta;
+	char name[IF_NAMESIZE];
+	int alen = ip_len(af), oif = 0, gateway = 0, attrlen, s;
+	ssize_t len;
+
+	if (iface == NULL && mon_count == 0)
+		return 0;
+	memset(&req, 0, sizeof(req));
+	req.nh.nlmsg_len = NLMSG_LENGTH(sizeof(req.rt) + RTA_LENGTH(alen));
+	req.nh.nlmsg_type = RTM_GETROUTE;
+	req.nh.nlmsg_flags = NLM_F_REQUEST;
+	req.rt.rtm_family = (unsigned char)af;
+	req.rt.rtm_dst_len = (unsigned char)(alen * 8);
+	req.rta.rta_type = RTA_DST;
+	req.rta.rta_len = RTA_LENGTH(alen);
+	memcpy(req.dst, ip, alen);
+
+	s = socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, NETLINK_ROUTE);
+	if (s < 0)
+		return 0;
+	if (send(s, &req, req.nh.nlmsg_len, 0) < 0) {
+		close(s);
+		return 0;
+	}
+	len = recv(s, &resp, sizeof(resp), MSG_DONTWAIT);
+	close(s);
+
+	/* an error, such as no route at all, is an NLMSG_ERROR reply */
+	if (len < 0 || !NLMSG_OK(&resp.nh, (unsigned)len) ||
+	    resp.nh.nlmsg_type != RTM_NEWROUTE ||
+	    resp.nh.nlmsg_len < NLMSG_LENGTH(sizeof(*rt)))
+		return 0;
+	rt = NLMSG_DATA(&resp.nh);
+	if (rt->rtm_type != RTN_UNICAST)
+		return 0;
+	attrlen = (int)RTM_PAYLOAD(&resp.nh);
+	for (rta = RTM_RTA(rt); RTA_OK(rta, attrlen);
+	    rta = RTA_NEXT(rta, attrlen)) {
+		if (rta->rta_type == RTA_GATEWAY || rta->rta_type == RTA_VIA)
+			gateway = 1;
+		else if (rta->rta_type == RTA_OIF &&
+		    RTA_PAYLOAD(rta) >= sizeof(oif))
+			memcpy(&oif, RTA_DATA(rta), sizeof(oif));
+	}
+	if (gateway || oif <= 0 || if_indextoname((unsigned)oif, name) == NULL)
+		return 0;
+	if (iface != NULL)
+		return strcmp(name, iface) == 0;
+	for (int i = 0; i < mon_count; i++) {
+		if (strcmp(mon_ifaces[i].name, name) == 0)
+			return 1;
+	}
+	return 0;
+}
+#else
+/* not looked up on the BSDs: only subnets and RA prefixes are local */
+static int
+onlink_route(const char *iface, int af, const uint8_t *ip)
+{
+	(void)iface; (void)af; (void)ip;
+	return 0;
+}
+#endif
+
 int
 capture_is_local_any(int af, const uint8_t *ip)
 {
-	return is_local(NULL, af, ip);
+	return is_local(NULL, af, ip) || onlink_route(NULL, af, ip);
 }
 
 int
@@ -673,7 +763,8 @@ capture_link_up(const char *iface)
  * capture_is_local(), but before calling an address foreign re-read the
  * interface addresses, at most once a second: an address added since the
  * last periodic refresh would otherwise make its neighbours, and the
- * host itself, look like bogons.
+ * host itself, look like bogons. Then ask the kernel whether it reaches
+ * the address on-link anyway.
  */
 int
 capture_is_local_fresh(const char *iface, int af, const uint8_t *ip)
@@ -684,11 +775,13 @@ capture_is_local_fresh(const char *iface, int af, const uint8_t *ip)
 	if (capture_is_local(iface, af, ip))
 		return 1;
 	now = mono_now();
-	if (mon_ifaces == NULL || now == last)
-		return 0;
-	last = now;
-	capture_refresh_addrs(mon_ifaces, mon_count);
-	return capture_is_local(iface, af, ip);
+	if (mon_ifaces != NULL && now != last) {
+		last = now;
+		capture_refresh_addrs(mon_ifaces, mon_count);
+		if (capture_is_local(iface, af, ip))
+			return 1;
+	}
+	return onlink_route(iface, af, ip);
 }
 
 static int

@@ -75,7 +75,23 @@
 #define BPF_NDP    "(icmp6 and ip6[40] >= 133 and ip6[40] <= 137)"
 #define BPF_EXTHDR "(ip6 and (ip6[6] == 0 or ip6[6] == 43 or ip6[6] == 60))"
 #define BPF_MATCH  "arp or " BPF_NDP " or " BPF_EXTHDR
+#if defined(__OpenBSD__)
+/* The vlan keyword of OpenBSD's libpcap keeps the offsets it shifts in
+ * static state that is never reset, so only the first filter compiled
+ * looks inside the tag; every vlan keyword tests the outer tag, and
+ * 802.1ad is unknown. Test the tags at absolute offsets instead: the
+ * match moved past one priority tag, or a second priority tag. */
+#define BPF_FILTER BPF_MATCH " or " \
+	"((ether[12:2] == 0x8100 or ether[12:2] == 0x88a8) and " \
+	"ether[14:2] & 0x0fff == 0 and (ether[16:2] == 0x0806 or " \
+	"(ether[16:2] == 0x86dd and ((ether[24] == 58 and " \
+	"ether[58] >= 133 and ether[58] <= 137) or ether[24] == 0 or " \
+	"ether[24] == 43 or ether[24] == 60)) or " \
+	"((ether[16:2] == 0x8100 or ether[16:2] == 0x88a8) and " \
+	"ether[18:2] & 0x0fff == 0)))"
+#else
 #define BPF_FILTER BPF_MATCH " or (vlan 0 and (" BPF_MATCH " or vlan 0))"
+#endif
 
 #define IS_LINKLOCAL6(ip) ((ip)[0] == 0xfe && ((ip)[1] & 0xc0) == 0x80)
 #define IS_LINKLOCAL4(ip) ((ip)[0] == 169 && (ip)[1] == 254)

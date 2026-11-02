@@ -307,11 +307,23 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now neighbot
 ```
 
-Run `sudo systemctl edit --full neighbot` to change options (e.g. add
-`-m admin@example.com` to `ExecStart`, remove `-q` to enable email). This
-works whether the unit came from `make install-systemd`
-(`/etc/systemd/system`) or from a package (`/usr/lib/systemd/system`, or
-`/lib/systemd/system` on Debian and Ubuntu).
+To change options, for example to enable email, which the unit's `-q`
+turns off, run `sudo systemctl edit neighbot` and replace the command in
+the drop-in it opens:
+
+```ini
+[Service]
+ExecStart=
+ExecStart=/usr/local/sbin/neighbot -m admin@example.com
+```
+
+The empty `ExecStart=` clears the unit's own command. Use the path that
+`systemctl cat neighbot` shows (`/usr/sbin/neighbot` for the packages,
+`/usr/bin/neighbot` on Fedora). Unlike an edit of the unit file itself,
+the drop-in is kept when the unit is installed again, by
+`make install-systemd` (`/etc/systemd/system`) or by a package
+(`/usr/lib/systemd/system`, or `/lib/systemd/system` on Debian and
+Ubuntu).
 
 </details>
 

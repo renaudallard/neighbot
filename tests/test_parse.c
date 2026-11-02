@@ -1221,6 +1221,48 @@ test_nd_code_and_checksum(void)
 	}
 }
 
+/* hosts take the Target LLA of an NA sent from :: like any other, so
+ * it must change the entry; an NS from :: is a DAD probe and records
+ * nothing */
+static void
+test_na_unspecified_source(void)
+{
+	uint8_t pkt[86], tgt[16], zero[16];
+	uint8_t real[6] = { 0x02, 0, 0, 0, 0, 0x4e };
+	uint8_t evil[6] = { 0x02, 0, 0, 0, 0, 0x4f };
+	int saved_quiet = cfg.quiet, before;
+
+	cfg.quiet = 0;
+	memset(zero, 0, sizeof(zero));
+	inet_pton(AF_INET6, "2001:db8:9::4e", tgt);
+	build_na(pkt, tgt, real);
+	feed(pkt, sizeof(pkt));
+
+	before = notify_changed_calls;
+	build_na(pkt, tgt, evil);
+	memset(pkt + 22, 0, 16);                 /* source :: */
+	feed(pkt, sizeof(pkt));
+	if (notify_changed_calls != before + 1 ||
+	    !db_known(AF_INET6, tgt, evil, "test0")) {
+		fprintf(stderr, "FAIL: NA from :: was not processed\n");
+		exit(1);
+	}
+
+	/* a DAD probe: NS from :: for the target, without an option */
+	build_na(pkt, tgt, real);
+	memset(pkt + 22, 0, 16);
+	pkt[19] = 24;
+	pkt[54] = 135;
+	pkt[58] = 0;
+	feed(pkt, 78);
+	if (db_known(AF_INET6, zero, real, "test0") ||
+	    !db_known(AF_INET6, tgt, evil, "test0")) {
+		fprintf(stderr, "FAIL: NS from :: changed the database\n");
+		exit(1);
+	}
+	cfg.quiet = saved_quiet;
+}
+
 /* hosts drop an ND message whose options are malformed: an option of
  * length 0, or a link-layer address option that is not 8 bytes long. A
  * second Target LLA option is ignored, as hosts keep the first */
@@ -1575,6 +1617,7 @@ main(void)
 	test_na_many_ext_headers();
 	test_nd_payload_length();
 	test_nd_code_and_checksum();
+	test_na_unspecified_source();
 	test_nd_bad_options();
 	test_nd_redirect();
 	test_arp_opcode();

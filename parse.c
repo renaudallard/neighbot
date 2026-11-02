@@ -839,15 +839,14 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 		mac = eth_src;
 	}
 
-	/* skip DAD probes (source ::) */
-	if (is_zero_ip6((const uint8_t *)&ip6.ip6_src))
-		return;
-
 	/* skip multicast IPs (ff00::/8) */
 	if (ip_addr[0] == 0xff)
 		return;
 
-	/* skip the unspecified address (e.g. an NA whose target is ::) */
+	/* skip the unspecified address: an NS or RS from :: (a DAD probe,
+	 * or a host without an address yet), or an NA whose target is ::.
+	 * An NA from :: is checked like any other, as hosts take its
+	 * Target LLA for the target */
 	if (is_zero_ip6(ip_addr))
 		return;
 

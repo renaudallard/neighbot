@@ -24,6 +24,24 @@ volatile sig_atomic_t  save;
 #define TEST_TMP  "tmp/test_dbload.tmp"
 #define TEST_TMP2 "tmp/test_dbload2.tmp"
 
+/* time() as db.c sees it: the real clock moved by clock_step, to step
+ * the wall clock */
+static time_t clock_step;
+
+time_t
+time(time_t *tp)
+{
+	struct timespec ts;
+	time_t t;
+
+	if (clock_gettime(CLOCK_REALTIME, &ts) < 0)
+		abort();
+	t = ts.tv_sec + clock_step;
+	if (tp != NULL)
+		*tp = t;
+	return t;
+}
+
 static void
 write_file(const char *path, const char *data)
 {
@@ -48,6 +66,36 @@ write_file_n(const char *path, const char *data, size_t len)
 	}
 	fwrite(data, 1, len, fp);
 	fclose(fp);
+}
+
+/* Copy the last_seen field of the row for ip in the file at path */
+static void
+saved_seen(const char *path, const char *ip, char *buf, size_t len)
+{
+	char line[256];
+	size_t iplen = strlen(ip);
+	FILE *fp = fopen(path, "r");
+
+	if (!fp) {
+		perror(path);
+		exit(1);
+	}
+	while (fgets(line, sizeof(line), fp)) {
+		char *p = line;
+
+		if (strncmp(line, ip, iplen) != 0 || line[iplen] != ',')
+			continue;
+		for (int i = 0; i < 4 && p != NULL; i++)
+			if ((p = strchr(p, ',')) != NULL)
+				p++;
+		if (p != NULL) {
+			snprintf(buf, len, "%.*s", (int)strcspn(p, ","), p);
+			fclose(fp);
+			return;
+		}
+	}
+	fprintf(stderr, "FAIL: no row for %s in %s\n", ip, path);
+	exit(1);
 }
 
 static void
@@ -428,8 +476,6 @@ test_control_bytes_iface(void)
 	}
 }
 
-/* a refresh of last_seen changes no event but must mark the table for
- * saving, and a save clears the mark */
 /* a station recorded 200 days ago reappears at its first sighting, and
  * not again at the next one: once seen, its silence is measured on the
  * monotonic clock */
@@ -465,6 +511,56 @@ test_reappeared(void)
 	unlink(TEST_TMP);
 }
 
+/* A wall clock still behind at a sighting, as on a board without a
+ * real-time clock before NTP sets it, does not replace the last_seen time
+ * read from the file. Once it is set right, a station first seen while it
+ * was behind does not reappear: its silence is measured on the monotonic
+ * clock. */
+static void
+test_clock_behind(void)
+{
+	uint8_t ip[4] = { 10, 0, 0, 3 }, ip2[4] = { 10, 0, 0, 4 };
+	uint8_t mac[6] = { 0xde, 0xad, 0xbe, 0xef, 0x00, 0x03 };
+	uint8_t old[6];
+	char line[160], when[32], saved[32];
+	time_t then = time(NULL) - 60, ols;
+	struct tm tm;
+
+	localtime_r(&then, &tm);
+	strftime(when, sizeof(when), "%Y-%m-%dT%H:%M:%S", &tm);
+	snprintf(line, sizeof(line), "10.0.0.3,de:ad:be:ef:00:03,eth1,"
+	    "%s,%s,00:00:00:00:00:00\n", when, when);
+	write_file(TEST_TMP, line);
+
+	db_init();
+	db_load(TEST_TMP);
+	clock_step = -365 * 24 * 3600;
+	if (db_update(AF_INET, ip, mac, "eth1", old, &ols) != 0 ||
+	    db_update(AF_INET, ip, mac, "eth1", old, &ols) != 0 ||
+	    db_update(AF_INET, ip2, mac, "eth1", old, &ols) != EVENT_NEW) {
+		fprintf(stderr, "FAIL: wrong event with the clock behind\n");
+		exit(1);
+	}
+	db_save(TEST_TMP2);
+	saved_seen(TEST_TMP2, "10.0.0.3", saved, sizeof(saved));
+	if (strcmp(saved, when) != 0) {
+		fprintf(stderr, "FAIL: a clock behind moved last_seen back "
+		    "from %s to %s\n", when, saved);
+		exit(1);
+	}
+	clock_step = 0;
+	if (db_update(AF_INET, ip2, mac, "eth1", old, &ols) != 0) {
+		fprintf(stderr, "FAIL: a station seen with the clock behind "
+		    "reappeared once it was set right\n");
+		exit(1);
+	}
+	db_free();
+	unlink(TEST_TMP);
+	unlink(TEST_TMP2);
+}
+
+/* a refresh of last_seen changes no event but must mark the table for
+ * saving, and a save clears the mark */
 static void
 test_dirty(void)
 {
@@ -596,6 +692,7 @@ main(void)
 	test_pre_epoch();
 	test_dirty();
 	test_reappeared();
+	test_clock_behind();
 	test_nonexistent();
 	test_oversized_line();
 	test_embedded_nul_line();

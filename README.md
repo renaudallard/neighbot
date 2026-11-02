@@ -493,7 +493,8 @@ Crashes and slow inputs are written to the current directory.
    priority tags (VLAN ID 0), however many are stacked, which hosts treat
    as untagged
 3. Main loop: `poll()` on all handles (1s timeout)
-4. **ARP**: extracts sender IP + MAC from requests/replies (skips probes);
+4. **ARP**: extracts sender IP + MAC from requests/replies (skips probes,
+   and other opcodes, which hosts ignore);
    hardware type 6 (IEEE 802) is accepted like Ethernet, as hosts honour it
 5. **NDP**: parses Neighbor Advertisements (type 136) and Solicitations
    (type 135) for link-layer address options (skips DAD); Router

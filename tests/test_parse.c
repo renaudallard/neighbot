@@ -1381,6 +1381,36 @@ test_nd_redirect(void)
 	cfg.quiet = saved_quiet;
 }
 
+/* hosts only process ARP requests and replies: another opcode must not
+ * change an entry */
+static void
+test_arp_opcode(void)
+{
+	uint8_t pkt[42];
+	uint8_t spa[4] = { 10, 48, 0, 1 };
+	uint8_t mac[6] = { 0x02, 0, 0, 0, 0, 0x48 };
+
+	for (int op = 0; op <= 9; op++) {
+		memset(pkt, 0, sizeof(pkt));
+		memset(pkt, 0xff, 6);
+		memcpy(pkt + 6, mac, 6);
+		pkt[12] = 0x08; pkt[13] = 0x06;
+		pkt[15] = 0x01; pkt[16] = 0x08; pkt[18] = 6; pkt[19] = 4;
+		pkt[21] = (uint8_t)op;
+		memcpy(pkt + 22, mac, 6);
+		spa[3] = (uint8_t)(1 + op);
+		memcpy(pkt + 28, spa, 4);
+		feed(pkt, sizeof(pkt));
+		if (db_known(AF_INET, spa, mac, "test0") !=
+		    (op == 1 || op == 2)) {
+			fprintf(stderr, "FAIL: ARP opcode %d %s\n", op,
+			    (op == 1 || op == 2) ? "was dropped" :
+			    "was processed");
+			exit(1);
+		}
+	}
+}
+
 /* ARP in an 802.1Q priority tag (VLAN ID 0) is processed, other VLAN
  * IDs are not */
 static void
@@ -1531,6 +1561,7 @@ main(void)
 	test_nd_code_and_checksum();
 	test_nd_bad_options();
 	test_nd_redirect();
+	test_arp_opcode();
 	test_vlan0_priority_tag();
 	test_stacked_priority_tags();
 	test_truncated();

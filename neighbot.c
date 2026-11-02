@@ -122,6 +122,25 @@ sanitise_stdfd(void)
 	}
 }
 
+/*
+ * Start from the default signal state whatever the parent left, as the
+ * mask and ignored signals survive exec: an ignored SIGCHLD makes Linux
+ * reap the children itself, so waitpid() fails and notification children
+ * are never counted as done, a blocked or ignored SIGALRM keeps the alarm
+ * from ending a stalled child, and a blocked SIGTERM keeps the daemon
+ * from stopping. Children and the sendmail they run inherit this.
+ */
+static void
+reset_signals(void)
+{
+	sigset_t none;
+
+	sigemptyset(&none);
+	sigprocmask(SIG_SETMASK, &none, NULL);
+	signal(SIGCHLD, SIG_DFL);
+	signal(SIGALRM, SIG_DFL);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -130,6 +149,7 @@ main(int argc, char *argv[])
 	int nifaces = 0, ch;
 
 	sanitise_stdfd();
+	reset_signals();
 
 	cfg.dbfile         = DEFAULT_DBFILE;
 	cfg.ouifile        = DEFAULT_OUIFILE;

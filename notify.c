@@ -116,7 +116,6 @@ notify_fork(void)
 	 * resolver or mailer instead of holding its slot for good. */
 	signal(SIGTERM, SIG_DFL);
 	signal(SIGINT, SIG_DFL);
-	signal(SIGALRM, SIG_DFL);
 	alarm(NOTIFY_TIMEOUT);
 	return 0;
 }
@@ -236,9 +235,7 @@ notify_report_open(const char *subject)
 		close_inherited_fds();
 
 		/* fork() drops a pending alarm but exec keeps one: end a
-		 * sendmail that stalls, in report mode too, even when
-		 * neighbot was started with SIGALRM ignored */
-		signal(SIGALRM, SIG_DFL);
+		 * sendmail that stalls, in report mode too */
 		alarm(NOTIFY_TIMEOUT);
 		execl(cfg.sendmail, "sendmail", "-t", (char *)NULL);
 		_exit(127);

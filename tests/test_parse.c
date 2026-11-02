@@ -1304,10 +1304,10 @@ test_nd_code_and_checksum(void)
 	}
 }
 
-/* hosts drop IPv6 packets of another version, from or to ::1, from a
- * multicast address, or to :: or a multicast address of scope 0 or 1,
- * before ND sees them; other multicast scopes and a v4-mapped source
- * are processed */
+/* every host drops IPv6 packets of another version, from ::1 or a
+ * multicast address, or to :: or a multicast address of scope 0, before
+ * ND sees them; ::1 and interface-local destinations (taken by macOS and
+ * NetBSD), other multicast scopes and a v4-mapped source are processed */
 static void
 test_nd_ip6_header(void)
 {
@@ -1320,9 +1320,9 @@ test_nd_ip6_header(void)
 		{ NULL, NULL, 0x00, 0 },
 		{ "::1", NULL, 0x60, 0 },
 		{ "ff02::1", NULL, 0x60, 0 },
-		{ NULL, "::1", 0x60, 0 },
+		{ NULL, "::1", 0x60, 1 },
 		{ NULL, "::", 0x60, 0 },
-		{ NULL, "ff01::1", 0x60, 0 },
+		{ NULL, "ff01::1", 0x60, 1 },
 		{ NULL, "ff00::1", 0x60, 0 },
 		{ NULL, "ff05::1", 0x60, 1 },
 		{ "::ffff:192.0.2.99", NULL, 0x60, 1 },

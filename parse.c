@@ -783,15 +783,16 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 		return;
 	len = sizeof(struct ip6_hdr) + ntohs(ip6.ip6_plen);
 
-	/* Hosts drop, before any ND processing, a packet of another IP
-	 * version, one from or to the loopback address, one from a
-	 * multicast address, and one to :: or to a multicast address of
-	 * scope 0 or 1, which never leaves a node (RFC 4291 2.5.3, 2.7) */
+	/* Every host drops, before any ND processing, a packet of another
+	 * IP version, one from the loopback or a multicast address, and one
+	 * to :: or to a multicast address of the reserved scope 0 (RFC 4291
+	 * 2.5.3, 2.7). One to ::1 or to an interface-local multicast address
+	 * is kept: macOS takes the first and NetBSD the second. */
 	src = (const uint8_t *)&ip6.ip6_src;
 	dst = (const uint8_t *)&ip6.ip6_dst;
 	if ((ip6.ip6_vfc & 0xf0) != 0x60 || is_loopback_ip6(src) ||
-	    is_loopback_ip6(dst) || src[0] == 0xff || is_zero_ip6(dst) ||
-	    (dst[0] == 0xff && (dst[1] & 0x0f) <= 1))
+	    src[0] == 0xff || is_zero_ip6(dst) ||
+	    (dst[0] == 0xff && (dst[1] & 0x0f) == 0))
 		return;
 
 	/* Step over hop-by-hop, routing and destination options headers:

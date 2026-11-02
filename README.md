@@ -561,8 +561,8 @@ Crashes and slow inputs are written to the current directory.
    6 bytes), advertisements to a multicast address with the Solicited
    flag, solicitations for a multicast, `::` or `::1` target, and packets
    hosts drop before ND sees them (another IP
-   version, a loopback or multicast source, a destination of `::`, `::1`
-   or a multicast scope of 0 or 1) or for their extension headers (a
+   version, a loopback or multicast source, a destination of `::` or of
+   multicast scope 0) or for their extension headers (a
    hop-by-hop header after the first, an option that runs past its header
    or asks for the packet to be discarded, a Router Alert of the wrong
    length, a routing header with segments left); stricter checks of one

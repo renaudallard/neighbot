@@ -544,8 +544,9 @@ test_ndp_ra_zero_lifetime(void)
 	}
 }
 
-/* hosts ignore a prefix option whose preferred lifetime exceeds its
- * valid one, so it neither teaches nor withdraws a prefix */
+/* a prefix option whose preferred lifetime exceeds its valid one makes
+ * the prefix on-link on FreeBSD 14, so it is learned, but as Linux and
+ * macOS ignore it, it withdraws nothing */
 static void
 test_ndp_ra_bad_lifetimes(void)
 {
@@ -566,10 +567,16 @@ test_ndp_ra_bad_lifetimes(void)
 	pkt[86] = 0x20; pkt[87] = 0x01; pkt[88] = 0x0d; pkt[89] = 0xbb;
 	feed(pkt, sizeof(pkt));
 
+	if (ra_learned_calls != before + 1) {
+		fprintf(stderr, "FAIL: prefix option with a preferred lifetime "
+		    "above the valid one was not learned\n");
+		exit(1);
+	}
+
 	pkt[76] = pkt[77] = 0;                   /* a withdrawal */
 	feed(pkt, sizeof(pkt));
-	if (ra_learned_calls != before || ra_withdraw_calls != wbefore) {
-		fprintf(stderr, "FAIL: prefix option with a preferred lifetime "
+	if (ra_withdraw_calls != wbefore) {
+		fprintf(stderr, "FAIL: withdrawal with a preferred lifetime "
 		    "above the valid one was used\n");
 		exit(1);
 	}

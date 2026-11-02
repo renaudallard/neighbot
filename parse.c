@@ -643,10 +643,13 @@ parse_ra(const uint8_t *icmp, size_t icmp_len, const char *iface,
 			 * on-link (RFC 4861 6.3.4) */
 			if (!(flags & 0x80))
 				goto next;
-			/* hosts ignore the whole option, withdrawal included,
-			 * when its preferred lifetime exceeds the valid one
-			 * (RFC 4862 5.5.3) */
-			if (preferred > valid)
+			/* Linux, macOS and current FreeBSD ignore the whole
+			 * option when its preferred lifetime exceeds the
+			 * valid one (RFC 4862 5.5.3), but FreeBSD 14 still
+			 * makes the prefix on-link from it, or withdraws it.
+			 * Learn from it, but ignore it as a withdrawal: the
+			 * other hosts keep using the prefix on-link. */
+			if (preferred > valid && valid == 0)
 				goto next;
 			if (prefix_len == 0 || prefix_len > 128)
 				goto next;

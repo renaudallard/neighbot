@@ -16,6 +16,14 @@ build() {
 	make
 }
 
+check() {
+	make test
+	for t in test_parse test_dbload test_dbexpire test_ouiload \
+	    test_probe test_capture test_notify; do
+		./tests/$t || return 1
+	done
+}
+
 package() {
 	make install PREFIX=/usr DESTDIR="$pkgdir"
 	install -d -m 755 "$pkgdir"/var/neighbot

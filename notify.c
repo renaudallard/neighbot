@@ -109,14 +109,14 @@ notify_fork(void)
 		return 1;
 	}
 
-	/* The child takes the default action on the signals the daemon
-	 * catches, so that stopping the service ends it too, and gives up
-	 * on a stalled resolver or mailer rather than hold its slot for
-	 * good. */
+	/* The child takes the default action on the signals that stop the
+	 * daemon, so that stopping the service ends it too, but keeps its
+	 * handlers for SIGHUP and SIGUSR1, which a reload with pkill also
+	 * sends it, rather than lose its mail. It gives up on a stalled
+	 * resolver or mailer instead of holding its slot for good. */
 	signal(SIGTERM, SIG_DFL);
 	signal(SIGINT, SIG_DFL);
-	signal(SIGHUP, SIG_DFL);
-	signal(SIGUSR1, SIG_DFL);
+	signal(SIGALRM, SIG_DFL);
 	alarm(NOTIFY_TIMEOUT);
 	return 0;
 }

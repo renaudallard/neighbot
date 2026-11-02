@@ -391,10 +391,11 @@ neighbot will pick up the new data on its next restart.
 
 ## Database Format
 
-Plain CSV stored at `/var/neighbot/neighbot.csv` by default:
+Plain CSV stored at `/var/neighbot/neighbot.csv` by default, one line per
+entry with the fields `ip`, `mac`, `interface`, `first_seen`, `last_seen` and
+`prev_mac`, and no header line:
 
 ```
-ip,mac,interface,first_seen,last_seen,prev_mac
 192.168.1.1,aa:bb:cc:dd:ee:ff,eth0,2026-02-23T14:30:00,2026-02-23T15:12:00,00:00:00:00:00:00
 fe80::1,11:22:33:44:55:66,eth0,2026-02-23T14:30:05,2026-02-23T15:12:05,00:00:00:00:00:00
 ```

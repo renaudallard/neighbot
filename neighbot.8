@@ -310,7 +310,8 @@ days are dropped on the next hourly sweep.
 Disabled by default.
 .El
 .Sh DATABASE FORMAT
-The database is a CSV file with the following fields:
+The database is a CSV file with one line per entry, without a header
+line, and the following fields:
 .Pp
 .D1 ip,mac,interface,first_seen,last_seen,prev_mac
 .Pp

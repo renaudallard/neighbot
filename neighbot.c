@@ -477,6 +477,16 @@ check_signals:
 				last_refresh = now;
 			}
 
+			/* The sweep runs as soon as it is due, so being an
+			 * interval late means the wall clock jumped forward:
+			 * NTP setting the clock of a board without RTC after
+			 * the start, or a resume from suspend. Stations seen
+			 * before the jump would look idle for all of it, so
+			 * restart the interval and give them time to be seen
+			 * again instead of sweeping now. */
+			if (now - last_expire >= 2 * EXPIRE_CHECK_INTERVAL)
+				last_expire = now;
+
 			/* the now < last_expire guard runs the sweep and
 			 * resets the timer after a backward wall-clock step,
 			 * instead of freezing it until real time catches up */

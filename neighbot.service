@@ -1,7 +1,7 @@
 [Unit]
 Description=Network neighbor monitoring daemon
 Wants=network-online.target
-After=network-online.target
+After=network-online.target time-sync.target
 # give up after repeated failures (an interface named with -i that is
 # gone for good, an unreadable database) instead of restarting forever
 StartLimitIntervalSec=600

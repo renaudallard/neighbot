@@ -48,6 +48,10 @@ Drop entries that have not been seen for more than
 .Ar days
 days.
 The check runs once per hour.
+When the wall clock jumps forward by more than an hour, such as when
+NTP sets the clock after the start or the host resumes from suspend,
+the next check waits another hour, so stations seen before the jump
+are not taken for idle ones.
 Set to 0 (default) to disable this expiry; non-EUI-64, non-link-local
 IPv6 entries are still dropped after 7 days unseen (see
 .Sx OBSOLETE ADDRESS CLEANUP ) .

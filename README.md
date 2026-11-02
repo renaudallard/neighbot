@@ -236,6 +236,12 @@ neighbot removes entries it knows are no longer valid:
 | Stale non-EUI-64 IPv6 | Non-EUI-64, non-link-local IPv6 entry unseen for more than 7 days, checked once per hour | silent (logged only) |
 | Idle expiration (`-e days`) | `last_seen` older than `days` days, checked once per hour | silent (logged only) |
 
+Both sweeps run once an hour. When the wall clock jumps forward by more
+than that, as when NTP sets the clock of a board without RTC after the
+start or the host resumes from suspend, the next sweep waits another hour,
+so stations seen before the jump are not taken for idle ones; the systemd
+unit also starts after `time-sync.target`.
+
 This reaping is always on so that RFC 4941 privacy addresses left behind
 by an offline device or a prefix change do not linger in the `also known
 as` line of later notifications. The test is purely the address shape:

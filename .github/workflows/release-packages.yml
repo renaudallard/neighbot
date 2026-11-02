@@ -63,15 +63,52 @@ jobs:
         run: |
           set -euo pipefail
           python - <<'PY'
+          import http.client
           import json
           import os
           import re
+          import time
+          import urllib.error
           import urllib.request
 
+          # what a lookup can fail with: the network, or a reply of another shape
+          FAILURES = (
+              OSError,
+              http.client.HTTPException,
+              ValueError,
+              LookupError,
+              TypeError,
+              AttributeError,
+          )
 
-          def fetch_text(url):
-              with urllib.request.urlopen(url, timeout=10) as resp:
-                  return resp.read().decode()
+
+          def fetch_text(url, headers=None, tries=3):
+              # These sites fail now and then, so retry a transient error a few
+              # times. An HTTP error below 500 is an answer and is not retried.
+              req = urllib.request.Request(url, headers=headers or {})
+              for attempt in range(1, tries + 1):
+                  try:
+                      with urllib.request.urlopen(req, timeout=20) as resp:
+                          return resp.read().decode()
+                  except urllib.error.HTTPError as e:
+                      if e.code < 500 or attempt == tries:
+                          raise
+                  except (OSError, http.client.HTTPException):
+                      if attempt == tries:
+                          raise
+                  time.sleep(5 * attempt)
+              raise OSError(url)
+
+
+          def detect(what, lookup, default=""):
+              # A failed lookup must not fall back to a release that may be old or
+              # out of support: say so on the run page and return default, which
+              # makes the jobs that need it skip.
+              try:
+                  return lookup()
+              except FAILURES as e:
+                  print(f"::warning::cannot detect {what}, not building it: {e}", flush=True)
+                  return default
 
 
           # The Ubuntu meta-release files don't carry an explicit Lts
@@ -79,53 +116,45 @@ jobs:
           # Strip it and return major.minor (which is what Docker Hub
           # tags by; patch-level tags aren't always present).
           def _ubuntu_pick(url, want_lts):
-              try:
-                  data = fetch_text(url)
-                  versions = []
-                  block = {}
-                  for line in data.splitlines() + [""]:
-                      if not line.strip():
-                          v = block.get("Version", "")
-                          is_lts = "LTS" in v
-                          if block.get("Supported") == "1" and v and is_lts == want_lts:
-                              m = re.match(r"^(\d+\.\d+)", v)
-                              if m:
-                                  versions.append(m.group(1))
-                          block = {}
-                          continue
-                      if ":" in line:
-                          k, val = line.split(":", 1)
-                          block[k.strip()] = val.strip()
-                  if versions:
-                      return versions[-1]
-              except Exception:
-                  pass
-              return None
+              data = fetch_text(url)
+              versions = []
+              block = {}
+              for line in [*data.splitlines(), ""]:
+                  if not line.strip():
+                      v = block.get("Version", "")
+                      is_lts = "LTS" in v
+                      if block.get("Supported") == "1" and v and is_lts == want_lts:
+                          m = re.match(r"^(\d+\.\d+)", v)
+                          if m:
+                              versions.append(m.group(1))
+                      block = {}
+                      continue
+                  if ":" in line:
+                      k, val = line.split(":", 1)
+                      block[k.strip()] = val.strip()
+              return versions[-1] if versions else ""
 
 
           def latest_ubuntu_non_lts():
               # between two interim releases none may be supported;
               # return nothing then, and the build job is skipped,
               # rather than "latest", which is the LTS built again
-              v = _ubuntu_pick("https://changelogs.ubuntu.com/meta-release", want_lts=False)
-              return v if v else ""
+              return _ubuntu_pick("https://changelogs.ubuntu.com/meta-release", want_lts=False)
 
 
           def latest_ubuntu_lts():
               v = _ubuntu_pick("https://changelogs.ubuntu.com/meta-release-lts", want_lts=True)
-              return v if v else "24.04"
+              if not v:
+                  raise ValueError("no supported LTS release listed")
+              return v
 
 
           def debian_codename(track):
-              url = f"https://deb.debian.org/debian/dists/{track}/Release"
-              try:
-                  data = fetch_text(url)
-                  for line in data.splitlines():
-                      if line.startswith("Codename:"):
-                          return line.split(":", 1)[1].strip()
-              except Exception:
-                  pass
-              return track
+              data = fetch_text(f"https://deb.debian.org/debian/dists/{track}/Release")
+              for line in data.splitlines():
+                  if line.startswith("Codename:"):
+                      return line.split(":", 1)[1].strip()
+              raise ValueError(f"no Codename in the {track} Release file")
 
 
           def latest_fedora_release():
@@ -135,31 +164,22 @@ jobs:
               # releases, so the highest version is the latest stable.
               # (URL also moved to fedoraproject.org; urllib follows the
               # 302 from getfedora.org transparently.)
-              try:
-                  data = fetch_text("https://fedoraproject.org/releases.json")
-                  releases = json.loads(data)
-                  versions = []
-                  for entry in releases:
-                      ver = entry.get("version", "")
-                      if ver.isdigit():
-                          versions.append(int(ver))
-                  if versions:
-                      return str(max(versions))
-              except Exception:
-                  pass
-              return "43"
+              releases = json.loads(fetch_text("https://fedoraproject.org/releases.json"))
+              versions = []
+              for entry in releases:
+                  ver = entry.get("version", "")
+                  if ver.isdigit():
+                      versions.append(int(ver))
+              return str(max(versions))
 
 
           def rocky_version_list():
               versions = []
-              try:
-                  html = fetch_text("https://dl.rockylinux.org/pub/rocky/")
-                  for line in html.splitlines():
-                      match = re.search(r'href="([0-9]+)/"', line)
-                      if match:
-                          versions.append(match.group(1))
-              except Exception:
-                  pass
+              html = fetch_text("https://dl.rockylinux.org/pub/rocky/")
+              for line in html.splitlines():
+                  match = re.search(r'href="([0-9]+)/"', line)
+                  if match:
+                      versions.append(match.group(1))
               return sorted(set(versions), key=int)
 
 
@@ -172,7 +192,7 @@ jobs:
                   return {
                       t.get("name") for t in json.loads(data).get("tags", []) if t.get("name")
                   }
-              except Exception:
+              except FAILURES:
                   return None
 
 
@@ -183,7 +203,7 @@ jobs:
               # lookup can never build a package in another release's container.
               versions_sorted = rocky_version_list()
               if not versions_sorted:
-                  return ["9"][:count]
+                  raise ValueError("no release listed")
               majors = sorted({v.split(".")[0] for v in versions_sorted}, key=int)
               tags = rocky_container_tags()
               if tags is not None and any(m in tags for m in majors):
@@ -196,30 +216,23 @@ jobs:
               # numeric tag that "latest" points to: a higher tag such as
               # 16.1 can exist before that release is out, and the old
               # "42.x" numbering would sort above every current release.
-              try:
-                  data = fetch_text(
-                      "https://registry.hub.docker.com/v2/repositories"
-                      "/opensuse/leap/tags?page_size=100"
-                  )
-                  results = json.loads(data).get("results", [])
-                  digests = {item.get("name", ""): item.get("digest") for item in results}
-                  latest = digests.get("latest")
-                  versions = [
-                      t
-                      for t, d in digests.items()
-                      if re.match(r"^[0-9]+\.[0-9]+$", t)
-                      and int(t.split(".")[0]) < 42
-                      and d
-                      and d == latest
-                  ]
-                  if versions:
-                      versions_sorted = sorted(
-                          versions, key=lambda v: [int(x) for x in v.split(".")]
-                      )
-                      return versions_sorted[-1]
-              except Exception:
-                  pass
-              return "15.6"
+              data = fetch_text(
+                  "https://registry.hub.docker.com/v2/repositories"
+                  "/opensuse/leap/tags?page_size=100"
+              )
+              results = json.loads(data).get("results", [])
+              digests = {item.get("name", ""): item.get("digest") for item in results}
+              latest = digests.get("latest")
+              versions = [
+                  t
+                  for t, d in digests.items()
+                  if re.match(r"^[0-9]+\.[0-9]+$", t)
+                  and int(t.split(".")[0]) < 42
+                  and d
+                  and d == latest
+              ]
+              versions_sorted = sorted(versions, key=lambda v: [int(x) for x in v.split(".")])
+              return versions_sorted[-1]
 
 
           def latest_suse_bci():
@@ -228,53 +241,48 @@ jobs:
               # Pre-release images (e.g. a beta 16.1) are tagged like
               # releases, so check the release-stage label of each
               # candidate and take the highest one that is released.
-              try:
-                  reg = "https://registry.suse.com/v2/bci/bci-base"
-                  auth = json.loads(
-                      fetch_text(
-                          "https://scc.suse.com/api/registry/authorize"
-                          "?service=SUSE%20Linux%20Docker%20Registry"
-                          "&scope=repository:bci/bci-base:pull"
-                      )
+              reg = "https://registry.suse.com/v2/bci/bci-base"
+              auth = json.loads(
+                  fetch_text(
+                      "https://scc.suse.com/api/registry/authorize"
+                      "?service=SUSE%20Linux%20Docker%20Registry"
+                      "&scope=repository:bci/bci-base:pull"
                   )
-                  token = auth.get("token") or auth.get("access_token")
+              )
+              token = auth.get("token") or auth.get("access_token")
 
-                  def get_json(url, accept=None):
-                      headers = {"Authorization": f"Bearer {token}"}
-                      if accept:
-                          headers["Accept"] = accept
-                      req = urllib.request.Request(url, headers=headers)
-                      with urllib.request.urlopen(req, timeout=10) as resp:
-                          return json.loads(resp.read().decode())
+              def get_json(url, accept=None):
+                  headers = {"Authorization": f"Bearer {token}"}
+                  if accept:
+                      headers["Accept"] = accept
+                  return json.loads(fetch_text(url, headers))
 
-                  tags = get_json(f"{reg}/tags/list").get("tags", [])
-                  versions = [t for t in tags if re.match(r"^[0-9]+\.[0-9]+$", t)]
-                  versions.sort(key=lambda v: [int(x) for x in v.split(".")])
-                  for v in reversed(versions):
-                      index = get_json(
-                          f"{reg}/manifests/{v}",
-                          "application/vnd.oci.image.index.v1+json, "
-                          "application/vnd.docker.distribution.manifest.list.v2+json",
-                      )
-                      amd64 = [
-                          m["digest"]
-                          for m in index.get("manifests", [])
-                          if m.get("platform", {}).get("architecture") == "amd64"
-                      ]
-                      if not amd64:
-                          continue
-                      manifest = get_json(
-                          f"{reg}/manifests/{amd64[0]}",
-                          "application/vnd.oci.image.manifest.v1+json, "
-                          "application/vnd.docker.distribution.manifest.v2+json",
-                      )
-                      config = get_json(f"{reg}/blobs/{manifest['config']['digest']}")
-                      labels = config.get("config", {}).get("Labels") or {}
-                      if labels.get("com.suse.release-stage") == "released":
-                          return v
-              except Exception:
-                  pass
-              return "15.6"
+              tags = get_json(f"{reg}/tags/list").get("tags", [])
+              versions = [t for t in tags if re.match(r"^[0-9]+\.[0-9]+$", t)]
+              versions.sort(key=lambda v: [int(x) for x in v.split(".")])
+              for v in reversed(versions):
+                  index = get_json(
+                      f"{reg}/manifests/{v}",
+                      "application/vnd.oci.image.index.v1+json, "
+                      "application/vnd.docker.distribution.manifest.list.v2+json",
+                  )
+                  amd64 = [
+                      m["digest"]
+                      for m in index.get("manifests", [])
+                      if m.get("platform", {}).get("architecture") == "amd64"
+                  ]
+                  if not amd64:
+                      continue
+                  manifest = get_json(
+                      f"{reg}/manifests/{amd64[0]}",
+                      "application/vnd.oci.image.manifest.v1+json, "
+                      "application/vnd.docker.distribution.manifest.v2+json",
+                  )
+                  config = get_json(f"{reg}/blobs/{manifest['config']['digest']}")
+                  labels = config.get("config", {}).get("Labels") or {}
+                  if labels.get("com.suse.release-stage") == "released":
+                      return v
+              raise ValueError("no released image")
 
 
           def latest_alpine_release():
@@ -282,25 +290,18 @@ jobs:
               # publishes the matching alpine:X.Y tag, which breaks the
               # container build.  Query Docker Hub directly so the
               # answer is always pullable.
-              try:
-                  data = fetch_text(
-                      "https://registry.hub.docker.com/v2/repositories"
-                      "/library/alpine/tags?page_size=100"
-                  )
-                  results = json.loads(data).get("results", [])
-                  versions = set()
-                  for item in results:
-                      m = re.match(r"^([0-9]+\.[0-9]+)$", item.get("name", ""))
-                      if m:
-                          versions.add(m.group(1))
-                  if versions:
-                      versions_sorted = sorted(
-                          versions, key=lambda v: [int(x) for x in v.split(".")]
-                      )
-                      return versions_sorted[-1]
-              except Exception:
-                  pass
-              return "3.21"
+              data = fetch_text(
+                  "https://registry.hub.docker.com/v2/repositories"
+                  "/library/alpine/tags?page_size=100"
+              )
+              results = json.loads(data).get("results", [])
+              versions = set()
+              for item in results:
+                  m = re.match(r"^([0-9]+\.[0-9]+)$", item.get("name", ""))
+                  if m:
+                      versions.add(m.group(1))
+              versions_sorted = sorted(versions, key=lambda v: [int(x) for x in v.split(".")])
+              return versions_sorted[-1]
 
 
           def latest_openbsd_releases(count=2):
@@ -309,57 +310,57 @@ jobs:
               # released", but vmactions/openbsd-vm needs a per-version
               # conf to actually boot one.  Intersect the two: if a
               # supported release isn't (yet) in the action, skip it.
-              try:
-                  cdn = fetch_text("https://cdn.openbsd.org/pub/OpenBSD/")
-                  versions = set()
-                  for line in cdn.splitlines():
-                      m = re.search(r'href="([0-9]+\.[0-9]+)/"', line)
-                      if m:
-                          versions.add(m.group(1))
-                  # a directory for the next release appears (with
-                  # packages/ only) before it is out; count a version
-                  # only once its amd64 sets are published
-                  supported = []
-                  for v in sorted(
-                      versions, key=lambda v: [int(x) for x in v.split(".")], reverse=True
-                  ):
-                      try:
-                          fetch_text(f"https://cdn.openbsd.org/pub/OpenBSD/{v}/amd64/")
-                      except Exception:
-                          continue
-                      supported.insert(0, v)
-                      if len(supported) == count:
-                          break
+              cdn = fetch_text("https://cdn.openbsd.org/pub/OpenBSD/")
+              versions = set()
+              for line in cdn.splitlines():
+                  m = re.search(r'href="([0-9]+\.[0-9]+)/"', line)
+                  if m:
+                      versions.add(m.group(1))
+              # a directory for the next release appears (with
+              # packages/ only) before it is out; count a version
+              # only once its amd64 sets are published
+              supported = []
+              for v in sorted(
+                  versions, key=lambda v: [int(x) for x in v.split(".")], reverse=True
+              ):
+                  try:
+                      fetch_text(f"https://cdn.openbsd.org/pub/OpenBSD/{v}/amd64/")
+                  except urllib.error.HTTPError:
+                      continue
+                  supported.insert(0, v)
+                  if len(supported) == count:
+                      break
 
-                  vma = fetch_text(
-                      "https://api.github.com/repos/vmactions/openbsd-vm/contents/conf?ref=v1"
-                  )
-                  available = set()
-                  for item in json.loads(vma):
-                      m = re.match(r"^([0-9]+\.[0-9]+)\.conf$", item.get("name", ""))
-                      if m:
-                          available.add(m.group(1))
+              vma = fetch_text(
+                  "https://api.github.com/repos/vmactions/openbsd-vm/contents/conf?ref=v1"
+              )
+              available = set()
+              for item in json.loads(vma):
+                  m = re.match(r"^([0-9]+\.[0-9]+)\.conf$", item.get("name", ""))
+                  if m:
+                      available.add(m.group(1))
 
-                  buildable = [v for v in supported if v in available]
-                  if buildable:
-                      return buildable
-              except Exception:
-                  pass
-              return ["7.7", "7.8"][-count:]
+              buildable = [v for v in supported if v in available]
+              if not buildable:
+                  raise ValueError("no supported release the VM action can boot")
+              return buildable
 
 
-          ubuntu_stable = latest_ubuntu_non_lts()
-          ubuntu_lts = latest_ubuntu_lts()
-          debian_stable = debian_codename("stable")
-          debian_oldstable = debian_codename("oldstable")
-          fedora_release = latest_fedora_release()
-          rocky_releases = latest_rocky_releases()
-          rocky_latest = rocky_releases[-1]
-          rocky_previous = rocky_releases[-2] if len(rocky_releases) > 1 else rocky_releases[-1]
-          opensuse_leap = latest_opensuse_leap()
-          suse_bci = latest_suse_bci()
-          alpine_release = latest_alpine_release()
-          openbsd_releases = latest_openbsd_releases()
+          ubuntu_stable = detect("the Ubuntu interim release", latest_ubuntu_non_lts)
+          ubuntu_lts = detect("the Ubuntu LTS release", latest_ubuntu_lts)
+          # the docker images take the track names too, so these can fall back
+          debian_stable = detect("Debian stable", lambda: debian_codename("stable"), "stable")
+          debian_oldstable = detect(
+              "Debian oldstable", lambda: debian_codename("oldstable"), "oldstable"
+          )
+          fedora_release = detect("the Fedora release", latest_fedora_release)
+          rocky_releases = detect("the Rocky Linux releases", latest_rocky_releases, [])
+          rocky_latest = rocky_releases[-1] if rocky_releases else ""
+          rocky_previous = rocky_releases[-2] if len(rocky_releases) > 1 else rocky_latest
+          opensuse_leap = detect("the openSUSE Leap release", latest_opensuse_leap)
+          suse_bci = detect("the SUSE BCI release", latest_suse_bci)
+          alpine_release = detect("the Alpine release", latest_alpine_release)
+          openbsd_releases = detect("the OpenBSD releases", latest_openbsd_releases, [])
 
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
               fh.write(f"ubuntu_stable={ubuntu_stable}\n")
@@ -468,6 +469,7 @@ jobs:
 
   build-deb-ubuntu-lts:
     name: Build .deb (Ubuntu LTS)
+    if: ${{ needs.detect-versions.outputs.ubuntu_lts != '' }}
     runs-on: ubuntu-latest
     needs:
       - detect-versions
@@ -657,6 +659,7 @@ jobs:
 
   build-rpm-fedora:
     name: Build .rpm (Fedora)
+    if: ${{ needs.detect-versions.outputs.fedora_release != '' }}
     runs-on: ubuntu-latest
     needs:
       - detect-versions
@@ -732,6 +735,7 @@ jobs:
 
   build-rpm-rocky:
     name: Build .rpm (Rocky ${{ needs.detect-versions.outputs.rocky_latest }})
+    if: ${{ needs.detect-versions.outputs.rocky_latest != '' }}
     runs-on: ubuntu-latest
     needs:
       - detect-versions
@@ -921,6 +925,7 @@ jobs:
 
   build-rpm-opensuse:
     name: Build .rpm (openSUSE Leap)
+    if: ${{ needs.detect-versions.outputs.opensuse_leap != '' }}
     runs-on: ubuntu-latest
     needs:
       - detect-versions
@@ -1006,6 +1011,7 @@ jobs:
 
   build-rpm-suse:
     name: Build .rpm (SUSE BCI)
+    if: ${{ needs.detect-versions.outputs.suse_bci != '' }}
     runs-on: ubuntu-latest
     needs:
       - detect-versions
@@ -1087,6 +1093,7 @@ jobs:
 
   build-apk-alpine:
     name: Build .apk (Alpine ${{ needs.detect-versions.outputs.alpine_release }})
+    if: ${{ needs.detect-versions.outputs.alpine_release != '' }}
     runs-on: ubuntu-latest
     needs:
       - detect-versions
@@ -1171,6 +1178,7 @@ jobs:
 
   build-tgz-openbsd:
     name: Build .tgz (OpenBSD ${{ matrix.version }})
+    if: ${{ needs.detect-versions.outputs.openbsd_releases != '[]' }}
     runs-on: ubuntu-latest
     needs:
       - detect-versions

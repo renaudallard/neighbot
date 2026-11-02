@@ -234,7 +234,9 @@ on any monitored interface.
 This may indicate ARP or NDP spoofing.
 On Linux, an address the host reaches through the interface without a
 gateway, as with an on-link route that holds no address of the host,
-counts as local too.
+counts as local too; the kernel is asked about at most 64 addresses a
+second, and past that, as in a flood of foreign addresses, an address
+counts as foreign.
 Bogon packets are not added to the database.
 An interface with no subnet of an address family reports no bogons
 for it; a /32 or /128 address, such as a DHCPv6 lease, does not count

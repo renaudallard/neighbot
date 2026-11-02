@@ -650,18 +650,32 @@ capture_prefix_configured(const char *iface, int af, const uint8_t *prefix,
 }
 
 #if defined(__linux__)
+#define ROUTE_LOOKUPS_MAX 64	/* route lookups a second */
+
 /*
- * Whether the host reaches ip without a gateway through iface, or through
- * any monitored interface when iface is NULL, as with a route added by
- * "ip route add 198.51.100.0/24 dev eth0" and no address of the host in
- * it: hosts resolve and cache such neighbours like those of a subnet. The
- * kernel is asked for the route to ip alone, as "ip route get" does, which
- * costs the same however large the routing table is. Its reply is queued
- * before send() returns, so it is read without waiting.
+ * The interface through which the host reaches ip without a gateway,
+ * written into name, as with a route added by "ip route add
+ * 198.51.100.0/24 dev eth0" and no address of the host in it: hosts
+ * resolve and cache such neighbours like those of a subnet. Returns 0
+ * when there is none. The kernel is asked for the route to ip alone, as
+ * "ip route get" does, which costs the same however large the routing
+ * table is; its reply is queued before send() returns, so it is read
+ * without waiting. The last answer serves the second question about the
+ * same address, and past ROUTE_LOOKUPS_MAX lookups in a second an
+ * address counts as foreign, so a flood of foreign addresses cannot keep
+ * the daemon busy asking.
  */
 static int
-onlink_route(const char *iface, int af, const uint8_t *ip)
+onlink_oif(int af, const uint8_t *ip, char name[IF_NAMESIZE])
 {
+	static struct {
+		time_t  when;
+		int     af;
+		uint8_t ip[16];
+		char    oif[IF_NAMESIZE];
+	} last;
+	static time_t budget_start;
+	static int budget;
 	struct {
 		struct nlmsghdr nh;
 		struct rtmsg    rt;
@@ -674,12 +688,24 @@ onlink_route(const char *iface, int af, const uint8_t *ip)
 	} resp;
 	const struct rtmsg *rt;
 	const struct rtattr *rta;
-	char name[IF_NAMESIZE];
+	time_t now = mono_now();
 	int alen = ip_len(af), oif = 0, gateway = 0, attrlen, s;
 	ssize_t len;
 
-	if (iface == NULL && mon_count == 0)
+	if (last.when == now && last.af == af &&
+	    memcmp(last.ip, ip, alen) == 0) {
+		memcpy(name, last.oif, IF_NAMESIZE);
+		return name[0] != '\0';
+	}
+	if (budget_start != now) {
+		budget_start = now;
+		budget = 0;
+	}
+	if (budget >= ROUTE_LOOKUPS_MAX)
 		return 0;
+	budget++;
+	name[0] = '\0';
+
 	memset(&req, 0, sizeof(req));
 	req.nh.nlmsg_len = NLMSG_LENGTH(sizeof(req.rt) + RTA_LENGTH(alen));
 	req.nh.nlmsg_type = RTM_GETROUTE;
@@ -701,23 +727,40 @@ onlink_route(const char *iface, int af, const uint8_t *ip)
 	close(s);
 
 	/* an error, such as no route at all, is an NLMSG_ERROR reply */
-	if (len < 0 || !NLMSG_OK(&resp.nh, (unsigned)len) ||
-	    resp.nh.nlmsg_type != RTM_NEWROUTE ||
-	    resp.nh.nlmsg_len < NLMSG_LENGTH(sizeof(*rt)))
-		return 0;
-	rt = NLMSG_DATA(&resp.nh);
-	if (rt->rtm_type != RTN_UNICAST)
-		return 0;
-	attrlen = (int)RTM_PAYLOAD(&resp.nh);
-	for (rta = RTM_RTA(rt); RTA_OK(rta, attrlen);
-	    rta = RTA_NEXT(rta, attrlen)) {
-		if (rta->rta_type == RTA_GATEWAY || rta->rta_type == RTA_VIA)
-			gateway = 1;
-		else if (rta->rta_type == RTA_OIF &&
-		    RTA_PAYLOAD(rta) >= sizeof(oif))
-			memcpy(&oif, RTA_DATA(rta), sizeof(oif));
+	if (len >= 0 && NLMSG_OK(&resp.nh, (unsigned)len) &&
+	    resp.nh.nlmsg_type == RTM_NEWROUTE &&
+	    resp.nh.nlmsg_len >= NLMSG_LENGTH(sizeof(*rt))) {
+		rt = NLMSG_DATA(&resp.nh);
+		attrlen = (int)RTM_PAYLOAD(&resp.nh);
+		for (rta = RTM_RTA(rt); RTA_OK(rta, attrlen);
+		    rta = RTA_NEXT(rta, attrlen)) {
+			if (rta->rta_type == RTA_GATEWAY ||
+			    rta->rta_type == RTA_VIA)
+				gateway = 1;
+			else if (rta->rta_type == RTA_OIF &&
+			    RTA_PAYLOAD(rta) >= sizeof(oif))
+				memcpy(&oif, RTA_DATA(rta), sizeof(oif));
+		}
+		if (rt->rtm_type != RTN_UNICAST || gateway || oif <= 0 ||
+		    if_indextoname((unsigned)oif, name) == NULL)
+			name[0] = '\0';
 	}
-	if (gateway || oif <= 0 || if_indextoname((unsigned)oif, name) == NULL)
+
+	last.when = now;
+	last.af = af;
+	memcpy(last.ip, ip, alen);
+	memcpy(last.oif, name, IF_NAMESIZE);
+	return name[0] != '\0';
+}
+
+/* Whether ip is reached on-link through iface, or through any monitored
+ * interface when iface is NULL. */
+static int
+onlink_route(const char *iface, int af, const uint8_t *ip)
+{
+	char name[IF_NAMESIZE];
+
+	if ((iface == NULL && mon_count == 0) || !onlink_oif(af, ip, name))
 		return 0;
 	if (iface != NULL)
 		return strcmp(name, iface) == 0;

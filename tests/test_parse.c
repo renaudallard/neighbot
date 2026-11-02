@@ -1047,6 +1047,48 @@ test_na_ext_header(void)
 	cfg.quiet = saved_quiet;
 }
 
+/* an NA behind 40 Destination Options headers is processed: Linux takes
+ * any number of them, so a cap would let a forged NA through unseen */
+static void
+test_na_many_ext_headers(void)
+{
+	enum { NHDR = 40, PLEN = NHDR * 8 + 32 };
+	uint8_t pkt[54 + PLEN];
+	uint8_t *p = pkt + 54;
+	int saved_quiet = cfg.quiet;
+	int before;
+
+	cfg.quiet = 0;
+	memset(pkt, 0, sizeof(pkt));
+	pkt[0] = 0x33; pkt[1] = 0x33; pkt[5] = 0x01;
+	pkt[6] = 0x02; pkt[11] = 0x46;
+	pkt[12] = 0x86; pkt[13] = 0xdd;
+	pkt[14] = 0x60;
+	pkt[18] = PLEN >> 8; pkt[19] = PLEN & 0xff;
+	pkt[20] = 60;                            /* next: dest options */
+	pkt[21] = 255;
+	inet_pton(AF_INET6, "2001:db8:9::46", pkt + 22);
+	pkt[38] = 0xff; pkt[39] = 0x02; pkt[53] = 0x01;
+	for (int i = 0; i < NHDR; i++, p += 8) {
+		p[0] = (i < NHDR - 1) ? 60 : 58;    /* next header */
+		p[2] = 1; p[3] = 4;                 /* PadN */
+	}
+	p[0] = 136;                              /* NA */
+	p[4] = 0x20;
+	inet_pton(AF_INET6, "2001:db8:9::46", p + 8);
+	p[24] = 2; p[25] = 1;
+	p[26] = 0x02; p[31] = 0x46;
+
+	before = notify_new_calls;
+	feed(pkt, sizeof(pkt));
+	if (notify_new_calls != before + 1) {
+		fprintf(stderr, "FAIL: NA behind 40 dest options headers was "
+		    "ignored\n");
+		exit(1);
+	}
+	cfg.quiet = saved_quiet;
+}
+
 /* ARP in an 802.1Q priority tag (VLAN ID 0) is processed, other VLAN
  * IDs are not */
 static void
@@ -1138,6 +1180,7 @@ main(void)
 	test_broadcast_mac_claim();
 	test_ra_rs_lladdr();
 	test_na_ext_header();
+	test_na_many_ext_headers();
 	test_vlan0_priority_tag();
 	test_truncated();
 

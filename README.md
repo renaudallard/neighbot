@@ -488,7 +488,7 @@ Crashes and slow inputs are written to the current directory.
 2. Opens one pcap handle per interface with a BPF filter matching ARP, ND
    messages (ICMPv6 types 133 to 136), and IPv6 packets that start with a
    hop-by-hop, routing or destination options header, which the parser
-   walks so that ND hidden behind them (an RA-Guard evasion) is seen; the
+   walks, however many there are, so that ND hidden behind them (an RA-Guard evasion) is seen; the
    same is matched inside an 802.1Q priority tag (VLAN ID 0), which hosts
    treat as untagged
 3. Main loop: `poll()` on all handles (1s timeout)

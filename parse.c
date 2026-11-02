@@ -690,12 +690,14 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 
 	/* Step over hop-by-hop, routing and destination options headers:
 	 * hosts process ND messages placed behind them, a known way past
-	 * RA-Guard, so they must be seen here too. ND must not be
-	 * fragmented (RFC 6980), so a fragment header ends the walk. */
+	 * RA-Guard, so they must be seen here too. Linux takes any number
+	 * of them, so walk them all; each is at least 8 bytes, which bounds
+	 * the walk by the frame length. ND must not be fragmented (RFC
+	 * 6980), so a fragment header ends the walk. */
 	nxt = ip6.ip6_nxt;
 	icmp_off = sizeof(struct ip6_hdr);
-	for (int n = 0; n < 8 && (nxt == IPPROTO_HOPOPTS ||
-	    nxt == IPPROTO_ROUTING || nxt == IPPROTO_DSTOPTS); n++) {
+	while (nxt == IPPROTO_HOPOPTS || nxt == IPPROTO_ROUTING ||
+	    nxt == IPPROTO_DSTOPTS) {
 		if (len < icmp_off + 2)
 			return;
 		nxt = pkt[icmp_off];

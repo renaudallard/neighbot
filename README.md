@@ -49,8 +49,12 @@ Single-threaded, single binary, no dependencies beyond libpcap.
 
 ```sh
 make
-sudo ./neighbot -q -f /tmp/neighbot.csv
+sudo ./neighbot -q -u "$USER" -f ./neighbot.csv
 ```
+
+This runs as you once the captures are open, and keeps the database in
+the current directory: not in `/tmp`, where another user could create the
+file or its temporary copy first and make every save fail.
 
 Then generate some traffic (`arping`, `ping`) and watch the log output.
 
@@ -156,8 +160,8 @@ neighbot [-B seconds] [-d] [-e days] [-f dbfile] [-i iface] [-m mailto] [-o ouif
 ### Examples
 
 ```sh
-# Foreground, quiet, custom DB
-sudo neighbot -q -f /tmp/neighbot.csv
+# Foreground, quiet, custom DB in your home directory
+sudo neighbot -q -u "$USER" -f "$HOME/neighbot.csv"
 
 # Daemon with email alerts
 sudo neighbot -d -u neighbot -m admin@example.com

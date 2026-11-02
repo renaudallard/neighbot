@@ -767,26 +767,37 @@ ip6_opts_ok(const u_char *pkt, size_t off, size_t hlen, int hopopts)
  * of the given type, or whose header chain runs into the next fragment
  * and may hide one (type 0). RFC 6980 forbids fragmented ND and Linux,
  * FreeBSD and macOS drop it, but OpenBSD and NetBSD reassemble it and act
- * on it, so it is reported as an attack rather than recorded.
+ * on it, so it is reported as an attack rather than recorded. Like a
+ * bogon, it is rate-limited per address the message would record: the
+ * target of an NA or a Redirect, the source of the others.
  */
 static void
 handle_fragment(const uint8_t *src, const uint8_t *dst, const uint8_t *mac,
                 const char *iface, uint8_t type, const uint8_t *target)
 {
-	char srcstr[INET6_ADDRSTRLEN];
+	char srcstr[INET6_ADDRSTRLEN], tgtstr[INET6_ADDRSTRLEN];
 	char macstr[18];
+	const uint8_t *key = src;
 
-	if (!report_allowed(AF_INET6, src, iface))
+	if (target != NULL &&
+	    (type == ND_NEIGHBOR_ADVERT || type == ND_REDIRECT))
+		key = target;
+	if (!report_allowed(AF_INET6, key, iface))
 		return;
 
 	inet_ntop(AF_INET6, src, srcstr, sizeof(srcstr));
 	format_mac(mac, macstr, sizeof(macstr));
-	if (type != 0)
-		log_msg("fragmented %s %s on %s (ND type %u)", srcstr, macstr,
-		    iface, type);
-	else
+	if (target != NULL)
+		inet_ntop(AF_INET6, target, tgtstr, sizeof(tgtstr));
+	if (type == 0)
 		log_msg("fragmented %s %s on %s (header chain cut)", srcstr,
 		    macstr, iface);
+	else if (target != NULL)
+		log_msg("fragmented %s %s on %s (ND type %u for %s)", srcstr,
+		    macstr, iface, type, tgtstr);
+	else
+		log_msg("fragmented %s %s on %s (ND type %u)", srcstr, macstr,
+		    iface, type);
 	if (!cfg.quiet)
 		notify_fragment(src, dst, mac, iface, type, target);
 }

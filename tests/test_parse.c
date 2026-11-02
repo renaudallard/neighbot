@@ -1570,6 +1570,44 @@ test_nd_without_lla(void)
 	cfg.quiet = saved_quiet;
 }
 
+/* Feed a fragment from src to ff02::1 with hop limit hlim, whose
+ * fragment header holds frag after its next header nxt. It carries an
+ * ND message of the given type for tgt, with a link-layer address
+ * option of mac, or with dstopt the first 8 bytes of a 16-byte
+ * destination options header. */
+static void
+feed_frag(const char *src, const uint8_t frag[6], uint8_t nxt,
+    uint8_t hlim, int dstopt, uint8_t type, const uint8_t *tgt,
+    const uint8_t *mac)
+{
+	uint8_t pkt[128];
+	size_t o = 62;
+
+	memset(pkt, 0, sizeof(pkt));
+	pkt[0] = 0x33; pkt[1] = 0x33; pkt[5] = 0x01;
+	memcpy(pkt + 6, mac, 6);
+	pkt[12] = 0x86; pkt[13] = 0xdd;
+	pkt[14] = 0x60; pkt[20] = 44; pkt[21] = hlim;
+	inet_pton(AF_INET6, src, pkt + 22);
+	pkt[38] = 0xff; pkt[39] = 0x02; pkt[53] = 0x01;
+	pkt[54] = nxt;
+	memcpy(pkt + 56, frag, 6);
+	if (dstopt) {
+		pkt[o] = 58; pkt[o + 1] = 1;
+		o += 8;
+	} else {
+		pkt[o] = type; pkt[o + 4] = 0x20;
+		memcpy(pkt + o + 8, tgt, 16);
+		pkt[o + 24] = type == 135 ? 1 : 2;
+		pkt[o + 25] = 1;
+		memcpy(pkt + o + 26, mac, 6);
+		o += 32;
+	}
+	pkt[18] = (uint8_t)((o - 54) >> 8);
+	pkt[19] = (uint8_t)(o - 54);
+	feed_raw("test0", pkt, o);
+}
+
 /* An ND message in the first fragment of a packet, atomic or not, or a
  * first fragment whose headers go on in the next one, is reported and
  * not recorded: OpenBSD and NetBSD reassemble fragmented ND and act on
@@ -1591,41 +1629,18 @@ test_fragmented_nd(void)
 		{ "cut header chain", { 0, 1, 0, 0, 0, 5 }, 60, 255, 1, 0 },
 		{ "hop limit 64", { 0, 1, 0, 0, 0, 6 }, 58, 64, 0, -1 },
 	};
-	uint8_t pkt[128], tgt[16];
+	uint8_t tgt[16];
 	uint8_t mac[6] = { 0x02, 0, 0, 0, 0, 0x57 };
 	int saved_quiet = cfg.quiet;
 
 	cfg.quiet = 0;
 	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
 		int before = notify_fragment_calls;
-		size_t o = 62;
 
 		inet_pton(AF_INET6, "2001:db8:9::5700", tgt);
 		tgt[15] = (uint8_t)i;
-		memset(pkt, 0, sizeof(pkt));
-		pkt[0] = 0x33; pkt[1] = 0x33; pkt[5] = 0x01;
-		memcpy(pkt + 6, mac, 6);
-		pkt[12] = 0x86; pkt[13] = 0xdd;
-		pkt[14] = 0x60; pkt[20] = 44; pkt[21] = cases[i].hlim;
-		inet_pton(AF_INET6, "2001:db8:9::99", pkt + 22);
-		pkt[38] = 0xff; pkt[39] = 0x02; pkt[53] = 0x01;
-		pkt[54] = cases[i].nxt;
-		memcpy(pkt + 56, cases[i].frag, 6);
-		if (cases[i].dstopt) {
-			/* a 16-byte destination options header, of which
-			 * the fragment only holds the first 8 bytes */
-			pkt[o] = 58; pkt[o + 1] = 1;
-			o += 8;
-		} else {
-			pkt[o] = 136; pkt[o + 4] = 0x20;
-			memcpy(pkt + o + 8, tgt, 16);
-			pkt[o + 24] = 2; pkt[o + 25] = 1;
-			memcpy(pkt + o + 26, mac, 6);
-			o += 32;
-		}
-		pkt[18] = (uint8_t)((o - 54) >> 8);
-		pkt[19] = (uint8_t)(o - 54);
-		feed_raw("test0", pkt, o);
+		feed_frag("2001:db8:9::99", cases[i].frag, cases[i].nxt,
+		    cases[i].hlim, cases[i].dstopt, 136, tgt, mac);
 		if ((cases[i].want < 0 && notify_fragment_calls != before) ||
 		    (cases[i].want >= 0 &&
 		    (notify_fragment_calls != before + 1 ||
@@ -1637,6 +1652,54 @@ test_fragmented_nd(void)
 			exit(1);
 		}
 	}
+	cfg.quiet = saved_quiet;
+}
+
+/* Within the -B period a fragment is reported once per address its
+ * message would record, as a bogon is: the target of an NA or a
+ * Redirect, the source of an NS. One source poisoning several targets
+ * is reported for each of them. */
+static void
+test_fragment_key(void)
+{
+	static const uint8_t atomic[6] = { 0, 0, 0, 0, 0, 7 };
+	uint8_t t1[16], t2[16], t3[16];
+	uint8_t mac[6] = { 0x02, 0, 0, 0, 0, 0x58 };
+	int saved_quiet = cfg.quiet, saved_cooldown = cfg.bogon_cooldown;
+	int before = notify_fragment_calls;
+
+	cfg.quiet = 0;
+	cfg.bogon_cooldown = 1800;
+	inet_pton(AF_INET6, "2001:db8:9::5801", t1);
+	inet_pton(AF_INET6, "2001:db8:9::5802", t2);
+	inet_pton(AF_INET6, "2001:db8:9::5803", t3);
+	feed_frag("2001:db8:9::98", atomic, 58, 255, 0, 136, t1, mac);
+	feed_frag("2001:db8:9::98", atomic, 58, 255, 0, 136, t2, mac);
+	if (notify_fragment_calls != before + 2) {
+		fprintf(stderr, "FAIL: fragmented NAs from one source for two "
+		    "targets were not both reported\n");
+		exit(1);
+	}
+	feed_frag("2001:db8:9::97", atomic, 58, 255, 0, 136, t1, mac);
+	if (notify_fragment_calls != before + 2) {
+		fprintf(stderr, "FAIL: a second fragmented NA for one target "
+		    "was reported within the cooldown\n");
+		exit(1);
+	}
+	feed_frag("2001:db8:9::96", atomic, 58, 255, 0, 135, t1, mac);
+	feed_frag("2001:db8:9::96", atomic, 58, 255, 0, 135, t2, mac);
+	if (notify_fragment_calls != before + 3) {
+		fprintf(stderr, "FAIL: fragmented NSs from one source were "
+		    "not reported once\n");
+		exit(1);
+	}
+	feed_frag("2001:db8:9::96", atomic, 58, 255, 0, 137, t3, mac);
+	if (notify_fragment_calls != before + 4) {
+		fprintf(stderr, "FAIL: a fragmented Redirect was not reported "
+		    "for its target\n");
+		exit(1);
+	}
+	cfg.bogon_cooldown = saved_cooldown;
 	cfg.quiet = saved_quiet;
 }
 
@@ -2200,6 +2263,7 @@ main(void)
 	test_ext_header_rules();
 	test_nd_without_lla();
 	test_fragmented_nd();
+	test_fragment_key();
 	test_na_solicited_multicast();
 	test_ns_special_target();
 	test_na_unspecified_source();

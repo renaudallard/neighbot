@@ -261,9 +261,11 @@ and macOS drop it, but OpenBSD and NetBSD reassemble it and act on
 it, so this may indicate NDP spoofing.
 Nothing is recorded in the database.
 The report names the source address, the Ethernet source of the
-fragment and, when the fragment holds it, the target of the message;
-it is rate-limited per source address like bogons
-.Pq see Fl B .
+fragment and, when the fragment holds it, the target of the message.
+Like bogons, it is rate-limited per address the message would record
+.Pq see Fl B :
+the target of a Neighbor Advertisement or Redirect, the source of the
+others.
 .It ra-learned
 A Router Advertisement announced a new on-link IPv6 prefix on an
 interface.

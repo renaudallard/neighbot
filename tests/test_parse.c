@@ -1209,7 +1209,7 @@ test_na_many_ext_headers(void)
 static void
 test_nd_payload_length(void)
 {
-	uint8_t pkt[86];
+	uint8_t pkt[86], known[86];
 	uint8_t eth[6] = { 0x02, 0, 0, 0, 0, 0x48 };
 	uint8_t fake[6] = { 0x02, 0, 0, 0, 0, 0x66 };
 	uint8_t tgt[16];
@@ -1229,6 +1229,9 @@ test_nd_payload_length(void)
 	pkt[78] = 2; pkt[79] = 1;                /* trailer: Target LLA */
 	memcpy(pkt + 80, fake, 6);
 
+	/* the station is known at eth when the NA with the trailer comes */
+	build_na(known, tgt, eth);
+	feed(known, sizeof(known));
 	feed(pkt, sizeof(pkt));
 	if (!db_known(AF_INET6, tgt, eth, "test0") ||
 	    db_known(AF_INET6, tgt, fake, "test0")) {
@@ -1427,6 +1430,63 @@ test_ext_header_rules(void)
 			exit(1);
 		}
 	}
+}
+
+/* hosts learn no address from ND without the link-layer address option,
+ * so its Ethernet source neither creates nor changes an entry; from the
+ * station recorded at the address, it refreshes the entry */
+static void
+test_nd_without_lla(void)
+{
+	const char *path = "tmp/test_parse_nolla.csv";
+	uint8_t pkt[86], tgt[16];
+	uint8_t mac[6] = { 0x02, 0, 0, 0, 0, 0x55 };
+	uint8_t evil[6] = { 0x02, 0, 0, 0, 0, 0x56 };
+	int saved_quiet = cfg.quiet, before;
+
+	cfg.quiet = 0;
+	inet_pton(AF_INET6, "2001:db8:9::55", tgt);
+
+	before = notify_new_calls;
+	build_na(pkt, tgt, evil);
+	pkt[19] = 24;                            /* no option */
+	feed(pkt, 78);
+	if (notify_new_calls != before ||
+	    db_known(AF_INET6, tgt, evil, "test0")) {
+		fprintf(stderr, "FAIL: NA without Target LLA created an "
+		    "entry\n");
+		exit(1);
+	}
+
+	build_na(pkt, tgt, mac);
+	feed(pkt, sizeof(pkt));
+	if (db_save(path) < 0) {
+		fprintf(stderr, "FAIL: cannot save %s\n", path);
+		exit(1);
+	}
+	before = notify_changed_calls;
+	build_na(pkt, tgt, evil);
+	pkt[19] = 24;
+	feed(pkt, 78);
+	pkt[54] = 135;                           /* the same as an NS */
+	feed(pkt, 78);
+	if (notify_changed_calls != before || db_dirty() ||
+	    !db_known(AF_INET6, tgt, mac, "test0")) {
+		fprintf(stderr, "FAIL: ND without link-layer address option "
+		    "from another MAC changed the entry\n");
+		exit(1);
+	}
+
+	build_na(pkt, tgt, mac);
+	pkt[19] = 24;
+	feed(pkt, 78);
+	if (!db_dirty() || !db_known(AF_INET6, tgt, mac, "test0")) {
+		fprintf(stderr, "FAIL: NA without Target LLA from the recorded "
+		    "MAC did not refresh its entry\n");
+		exit(1);
+	}
+	unlink(path);
+	cfg.quiet = saved_quiet;
 }
 
 /* hosts drop an NA with the Solicited flag sent to a multicast address,
@@ -1987,6 +2047,7 @@ main(void)
 	test_nd_code_and_checksum();
 	test_nd_ip6_header();
 	test_ext_header_rules();
+	test_nd_without_lla();
 	test_na_solicited_multicast();
 	test_ns_special_target();
 	test_na_unspecified_source();

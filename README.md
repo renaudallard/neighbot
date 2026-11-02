@@ -546,7 +546,9 @@ Crashes and slow inputs are written to the current directory.
    senders are kept, as hosts use them);
    hardware type 6 (IEEE 802) is accepted like Ethernet, as hosts honour it
 5. **NDP**: parses Neighbor Advertisements (type 136) and Solicitations
-   (type 135) for link-layer address options (skips DAD); Router
+   (type 135) for link-layer address options (skips DAD; a message without
+   one only refreshes the entry already recorded with its Ethernet source,
+   as hosts learn no address from it); Router
    Advertisements (type 134) feed on-link prefixes to the bogon filter, and
    their source address and Source Link-Layer Address are recorded like a
    neighbor's, as are those of Router Solicitations (type 133), so a forged

@@ -948,15 +948,6 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 	if (type == ND_ROUTER_ADVERT)
 		parse_ra(icmp, icmp_len, iface, src);
 
-	/* Fall back to Ethernet source MAC if NDP option is missing. Not
-	 * for a Redirect: it comes from the router, not from the target,
-	 * and without the option hosts learn no address for the target */
-	if (!mac) {
-		if (type == ND_REDIRECT)
-			return;
-		mac = eh->ether_shost;
-	}
-
 	/* skip multicast IPs (ff00::/8) */
 	if (ip_addr[0] == 0xff)
 		return;
@@ -967,6 +958,18 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 	 * Target LLA for the target */
 	if (is_zero_ip6(ip_addr))
 		return;
+
+	/* Without the option hosts learn no address, so the Ethernet source
+	 * must neither create nor change an entry. It still shows that the
+	 * station recorded there with that MAC is alive: refresh its entry
+	 * and let it answer a probe. Not for a Redirect, which comes from
+	 * the router rather than from the target. */
+	if (!mac) {
+		if (type == ND_REDIRECT ||
+		    !db_known(AF_INET6, ip_addr, eh->ether_shost, iface))
+			return;
+		mac = eh->ether_shost;
+	}
 
 	/* an address already recorded on this interface with this MAC
 	 * is not a bogon: after a restart the RA-learned prefix that made

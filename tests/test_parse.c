@@ -1831,8 +1831,9 @@ test_arp_special_senders(void)
 	}
 }
 
-/* hosts drop ARP for a multicast target, but those with route_localnet
- * set take one for a loopback target */
+/* Linux drops ARP for a multicast target, but the BSDs and macOS update
+ * the sender's entry whatever the target, as do Linux hosts with
+ * route_localnet set for a loopback one, so all are processed */
 static void
 test_arp_special_targets(void)
 {
@@ -1840,8 +1841,8 @@ test_arp_special_targets(void)
 		uint8_t tpa[4];
 		int     want;
 	} cases[] = {
-		{ { 224, 0, 0, 1 }, 0 },
-		{ { 239, 1, 2, 3 }, 0 },
+		{ { 224, 0, 0, 1 }, 1 },
+		{ { 239, 1, 2, 3 }, 1 },
 		{ { 127, 0, 0, 1 }, 1 },
 		{ { 10, 61, 0, 200 }, 1 },
 	};

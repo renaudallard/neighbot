@@ -373,29 +373,51 @@ test_host_mask(void)
 	return 0;
 }
 
-/* an RA prefix holding one of the host's addresses is configured, even
- * when that address is a /128 lease and no subnet contains the prefix */
+/* an RA prefix of /64 or longer holding a /128 lease of the host is
+ * configured, though no subnet contains it; a shorter one is not, nor
+ * one that only holds an address with a subnet of its own */
 static int
 test_prefix_configured(void)
 {
 	uint8_t lease[16] = { 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0,
 	                      0, 0, 0, 0, 0, 0, 0x12, 0x34 };
+	uint8_t slaac[16] = { 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0x02,
+	                      0, 0, 0, 0, 0, 0, 0x56, 0x78 };
 	uint8_t pfx[16] = { 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0,
 	                    0, 0, 0, 0, 0, 0, 0, 0 };
 	uint8_t other[16] = { 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0x01,
 	                      0, 0, 0, 0, 0, 0, 0, 0 };
+	uint8_t m128[16], m64[16] = { 0xff, 0xff, 0xff, 0xff,
+	                              0xff, 0xff, 0xff, 0xff };
 
+	/* as getifaddrs() reports a lease: a /128 subnet and the address */
+	memset(m128, 0xff, sizeof(m128));
 	capture_reset_subnets();
 	capture_reset_own_ips();
+	capture_add_subnet("eth0", AF_INET6, lease, m128);
 	capture_add_own_ip("eth0", AF_INET6, lease);
 
 	ASSERT(capture_prefix_configured("eth0", AF_INET6, pfx, 64) == 1,
-	       "prefix holding the lease should count as configured");
+	       "the /64 holding the lease should count as configured");
+	ASSERT(capture_prefix_configured("eth0", AF_INET6, pfx, 48) == 0,
+	       "a /48 holding the lease should not count as configured");
 	ASSERT(capture_prefix_configured("eth0", AF_INET6, other, 64) == 0,
 	       "another prefix should not count as configured");
 	ASSERT(capture_prefix_configured("eth1", AF_INET6, pfx, 64) == 0,
 	       "the lease of eth0 should not count on eth1");
 
+	/* a SLAAC address in 2001:db8:0:2::/64 */
+	capture_reset_subnets();
+	capture_reset_own_ips();
+	capture_add_subnet("eth0", AF_INET6, slaac, m64);
+	capture_add_own_ip("eth0", AF_INET6, slaac);
+	ASSERT(capture_prefix_configured("eth0", AF_INET6, slaac, 64) == 1,
+	       "the /64 of the address should count as configured");
+	ASSERT(capture_prefix_configured("eth0", AF_INET6, pfx, 48) == 0,
+	       "a /48 around a configured /64 should not count as "
+	       "configured");
+
+	capture_reset_subnets();
 	capture_reset_own_ips();
 	printf("  prefix_configured: ok\n");
 	return 0;

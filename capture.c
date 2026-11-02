@@ -589,7 +589,9 @@ is_local(const char *iface, int af, const uint8_t *ip)
 }
 
 /* Whether prefix/prefix_len lies inside a subnet configured on iface, or
- * holds one of the addresses of iface, as with a /128 DHCPv6 lease. */
+ * is a /64 or longer holding a /128 address of iface, as the on-link
+ * prefix of a DHCPv6 lease does. A shorter prefix around an address is
+ * not, so that a rogue RA making a whole site on-link is still mailed. */
 int
 capture_prefix_configured(const char *iface, int af, const uint8_t *prefix,
                           int prefix_len)
@@ -598,20 +600,18 @@ capture_prefix_configured(const char *iface, int af, const uint8_t *prefix,
 	uint8_t mask[16];
 
 	prefix_to_mask(af, prefix_len, mask);
-	for (int i = 0; i < own_ip_count; i++) {
-		struct local_ip *l = &own_ips[i];
-
-		if (l->af == af && strcmp(l->iface, iface) == 0 &&
-		    net_match(af, l->ip, prefix, mask))
-			return 1;
-	}
-
 	for (int i = 0; i < subnet_count; i++) {
 		struct subnet *s = &subnets[i];
 		int bits = 0;
 
 		if (s->af != af || strcmp(s->iface, iface) != 0)
 			continue;
+		if (is_host_mask(af, s->mask)) {
+			if (prefix_len >= 64 &&
+			    net_match(af, s->addr, prefix, mask))
+				return 1;
+			continue;
+		}
 		for (int j = 0; j < alen; j++)
 			for (uint8_t m = s->mask[j]; m; m <<= 1)
 				bits++;

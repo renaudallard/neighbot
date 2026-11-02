@@ -50,6 +50,8 @@ struct entry {
 	                           * entry made since the start */
 	time_t         seen_mono; /* mono_now() at the last sighting, 0 if none
 	                           * since the start */
+	time_t         first_mono; /* mono_now() when the entry was made, 0 if
+	                            * it was read from the file */
 	struct entry  *next;      /* chain within the (iface, af, ip) bucket */
 	struct entry  *mac_next;  /* doubly-linked chain within the MAC bucket */
 	struct entry  *mac_prev;

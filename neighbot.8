@@ -392,7 +392,8 @@ while the clock was ahead stays until the clock reaches it.
 One recorded since the start while the clock was ahead goes back with
 the clock when it is set right, so that the entry does not stay in the
 future.
-A first-seen time is never written later than the last-seen one,
+A first-seen time recorded since the start goes back with the clock
+in the same way, and is never written later than the last-seen one,
 though in that repeated hour the two can look reversed.
 The database is saved atomically via a temporary file and rename,
 after each event, at least once an hour while last-seen times change,

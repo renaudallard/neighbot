@@ -409,23 +409,29 @@ db_load(const char *path)
 }
 
 /*
- * When an entry was last seen, on the wall clock as it reads now. A
- * sighting since the start keeps the wall-clock time it was stamped with,
- * unless the clock has been set back since, as after a start with the
- * clock ahead: the monotonic clock places the sighting then. That clock
- * alone would not do, as on Linux it stops while the host is suspended.
- * A sighting is never placed before the time read from the file, which a
- * clock still behind at the sighting would replace otherwise.
+ * A time stamped on the wall clock when mono_now() read stamp_mono, on
+ * the wall clock as it reads now. It keeps its stamp, unless the clock
+ * has been set back since, as after a start with the clock ahead: the
+ * monotonic clock places it then. That clock alone would not do, as on
+ * Linux it stops while the host is suspended. A stamp_mono of 0 marks a
+ * time read from the file, which is kept as it is.
  */
+static time_t
+placed(time_t stamp, time_t stamp_mono, time_t now, time_t mono)
+{
+	if (stamp_mono != 0 && now - (mono - stamp_mono) < stamp)
+		return now - (mono - stamp_mono);
+	return stamp;
+}
+
+/* When an entry was last seen. It is never placed before the time read
+ * from the file, which a clock still behind at the sighting would replace
+ * otherwise. */
 static time_t
 seen_time(const struct entry *e, time_t now, time_t mono)
 {
-	time_t t = e->last_seen;
+	time_t t = placed(e->last_seen, e->seen_mono, now, mono);
 
-	if (e->seen_mono == 0)
-		return t;
-	if (now - (mono - e->seen_mono) < t)
-		t = now - (mono - e->seen_mono);
 	return t > e->file_seen ? t : e->file_seen;
 }
 
@@ -465,10 +471,13 @@ db_save(const char *path)
 			char first_str[32], last_str[32];
 			struct tm tm;
 			time_t seen = seen_time(e, now, mono);
-			/* a station first seen with the clock ahead is not
-			 * written as first seen after its last sighting */
-			time_t first = e->first_seen < seen ? e->first_seen : seen;
+			time_t first = placed(e->first_seen, e->first_mono, now,
+			    mono);
 
+			/* the first sighting is placed like the last one, and
+			 * never written after it */
+			if (first > seen)
+				first = seen;
 			inet_ntop(e->af, e->ip, ipstr, sizeof(ipstr));
 
 			localtime_r(&first, &tm);
@@ -575,11 +584,6 @@ db_update(int af, const uint8_t *ip, const uint8_t *mac,
 			time_t silent = e->seen_mono != 0 ?
 			    mono - e->seen_mono : now - prev;
 
-			/* first seen with the clock ahead: bring it back to the
-			 * previous sighting before that is stamped over, so the
-			 * saved first sighting does not move with each one */
-			if (e->first_seen > prev)
-				e->first_seen = prev;
 			e->last_seen = now;
 			e->seen_mono = mono;
 			dirty = 1;
@@ -654,7 +658,7 @@ db_update(int af, const uint8_t *ip, const uint8_t *mac,
 	snprintf(e->iface, sizeof(e->iface), "%s", iface);
 	e->first_seen = now;
 	e->last_seen = now;
-	e->seen_mono = mono_now();
+	e->seen_mono = e->first_mono = mono_now();
 	e->next = buckets[idx];
 	buckets[idx] = e;
 	mac_link(e);

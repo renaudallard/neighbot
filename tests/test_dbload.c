@@ -570,7 +570,7 @@ test_clock_ahead(void)
 	uint8_t ip[4] = { 10, 0, 0, 5 }, ip2[4] = { 10, 0, 0, 6 };
 	uint8_t mac[6] = { 0xde, 0xad, 0xbe, 0xef, 0x00, 0x05 };
 	uint8_t old[6];
-	char saved[32], first[32], lo[32], hi[32];
+	char saved[32], first[32], lo[32], hi[32], hi1[32];
 	time_t t, ols;
 	struct tm tm;
 
@@ -578,9 +578,18 @@ test_clock_ahead(void)
 	t = time(NULL) - 1;
 	localtime_r(&t, &tm);
 	strftime(lo, sizeof(lo), "%Y-%m-%dT%H:%M:%S", &tm);
+	t = time(NULL) + 1;
+	localtime_r(&t, &tm);
+	strftime(hi1, sizeof(hi1), "%Y-%m-%dT%H:%M:%S", &tm);
 	clock_step = 365 * 24 * 3600;
 	if (db_update(AF_INET, ip, mac, "eth1", old, &ols) != EVENT_NEW ||
 	    db_update(AF_INET, ip2, mac, "eth1", old, &ols) != EVENT_NEW) {
+		fprintf(stderr, "FAIL: wrong event with the clock ahead\n");
+		exit(1);
+	}
+	/* seen again before the clock is set right */
+	sleep(2);
+	if (db_update(AF_INET, ip2, mac, "eth1", old, &ols) != 0) {
 		fprintf(stderr, "FAIL: wrong event with the clock ahead\n");
 		exit(1);
 	}
@@ -610,10 +619,55 @@ test_clock_ahead(void)
 	}
 	db_save(TEST_TMP);
 	saved_field(TEST_TMP, "10.0.0.6", 3, first, sizeof(first));
-	if (strcmp(first, lo) < 0 || strcmp(first, hi) > 0) {
+	if (strcmp(first, lo) < 0 || strcmp(first, hi1) > 0) {
 		fprintf(stderr, "FAIL: first_seen %s of a station first seen "
 		    "with the clock ahead is not between %s and %s\n", first,
-		    lo, hi);
+		    lo, hi1);
+		exit(1);
+	}
+	db_free();
+	unlink(TEST_TMP);
+}
+
+/* A clock stepped back for a while and then set right again does not
+ * move the first sighting of a station made before the step. */
+static void
+test_clock_back(void)
+{
+	uint8_t ip[4] = { 10, 0, 0, 7 };
+	uint8_t mac[6] = { 0xde, 0xad, 0xbe, 0xef, 0x00, 0x07 };
+	uint8_t old[6];
+	char first[32], lo[32], hi[32];
+	time_t t, ols;
+	struct tm tm;
+
+	db_init();
+	t = time(NULL) - 1;
+	localtime_r(&t, &tm);
+	strftime(lo, sizeof(lo), "%Y-%m-%dT%H:%M:%S", &tm);
+	if (db_update(AF_INET, ip, mac, "eth1", old, &ols) != EVENT_NEW) {
+		fprintf(stderr, "FAIL: station not new\n");
+		exit(1);
+	}
+	t = time(NULL) + 1;
+	localtime_r(&t, &tm);
+	strftime(hi, sizeof(hi), "%Y-%m-%dT%H:%M:%S", &tm);
+	clock_step = -3600;
+	if (db_update(AF_INET, ip, mac, "eth1", old, &ols) != 0) {
+		fprintf(stderr, "FAIL: wrong event with the clock behind\n");
+		exit(1);
+	}
+	clock_step = 0;
+	if (db_update(AF_INET, ip, mac, "eth1", old, &ols) != 0) {
+		fprintf(stderr, "FAIL: wrong event with the clock set right\n");
+		exit(1);
+	}
+	db_save(TEST_TMP);
+	saved_field(TEST_TMP, "10.0.0.7", 3, first, sizeof(first));
+	if (strcmp(first, lo) < 0 || strcmp(first, hi) > 0) {
+		fprintf(stderr, "FAIL: first_seen %s of a station made before "
+		    "the clock was stepped back is not between %s and %s\n",
+		    first, lo, hi);
 		exit(1);
 	}
 	db_free();
@@ -755,6 +809,7 @@ main(void)
 	test_reappeared();
 	test_clock_behind();
 	test_clock_ahead();
+	test_clock_back();
 	test_nonexistent();
 	test_oversized_line();
 	test_embedded_nul_line();

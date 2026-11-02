@@ -423,13 +423,13 @@ fe80::1,11:22:33:44:55:66,eth0,2026-02-23T14:30:05,2026-02-23T15:12:05,00:00:00:
 
 Timestamps are ISO 8601, local time with no UTC offset, so a time in the
 hour repeated when daylight saving time ends is ambiguous and may be read
-back an hour off. `first_seen` is never written later than `last_seen`, as
-it would be for a station first seen while the clock was ahead, though in
-that repeated hour the two can look reversed. The `prev_mac` field stores
-the previous MAC address for flip-flop detection. Old database files
-without this field are loaded without errors. Fields are not quoted, so
-interfaces whose name contains a comma or a non-printable character are
-not monitored.
+back an hour off. A `first_seen` recorded since the start goes back with
+the clock like `last_seen` when the clock is set back, and is never written
+later than `last_seen`, though in that repeated hour the two can look
+reversed. The `prev_mac` field stores the previous MAC address for
+flip-flop detection. Old database files without this field are loaded
+without errors. Fields are not quoted, so interfaces whose name contains a
+comma or a non-printable character are not monitored.
 
 Saves are atomic (write to temp file + rename). The file is written after
 each event, at least once an hour while last-seen times change, on

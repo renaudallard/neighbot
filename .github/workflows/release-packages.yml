@@ -28,6 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
+      sha: ${{ steps.sha.outputs.sha }}
     steps:
       - name: Determine tag
         id: tag
@@ -58,6 +59,12 @@ jobs:
             echo "::error::$REF is at version $ver, not ${TAG#v}"
             exit 1
           fi
+
+      # every job builds this commit: a branch such as master could move
+      # while the jobs run and attach other code to the release
+      - name: Resolve commit
+        id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
   detect-versions:
     name: Detect distro versions
@@ -405,12 +412,13 @@ jobs:
 
   fetch-oui:
     name: Fetch OUI database
+    needs: resolve-tag
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ needs.resolve-tag.outputs.sha }}
 
       # The IEEE server fails intermittently. Fetch the file once for
       # all package builds, with retries, rather than in every build
@@ -435,6 +443,7 @@ jobs:
     if: ${{ needs.detect-versions.outputs.ubuntu_stable != '' }}
     runs-on: ubuntu-latest
     needs:
+      - resolve-tag
       - detect-versions
       - fetch-oui
     container: ubuntu:${{ needs.detect-versions.outputs.ubuntu_stable }}
@@ -455,7 +464,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          ref: ${{ inputs.ref }}
+          ref: ${{ needs.resolve-tag.outputs.sha }}
 
       - name: Download OUI database
         uses: actions/download-artifact@v7
@@ -499,6 +508,7 @@ jobs:
     if: ${{ needs.detect-versions.outputs.ubuntu_lts != '' }}
     runs-on: ubuntu-latest
     needs:
+      - resolve-tag
       - detect-versions
       - fetch-oui
     container: ubuntu:${{ needs.detect-versions.outputs.ubuntu_lts }}
@@ -519,7 +529,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          ref: ${{ inputs.ref }}
+          ref: ${{ needs.resolve-tag.outputs.sha }}
 
       - name: Download OUI database
         uses: actions/download-artifact@v7
@@ -562,6 +572,7 @@ jobs:
     name: Build .deb (Debian Stable)
     runs-on: ubuntu-latest
     needs:
+      - resolve-tag
       - detect-versions
       - fetch-oui
     container: debian:${{ needs.detect-versions.outputs.debian_stable }}
@@ -582,7 +593,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          ref: ${{ inputs.ref }}
+          ref: ${{ needs.resolve-tag.outputs.sha }}
 
       - name: Download OUI database
         uses: actions/download-artifact@v7
@@ -625,6 +636,7 @@ jobs:
     name: Build .deb (Debian Oldstable)
     runs-on: ubuntu-latest
     needs:
+      - resolve-tag
       - detect-versions
       - fetch-oui
     container: debian:${{ needs.detect-versions.outputs.debian_oldstable }}
@@ -645,7 +657,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          ref: ${{ inputs.ref }}
+          ref: ${{ needs.resolve-tag.outputs.sha }}
 
       - name: Download OUI database
         uses: actions/download-artifact@v7
@@ -689,6 +701,7 @@ jobs:
     if: ${{ needs.detect-versions.outputs.fedora_release != '' }}
     runs-on: ubuntu-latest
     needs:
+      - resolve-tag
       - detect-versions
       - fetch-oui
     container:
@@ -712,7 +725,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          ref: ${{ inputs.ref }}
+          ref: ${{ needs.resolve-tag.outputs.sha }}
 
       - name: Download OUI database
         uses: actions/download-artifact@v7
@@ -765,6 +778,7 @@ jobs:
     if: ${{ needs.detect-versions.outputs.rocky_latest != '' }}
     runs-on: ubuntu-latest
     needs:
+      - resolve-tag
       - detect-versions
       - fetch-oui
     container:
@@ -807,7 +821,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          ref: ${{ inputs.ref }}
+          ref: ${{ needs.resolve-tag.outputs.sha }}
 
       - name: Download OUI database
         uses: actions/download-artifact@v7
@@ -860,6 +874,7 @@ jobs:
     if: needs.detect-versions.outputs.rocky_previous != needs.detect-versions.outputs.rocky_latest
     runs-on: ubuntu-latest
     needs:
+      - resolve-tag
       - detect-versions
       - fetch-oui
     container:
@@ -902,7 +917,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          ref: ${{ inputs.ref }}
+          ref: ${{ needs.resolve-tag.outputs.sha }}
 
       - name: Download OUI database
         uses: actions/download-artifact@v7
@@ -955,6 +970,7 @@ jobs:
     if: ${{ needs.detect-versions.outputs.opensuse_leap != '' }}
     runs-on: ubuntu-latest
     needs:
+      - resolve-tag
       - detect-versions
       - fetch-oui
     container:
@@ -988,7 +1004,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          ref: ${{ inputs.ref }}
+          ref: ${{ needs.resolve-tag.outputs.sha }}
 
       - name: Download OUI database
         uses: actions/download-artifact@v7
@@ -1041,6 +1057,7 @@ jobs:
     if: ${{ needs.detect-versions.outputs.suse_bci != '' }}
     runs-on: ubuntu-latest
     needs:
+      - resolve-tag
       - detect-versions
       - fetch-oui
     container:
@@ -1070,7 +1087,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          ref: ${{ inputs.ref }}
+          ref: ${{ needs.resolve-tag.outputs.sha }}
 
       - name: Download OUI database
         uses: actions/download-artifact@v7
@@ -1123,6 +1140,7 @@ jobs:
     if: ${{ needs.detect-versions.outputs.alpine_release != '' }}
     runs-on: ubuntu-latest
     needs:
+      - resolve-tag
       - detect-versions
       - fetch-oui
     container:
@@ -1157,7 +1175,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          ref: ${{ inputs.ref }}
+          ref: ${{ needs.resolve-tag.outputs.sha }}
 
       - name: Download OUI database
         uses: actions/download-artifact@v7
@@ -1208,6 +1226,7 @@ jobs:
     if: ${{ needs.detect-versions.outputs.openbsd_releases != '[]' }}
     runs-on: ubuntu-latest
     needs:
+      - resolve-tag
       - detect-versions
     strategy:
       fail-fast: false
@@ -1218,7 +1237,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          ref: ${{ inputs.ref }}
+          ref: ${{ needs.resolve-tag.outputs.sha }}
 
       - name: Build .tgz in OpenBSD VM
         uses: vmactions/openbsd-vm@v1

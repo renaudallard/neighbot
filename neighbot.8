@@ -256,9 +256,13 @@ neighbours look foreign.
 The first fragment of an IPv6 packet carries a Neighbor Discovery
 message, or extension headers going on into the next fragment that
 may hide one.
-RFC 6980 forbids fragmented Neighbor Discovery, and Linux, FreeBSD
-and macOS drop it, but OpenBSD and NetBSD reassemble it and act on
-it, so this may indicate NDP spoofing.
+RFC 6980 forbids fragmented Neighbor Discovery, and Linux,
+.Fx
+and macOS drop it, but
+.Ox
+and
+.Nx
+reassemble it and act on it, so this may indicate NDP spoofing.
 Nothing is recorded in the database.
 The report names the source address, the Ethernet source of the
 fragment and, when the fragment holds it, the target of the message.
@@ -283,9 +287,12 @@ withdrawn at once.
 A prefix option without the L flag is ignored, since it says nothing
 about which addresses are on-link.
 One whose preferred lifetime exceeds its valid lifetime is learned,
-as FreeBSD 14 makes the prefix on-link from it, but it never
-withdraws the prefix or shortens its lifetime, as Linux, macOS and
-newer FreeBSD ignore it.
+as
+.Fx 14
+makes the prefix on-link from it, but it never withdraws the prefix
+or shortens its lifetime, as Linux, macOS and newer
+.Fx
+ignore it.
 Prefixes shorter than /48 are ignored and logged: real on-link
 prefixes are /64, and a short prefix would whitelist an implausibly
 wide slice of the address space.

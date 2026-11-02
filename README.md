@@ -90,7 +90,9 @@ elsewhere:
 sudo make PREFIX=/usr install
 ```
 
-Uninstall:
+Uninstall, after `sudo systemctl disable --now neighbot` (or `rcctl stop
+neighbot` and `rcctl disable neighbot` on OpenBSD) if the service was enabled,
+since `make uninstall` only removes files:
 
 ```sh
 sudo make uninstall

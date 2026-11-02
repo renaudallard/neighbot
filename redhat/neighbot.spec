@@ -56,8 +56,10 @@ if [ -x /usr/bin/systemctl ]; then
 fi
 
 %preun
+# on erase, also disable the unit: a wants link left behind would make
+# a later reinstall come up enabled
 if [ $1 -eq 0 ] && [ -x /usr/bin/systemctl ]; then
-    /usr/bin/systemctl --no-reload --quiet stop neighbot.service 2>/dev/null || :
+    /usr/bin/systemctl --no-reload --quiet disable --now neighbot.service 2>/dev/null || :
 fi
 
 %postun

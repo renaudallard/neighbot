@@ -417,7 +417,9 @@ whose name contains a comma or a non-printable character are not monitored.
 
 Saves are atomic (write to temp file + rename). The file is written after
 each event, at least once an hour while last-seen times change, on
-`SIGHUP` and at shutdown. The entry limit is
+`SIGHUP` and at shutdown, but no sooner than 10 seconds after the previous
+save except at shutdown, so that a burst of events is written once. The
+entry limit is
 100,000 to prevent memory exhaustion from spoofed traffic. If the file
 exists but cannot be read in full (read error, not a regular file),
 neighbot exits instead of starting with a partial table that the next

@@ -367,7 +367,8 @@ The database is saved atomically via a temporary file and rename,
 after each event, at least once an hour while last-seen times change,
 on
 .Dv SIGHUP
-and at shutdown.
+and at shutdown, but no sooner than 10 seconds after the previous save
+except at shutdown, so that a burst of events is written once.
 .Pp
 The maximum number of entries is limited to 100000 to prevent
 memory exhaustion from spoofed traffic.

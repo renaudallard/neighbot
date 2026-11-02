@@ -330,8 +330,8 @@ The empty `ExecStart=` clears the unit's own command. Use the path that
 `/usr/bin/neighbot` on Fedora). Unlike an edit of the unit file itself,
 the drop-in is kept when the unit is installed again, by
 `make install-systemd` (`/etc/systemd/system`) or by a package
-(`/usr/lib/systemd/system`, or `/lib/systemd/system` on Debian and
-Ubuntu).
+(`/usr/lib/systemd/system`, or `/lib/systemd/system` on Debian
+bookworm).
 
 </details>
 

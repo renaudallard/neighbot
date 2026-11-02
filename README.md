@@ -115,13 +115,14 @@ release assets. Supported distributions:
 | `.apk` | Alpine Linux |
 | `.tgz` | OpenBSD (2 latest supported releases) |
 
-Install with your package manager:
+Install with your package manager, which also pulls in libpcap:
 
 ```sh
-sudo dpkg -i neighbot_*.deb                      # Debian/Ubuntu
-sudo rpm -i neighbot-*.rpm                       # Fedora/RHEL/SUSE
-sudo apk add --allow-untrusted neighbot-*.apk    # Alpine
-doas pkg_add -D unsigned ./neighbot-*.tgz        # OpenBSD
+sudo apt install ./neighbot_*.deb                      # Debian/Ubuntu
+sudo dnf install ./neighbot-*.rpm                      # Fedora/RHEL
+sudo zypper install --allow-unsigned-rpm ./neighbot-*.rpm  # openSUSE/SUSE
+sudo apk add --allow-untrusted neighbot-*.apk          # Alpine
+doas pkg_add -D unsigned ./neighbot-*.tgz              # OpenBSD
 ```
 
 The `.deb` enables and starts the service on install. The `.rpm` installs

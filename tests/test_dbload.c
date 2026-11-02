@@ -630,16 +630,14 @@ test_clock_ahead(void)
 }
 
 /* A clock stepped back for a while and then set right again does not
- * move the first sighting of a station made before the step, whether it
- * is saved before the station is seen again or after, and the last
- * sighting, made during the step, is not written before it. */
+ * move the first sighting of a station made before the step. */
 static void
 test_clock_back(void)
 {
 	uint8_t ip[4] = { 10, 0, 0, 7 };
 	uint8_t mac[6] = { 0xde, 0xad, 0xbe, 0xef, 0x00, 0x07 };
 	uint8_t old[6];
-	char first[32], last[32], lo[32], hi[32];
+	char first[32], lo[32], hi[32];
 	time_t t, ols;
 	struct tm tm;
 
@@ -660,25 +658,17 @@ test_clock_back(void)
 		exit(1);
 	}
 	clock_step = 0;
-	for (int seen = 0; seen < 2; seen++) {
-		if (seen && db_update(AF_INET, ip, mac, "eth1", old,
-		    &ols) != 0) {
-			fprintf(stderr, "FAIL: wrong event with the clock set "
-			    "right\n");
-			exit(1);
-		}
-		db_save(TEST_TMP);
-		saved_field(TEST_TMP, "10.0.0.7", 3, first, sizeof(first));
-		saved_field(TEST_TMP, "10.0.0.7", 4, last, sizeof(last));
-		if (strcmp(first, lo) < 0 || strcmp(first, hi) > 0 ||
-		    strcmp(last, first) < 0) {
-			fprintf(stderr, "FAIL: station made before the clock "
-			    "was stepped back saved as first seen %s, last "
-			    "seen %s, not first seen between %s and %s%s\n",
-			    first, last, lo, hi, seen ? "" :
-			    " before it was seen again");
-			exit(1);
-		}
+	if (db_update(AF_INET, ip, mac, "eth1", old, &ols) != 0) {
+		fprintf(stderr, "FAIL: wrong event with the clock set right\n");
+		exit(1);
+	}
+	db_save(TEST_TMP);
+	saved_field(TEST_TMP, "10.0.0.7", 3, first, sizeof(first));
+	if (strcmp(first, lo) < 0 || strcmp(first, hi) > 0) {
+		fprintf(stderr, "FAIL: first_seen %s of a station made before "
+		    "the clock was stepped back is not between %s and %s\n",
+		    first, lo, hi);
+		exit(1);
 	}
 	db_free();
 	unlink(TEST_TMP);

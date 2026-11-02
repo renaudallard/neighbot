@@ -252,7 +252,8 @@ the router advertises the prefix again, and a flood of foreign
 addresses cannot hide a spoof of a station reached through an on-link
 route.
 IPs not recorded on the receiving interface that are foreign to it
-but match another monitored interface's subnet are silently ignored
+but local to another monitored interface, in one of its subnets or, on
+Linux, reached through it without a gateway, are silently ignored
 (common with access points on VLAN trunks).
 The configured subnets are re-read every 60 seconds, on
 .Dv SIGHUP ,

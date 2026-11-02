@@ -430,6 +430,41 @@ test_control_bytes_iface(void)
 
 /* a refresh of last_seen changes no event but must mark the table for
  * saving, and a save clears the mark */
+/* a station recorded 200 days ago reappears at its first sighting, and
+ * not again at the next one: once seen, its silence is measured on the
+ * monotonic clock */
+static void
+test_reappeared(void)
+{
+	uint8_t ip[4] = { 10, 0, 0, 2 };
+	uint8_t mac[6] = { 0xde, 0xad, 0xbe, 0xef, 0x00, 0x02 };
+	uint8_t old[6];
+	char line[160], when[32];
+	time_t then = time(NULL) - 200 * 24 * 3600, ols = 0;
+	struct tm tm;
+
+	localtime_r(&then, &tm);
+	strftime(when, sizeof(when), "%Y-%m-%dT%H:%M:%S", &tm);
+	snprintf(line, sizeof(line), "10.0.0.2,de:ad:be:ef:00:02,eth1,"
+	    "%s,%s,00:00:00:00:00:00\n", when, when);
+	write_file(TEST_TMP, line);
+
+	db_init();
+	db_load(TEST_TMP);
+	if (db_update(AF_INET, ip, mac, "eth1", old, &ols) !=
+	    EVENT_REAPPEARED || ols != then) {
+		fprintf(stderr, "FAIL: station silent 200 days did not "
+		    "reappear\n");
+		exit(1);
+	}
+	if (db_update(AF_INET, ip, mac, "eth1", old, &ols) != 0) {
+		fprintf(stderr, "FAIL: station reappeared twice\n");
+		exit(1);
+	}
+	db_free();
+	unlink(TEST_TMP);
+}
+
 static void
 test_dirty(void)
 {
@@ -560,6 +595,7 @@ main(void)
 	test_control_bytes_iface();
 	test_pre_epoch();
 	test_dirty();
+	test_reappeared();
 	test_nonexistent();
 	test_oversized_line();
 	test_embedded_nul_line();

@@ -216,6 +216,12 @@ subsides (no flips for 30 minutes) or a
 is received.
 .It reappeared
 A known MAC/IP pair is seen again after 180 days or more of silence.
+Once a station has been seen since
+.Nm
+started, its silence is measured on the monotonic clock, and the
+last-seen time stored for it never moves back, so a step of the wall
+clock, as when NTP sets the clock of a board without a real-time clock
+after the start, does not make stations look as if they reappeared.
 .It bogon
 An IP address is seen that does not belong to any subnet configured
 on any monitored interface.

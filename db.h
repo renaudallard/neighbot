@@ -46,6 +46,8 @@ struct entry {
 	char           iface[32];
 	time_t         first_seen;
 	time_t         last_seen;
+	time_t         seen_mono; /* mono_now() at the last sighting, 0 if none
+	                           * since the start */
 	struct entry  *next;      /* chain within the (iface, af, ip) bucket */
 	struct entry  *mac_next;  /* doubly-linked chain within the MAC bucket */
 	struct entry  *mac_prev;

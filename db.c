@@ -541,7 +541,19 @@ db_update(int af, const uint8_t *ip, const uint8_t *mac,
 		if (e->af == af && memcmp(e->ip, ip, ilen) == 0 &&
 		    strcmp(e->iface, iface) == 0) {
 			time_t prev = e->last_seen;
-			e->last_seen = now;
+			time_t mono = mono_now();
+			/* How long the station was silent: by the monotonic
+			 * clock once it has been seen since the start, as a
+			 * wall-clock step would make a station seen while the
+			 * clock was behind look silent for the whole step */
+			time_t silent = e->seen_mono != 0 ?
+			    mono - e->seen_mono : now - prev;
+
+			/* never move last_seen back: a clock still behind at
+			 * boot would replace the time read from the file */
+			if (now > e->last_seen)
+				e->last_seen = now;
+			e->seen_mono = mono;
 			dirty = 1;
 			if (memcmp(e->mac, mac, 6) != 0) {
 				int ev;
@@ -573,7 +585,7 @@ db_update(int af, const uint8_t *ip, const uint8_t *mac,
 				mac_link(e);
 				return ev;
 			}
-			if (now - prev >= REAPPEAR_SECS) {
+			if (silent >= REAPPEAR_SECS) {
 				if (old_last_seen)
 					*old_last_seen = prev;
 				return EVENT_REAPPEARED;
@@ -614,6 +626,7 @@ db_update(int af, const uint8_t *ip, const uint8_t *mac,
 	snprintf(e->iface, sizeof(e->iface), "%s", iface);
 	e->first_seen = now;
 	e->last_seen = now;
+	e->seen_mono = mono_now();
 	e->next = buckets[idx];
 	buckets[idx] = e;
 	mac_link(e);

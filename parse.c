@@ -769,7 +769,8 @@ ip6_opts_ok(const u_char *pkt, size_t off, size_t hlen, int hopopts)
  * FreeBSD and macOS drop it, but OpenBSD and NetBSD reassemble it and act
  * on it, so it is reported as an attack rather than recorded. Like a
  * bogon, it is rate-limited per address the message would record: the
- * target of an NA or a Redirect, the source of the others.
+ * target of an NA or a Redirect when the fragment holds it, the source
+ * otherwise.
  */
 static void
 handle_fragment(const uint8_t *src, const uint8_t *dst, const uint8_t *mac,

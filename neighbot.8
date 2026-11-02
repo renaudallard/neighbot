@@ -273,8 +273,8 @@ The report names the source address, the Ethernet source of the
 fragment and, when the fragment holds it, the target of the message.
 Like bogons, it is rate-limited per address the message would record
 .Pq see Fl B :
-the target of a Neighbor Advertisement or Redirect, the source of the
-others.
+the target of a Neighbor Advertisement or Redirect when the fragment
+holds it, the source address otherwise.
 .It ra-learned
 A Router Advertisement announced a new on-link IPv6 prefix on an
 interface.

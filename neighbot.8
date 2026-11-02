@@ -386,6 +386,7 @@ A last-seen time never goes back past the one read from the file, as a
 clock still behind at the start would replace it, but one recorded
 while the clock was ahead goes back with the clock when it is set
 right, so that the entry does not stay in the future.
+A first-seen time is never written later than the last-seen one.
 The database is saved atomically via a temporary file and rename,
 after each event, at least once an hour while last-seen times change,
 on

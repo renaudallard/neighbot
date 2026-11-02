@@ -68,9 +68,10 @@ write_file_n(const char *path, const char *data, size_t len)
 	fclose(fp);
 }
 
-/* Copy the last_seen field of the row for ip in the file at path */
+/* Copy field n, counted from 0, of the row for ip in the file at path:
+ * 3 is first_seen and 4 last_seen */
 static void
-saved_seen(const char *path, const char *ip, char *buf, size_t len)
+saved_field(const char *path, const char *ip, int n, char *buf, size_t len)
 {
 	char line[256];
 	size_t iplen = strlen(ip);
@@ -85,7 +86,7 @@ saved_seen(const char *path, const char *ip, char *buf, size_t len)
 
 		if (strncmp(line, ip, iplen) != 0 || line[iplen] != ',')
 			continue;
-		for (int i = 0; i < 4 && p != NULL; i++)
+		for (int i = 0; i < n && p != NULL; i++)
 			if ((p = strchr(p, ',')) != NULL)
 				p++;
 		if (p != NULL) {
@@ -542,7 +543,7 @@ test_clock_behind(void)
 		exit(1);
 	}
 	db_save(TEST_TMP2);
-	saved_seen(TEST_TMP2, "10.0.0.3", saved, sizeof(saved));
+	saved_field(TEST_TMP2, "10.0.0.3", 4, saved, sizeof(saved));
 	if (strcmp(saved, when) != 0) {
 		fprintf(stderr, "FAIL: a clock behind moved last_seen back "
 		    "from %s to %s\n", when, saved);
@@ -561,14 +562,15 @@ test_clock_behind(void)
 
 /* A sighting made while the wall clock was ahead, as with a bad real-time
  * clock, is placed by the monotonic clock once the clock is set back: its
- * last_seen time is not left in the future, and it can expire. */
+ * last_seen time is not left in the future, first_seen is not written
+ * after it, and it can expire. */
 static void
 test_clock_ahead(void)
 {
 	uint8_t ip[4] = { 10, 0, 0, 5 };
 	uint8_t mac[6] = { 0xde, 0xad, 0xbe, 0xef, 0x00, 0x05 };
 	uint8_t old[6];
-	char saved[32], lo[32], hi[32];
+	char saved[32], first[32], lo[32], hi[32];
 	time_t t, ols;
 	struct tm tm;
 
@@ -586,10 +588,16 @@ test_clock_ahead(void)
 	t = time(NULL) + 1;
 	localtime_r(&t, &tm);
 	strftime(hi, sizeof(hi), "%Y-%m-%dT%H:%M:%S", &tm);
-	saved_seen(TEST_TMP, "10.0.0.5", saved, sizeof(saved));
+	saved_field(TEST_TMP, "10.0.0.5", 4, saved, sizeof(saved));
 	if (strcmp(saved, lo) < 0 || strcmp(saved, hi) > 0) {
 		fprintf(stderr, "FAIL: last_seen %s of a sighting with the "
 		    "clock ahead is not between %s and %s\n", saved, lo, hi);
+		exit(1);
+	}
+	saved_field(TEST_TMP, "10.0.0.5", 3, first, sizeof(first));
+	if (strcmp(first, saved) > 0) {
+		fprintf(stderr, "FAIL: first_seen %s written after last_seen "
+		    "%s\n", first, saved);
 		exit(1);
 	}
 	sleep(3);

@@ -465,10 +465,13 @@ db_save(const char *path)
 			char first_str[32], last_str[32];
 			struct tm tm;
 			time_t seen = seen_time(e, now, mono);
+			/* a station first seen with the clock ahead is not
+			 * written as first seen after its last sighting */
+			time_t first = e->first_seen < seen ? e->first_seen : seen;
 
 			inet_ntop(e->af, e->ip, ipstr, sizeof(ipstr));
 
-			localtime_r(&e->first_seen, &tm);
+			localtime_r(&first, &tm);
 			strftime(first_str, sizeof(first_str),
 			         "%Y-%m-%dT%H:%M:%S", &tm);
 			localtime_r(&seen, &tm);

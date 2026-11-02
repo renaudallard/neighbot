@@ -420,10 +420,12 @@ entry with the fields `ip`, `mac`, `interface`, `first_seen`, `last_seen` and
 fe80::1,11:22:33:44:55:66,eth0,2026-02-23T14:30:05,2026-02-23T15:12:05,00:00:00:00:00:00
 ```
 
-Timestamps are ISO 8601, local time. The `prev_mac` field stores the
-previous MAC address for flip-flop detection. Old database files without
-this field are loaded without errors. Fields are not quoted, so interfaces
-whose name contains a comma or a non-printable character are not monitored.
+Timestamps are ISO 8601, local time, and `first_seen` is never written
+later than `last_seen`, as it would be for a station first seen while the
+clock was ahead. The `prev_mac` field stores the previous MAC address for
+flip-flop detection. Old database files without this field are loaded
+without errors. Fields are not quoted, so interfaces whose name contains a
+comma or a non-printable character are not monitored.
 
 Saves are atomic (write to temp file + rename). The file is written after
 each event, at least once an hour while last-seen times change, on

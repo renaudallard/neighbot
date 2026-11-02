@@ -519,10 +519,14 @@ parse_arp(const u_char *pkt, size_t len, const char *iface)
 	if (is_zero_ip4(arp->spa))
 		return;
 
-	/* skip multicast and broadcast sender IPs. A broadcast or
-	 * multicast sender MAC is kept: hosts accept it, which turns the
-	 * victim's unicast traffic into broadcast anyone can read */
-	if (arp->spa[0] >= 224)
+	/* skip multicast and limited broadcast sender IPs: hosts give them
+	 * a fixed entry that ARP never changes. 240/4 is kept, as hosts use
+	 * it as unicast. A broadcast or multicast sender MAC is kept too:
+	 * hosts accept it, which turns the victim's unicast traffic into
+	 * broadcast anyone can read */
+	if ((arp->spa[0] & 0xf0) == 0xe0 ||
+	    (arp->spa[0] == 255 && arp->spa[1] == 255 &&
+	    arp->spa[2] == 255 && arp->spa[3] == 255))
 		return;
 
 	/* an address already recorded on this interface with this MAC

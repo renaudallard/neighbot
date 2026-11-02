@@ -540,7 +540,8 @@ Crashes and slow inputs are written to the current directory.
    is ignored, as it cannot be checked, but ARP is still read from it
 3. Main loop: `poll()` on all handles (1s timeout)
 4. **ARP**: extracts sender IP + MAC from requests/replies (skips probes,
-   and other opcodes, which hosts ignore);
+   multicast and broadcast senders, which hosts never learn, and other
+   opcodes, which hosts ignore; 240/4 senders are kept, as hosts use them);
    hardware type 6 (IEEE 802) is accepted like Ethernet, as hosts honour it
 5. **NDP**: parses Neighbor Advertisements (type 136) and Solicitations
    (type 135) for link-layer address options (skips DAD); Router

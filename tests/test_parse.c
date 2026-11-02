@@ -1541,6 +1541,45 @@ test_arp_opcode(void)
 	}
 }
 
+/* hosts use 240/4 senders as unicast, but give multicast and limited
+ * broadcast addresses a fixed entry that ARP never changes */
+static void
+test_arp_special_senders(void)
+{
+	static const struct {
+		uint8_t spa[4];
+		int     want;
+	} cases[] = {
+		{ { 240, 0, 0, 60 }, 1 },
+		{ { 255, 255, 255, 254 }, 1 },
+		{ { 224, 0, 0, 5 }, 0 },
+		{ { 239, 255, 255, 255 }, 0 },
+		{ { 255, 255, 255, 255 }, 0 },
+	};
+	uint8_t pkt[42];
+	uint8_t mac[6] = { 0x02, 0, 0, 0, 0, 0x60 };
+
+	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		memset(pkt, 0, sizeof(pkt));
+		memset(pkt, 0xff, 6);
+		memcpy(pkt + 6, mac, 6);
+		pkt[12] = 0x08; pkt[13] = 0x06;
+		pkt[15] = 0x01; pkt[16] = 0x08; pkt[18] = 6; pkt[19] = 4;
+		pkt[21] = 0x02;
+		memcpy(pkt + 22, mac, 6);
+		memcpy(pkt + 28, cases[i].spa, 4);
+		feed(pkt, sizeof(pkt));
+		if (db_known(AF_INET, cases[i].spa, mac, "test0") !=
+		    cases[i].want) {
+			fprintf(stderr, "FAIL: ARP from %u.%u.%u.%u %s\n",
+			    cases[i].spa[0], cases[i].spa[1], cases[i].spa[2],
+			    cases[i].spa[3], cases[i].want ? "was dropped" :
+			    "was processed");
+			exit(1);
+		}
+	}
+}
+
 /* ARP in an 802.1Q priority tag (VLAN ID 0) is processed, other VLAN
  * IDs are not */
 static void
@@ -1695,6 +1734,7 @@ main(void)
 	test_nd_bad_options();
 	test_nd_redirect();
 	test_arp_opcode();
+	test_arp_special_senders();
 	test_vlan0_priority_tag();
 	test_stacked_priority_tags();
 	test_truncated();

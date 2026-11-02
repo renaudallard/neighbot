@@ -86,6 +86,15 @@ is_zero_ip6(const uint8_t *ip)
 	return 1;
 }
 
+static int
+is_loopback_ip6(const uint8_t *ip)
+{
+	for (int i = 0; i < 15; i++)
+		if (ip[i] != 0)
+			return 0;
+	return ip[15] == 1;
+}
+
 
 #define STORM_CACHE_SIZE 32
 
@@ -701,7 +710,7 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
           const uint8_t *eth_src)
 {
 	struct ip6_hdr ip6;
-	const uint8_t *icmp;
+	const uint8_t *icmp, *src, *dst;
 	uint8_t type, nxt, want;
 	size_t icmp_off, icmp_len;
 	const uint8_t *ip_addr;
@@ -728,6 +737,17 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 	    ntohs(ip6.ip6_plen) > len - sizeof(struct ip6_hdr))
 		return;
 	len = sizeof(struct ip6_hdr) + ntohs(ip6.ip6_plen);
+
+	/* Hosts drop, before any ND processing, a packet of another IP
+	 * version, one from or to the loopback address, one from a
+	 * multicast address, and one to :: or to a multicast address of
+	 * scope 0 or 1, which never leaves a node (RFC 4291 2.5.3, 2.7) */
+	src = (const uint8_t *)&ip6.ip6_src;
+	dst = (const uint8_t *)&ip6.ip6_dst;
+	if ((ip6.ip6_vfc & 0xf0) != 0x60 || is_loopback_ip6(src) ||
+	    is_loopback_ip6(dst) || src[0] == 0xff || is_zero_ip6(dst) ||
+	    (dst[0] == 0xff && (dst[1] & 0x0f) <= 1))
+		return;
 
 	/* Step over hop-by-hop, routing and destination options headers:
 	 * hosts process ND messages placed behind them, a known way past
@@ -765,21 +785,20 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 	 * either. Other ICMPv6 types are not ND and need no checksum. */
 	if (type < ND_ROUTER_SOLICIT || type > ND_REDIRECT ||
 	    icmp[1] != 0 ||
-	    icmp6_checksum((const uint8_t *)&ip6.ip6_src,
-	    (const uint8_t *)&ip6.ip6_dst, icmp, icmp_len) != 0)
+	    icmp6_checksum(src, dst, icmp, icmp_len) != 0)
 		return;
 
 	if (type == ND_ROUTER_ADVERT) {
 		/* a valid Router Advertisement also has a link-local
 		 * source (RFC 4861 6.1.2) */
-		if (!IS_LINKLOCAL6((const uint8_t *)&ip6.ip6_src))
+		if (!IS_LINKLOCAL6(src))
 			return;
 		if (icmp_len < 16)
 			return;
 		/* hosts cache the router's address and Source LLA from
 		 * the RA itself, so check them like a neighbor's: a forged
 		 * RA would otherwise take over the gateway unnoticed */
-		ip_addr = (const uint8_t *)&ip6.ip6_src;
+		ip_addr = src;
 		opts = icmp + 16;
 		opts_len = icmp_len - 16;
 		want = 1;
@@ -788,7 +807,7 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 		 * Routers cache the solicitor's Source LLA from it */
 		if (icmp_len < 8)
 			return;
-		ip_addr = (const uint8_t *)&ip6.ip6_src;
+		ip_addr = src;
 		opts = icmp + 8;
 		opts_len = icmp_len - 8;
 		want = 1;
@@ -805,7 +824,7 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 		if (icmp_len < 24)
 			return;
 		/* use source IP from IPv6 header */
-		ip_addr = (const uint8_t *)&ip6.ip6_src;
+		ip_addr = src;
 		opts = icmp + 24;
 		opts_len = icmp_len - 24;
 		want = 1;	/* Source Link-Layer Address */
@@ -817,7 +836,7 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 		 * record the target like an NA's. RFC 4861 8.1: the source is
 		 * link-local, the destination is not multicast, and the
 		 * target is a link-local router or the destination itself */
-		if (!IS_LINKLOCAL6((const uint8_t *)&ip6.ip6_src))
+		if (!IS_LINKLOCAL6(src))
 			return;
 		if (icmp_len < 40 || icmp[24] == 0xff)
 			return;
@@ -837,8 +856,7 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 
 	/* an RA that passed the checks above is one hosts process */
 	if (type == ND_ROUTER_ADVERT)
-		parse_ra(icmp, icmp_len, iface,
-		    (const uint8_t *)&ip6.ip6_src);
+		parse_ra(icmp, icmp_len, iface, src);
 
 	/* Fall back to Ethernet source MAC if NDP option is missing. Not
 	 * for a Redirect: it comes from the router, not from the target,

@@ -1293,6 +1293,51 @@ test_nd_code_and_checksum(void)
 	}
 }
 
+/* hosts drop IPv6 packets of another version, from or to ::1, from a
+ * multicast address, or to :: or a multicast address of scope 0 or 1,
+ * before ND sees them; other multicast scopes and a v4-mapped source
+ * are processed */
+static void
+test_nd_ip6_header(void)
+{
+	static const struct {
+		const char *src, *dst;
+		uint8_t     vfc;
+		int         want;
+	} cases[] = {
+		{ NULL, NULL, 0x40, 0 },
+		{ NULL, NULL, 0x00, 0 },
+		{ "::1", NULL, 0x60, 0 },
+		{ "ff02::1", NULL, 0x60, 0 },
+		{ NULL, "::1", 0x60, 0 },
+		{ NULL, "::", 0x60, 0 },
+		{ NULL, "ff01::1", 0x60, 0 },
+		{ NULL, "ff00::1", 0x60, 0 },
+		{ NULL, "ff05::1", 0x60, 1 },
+		{ "::ffff:192.0.2.99", NULL, 0x60, 1 },
+	};
+	uint8_t pkt[86], tgt[16];
+	uint8_t mac[6] = { 0x02, 0, 0, 0, 0, 0x51 };
+
+	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		tgt[0] = 0x20; tgt[1] = 0x01; tgt[2] = 0x0d; tgt[3] = 0xb8;
+		memset(tgt + 4, 0, 11);
+		tgt[15] = (uint8_t)(0x60 + i);
+		build_na(pkt, tgt, mac);
+		pkt[14] = cases[i].vfc;
+		if (cases[i].src)
+			inet_pton(AF_INET6, cases[i].src, pkt + 22);
+		if (cases[i].dst)
+			inet_pton(AF_INET6, cases[i].dst, pkt + 38);
+		feed(pkt, sizeof(pkt));
+		if (db_known(AF_INET6, tgt, mac, "test0") != cases[i].want) {
+			fprintf(stderr, "FAIL: NA with header case %zu %s\n", i,
+			    cases[i].want ? "was dropped" : "was processed");
+			exit(1);
+		}
+	}
+}
+
 /* hosts take the Target LLA of an NA sent from :: like any other, so
  * it must change the entry; an NS from :: is a DAD probe and records
  * nothing */
@@ -1730,6 +1775,7 @@ main(void)
 	test_na_many_ext_headers();
 	test_nd_payload_length();
 	test_nd_code_and_checksum();
+	test_nd_ip6_header();
 	test_na_unspecified_source();
 	test_nd_bad_options();
 	test_nd_redirect();

@@ -554,7 +554,9 @@ Crashes and slow inputs are written to the current directory.
    Only the IPv6 payload is parsed: bytes after it are ignored, as hosts do,
    and so are messages with a code other than 0, a bad checksum or
    malformed options (one of length 0, or a link-layer address that is not
-   6 bytes)
+   6 bytes), and packets hosts drop before ND sees them (another IP
+   version, a loopback or multicast source, a destination of `::`, `::1`
+   or a multicast scope of 0 or 1)
 6. Updates an in-memory hash table; on new/changed entries, logs and
    optionally emails via `fork()`/`exec()` of sendmail
 

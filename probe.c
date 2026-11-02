@@ -47,7 +47,8 @@ struct probe {
 	uint8_t  mac[6];       /* expected MAC */
 	uint8_t  new_ip[16];   /* new IP (for notification) */
 	int      new_af;
-	char     iface[32];
+	char     new_iface[32]; /* where the new IP was seen */
+	char     iface[32];     /* where the old IP is probed */
 	int      tries;
 	time_t   first_sent;
 	time_t   last_sent;
@@ -171,7 +172,8 @@ build_ndp_ns(uint8_t *buf, size_t buflen, const uint8_t *src_mac,
 
 void
 probe_schedule(int af, const uint8_t *ip, const uint8_t *mac,
-               int new_af, const uint8_t *new_ip, const char *iface)
+               int new_af, const uint8_t *new_ip, const char *new_iface,
+               const char *iface)
 {
 	int ilen = ip_len(af);
 
@@ -198,6 +200,8 @@ probe_schedule(int af, const uint8_t *ip, const uint8_t *mac,
 		probes[i].new_af = new_af;
 		memset(probes[i].new_ip, 0, sizeof(probes[i].new_ip));
 		memcpy(probes[i].new_ip, new_ip, ip_len(new_af));
+		snprintf(probes[i].new_iface, sizeof(probes[i].new_iface),
+		    "%s", new_iface);
 		snprintf(probes[i].iface, sizeof(probes[i].iface),
 		    "%s", iface);
 		probes[i].tries = 0;
@@ -306,7 +310,7 @@ probe_tick(struct iface *ifaces, int nifaces)
 
 		/* different MAC responded at probed IP */
 		if (p->stolen) {
-			handle_moved(p->new_af, p->new_ip,
+			handle_moved(p->new_af, p->new_ip, p->new_iface,
 			    p->mac, p->af, p->ip, p->iface);
 			p->active = 0;
 			continue;
@@ -327,7 +331,8 @@ probe_tick(struct iface *ifaces, int nifaces)
 				    ipstr, p->iface);
 			} else
 				handle_moved(p->new_af, p->new_ip,
-				    p->mac, p->af, p->ip, p->iface);
+				    p->new_iface, p->mac, p->af, p->ip,
+				    p->iface);
 			p->active = 0;
 			continue;
 		}

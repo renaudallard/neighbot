@@ -43,7 +43,7 @@ int  build_ndp_ns(uint8_t *buf, size_t buflen,
                   const uint8_t *target_ip6);
 void probe_schedule(int af, const uint8_t *ip, const uint8_t *mac,
                     int new_af, const uint8_t *new_ip,
-                    const char *iface);
+                    const char *new_iface, const char *iface);
 void probe_mark_seen(int af, const uint8_t *ip, const uint8_t *mac,
                      const char *iface);
 void probe_tick(struct iface *ifaces, int nifaces);

@@ -50,8 +50,8 @@ void notify_bogon(int af, const uint8_t *ip, const uint8_t *mac,
 void notify_reappeared(int af, const uint8_t *ip, const uint8_t *mac,
                        const char *iface, time_t prev_seen);
 void notify_moved(int new_af, const uint8_t *new_ip,
-                  const uint8_t *mac, int old_af,
-                  const uint8_t *old_ip, const char *iface);
+                  const char *new_iface, const uint8_t *mac, int old_af,
+                  const uint8_t *old_ip, const char *old_iface);
 int  notify_storm(int af, const uint8_t *ip, const uint8_t *mac_a,
                   const uint8_t *mac_b, const char *iface);
 void notify_ra_learned(const char *iface, const uint8_t *prefix,

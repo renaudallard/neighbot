@@ -271,7 +271,7 @@ handle_event(int event, int af, const uint8_t *ip, const uint8_t *mac,
 				    !is_eui64(others[i].ip, mac))
 					continue;
 				probe_schedule(others[i].af, others[i].ip,
-				    mac, af, ip, others[i].iface);
+				    mac, af, ip, iface, others[i].iface);
 			}
 		}
 	} else if (event == EVENT_CHANGED) {
@@ -307,9 +307,12 @@ handle_event(int event, int af, const uint8_t *ip, const uint8_t *mac,
 	save = 1;
 }
 
+/* The station with mac, last at old_ip on old_iface, is now at new_ip on
+ * new_iface, and old_ip is gone from it. */
 void
-handle_moved(int new_af, const uint8_t *new_ip, const uint8_t *mac,
-             int old_af, const uint8_t *old_ip, const char *iface)
+handle_moved(int new_af, const uint8_t *new_ip, const char *new_iface,
+             const uint8_t *mac, int old_af, const uint8_t *old_ip,
+             const char *old_iface)
 {
 	char newstr[INET6_ADDRSTRLEN];
 	char oldstr[INET6_ADDRSTRLEN];
@@ -319,14 +322,19 @@ handle_moved(int new_af, const uint8_t *new_ip, const uint8_t *mac,
 	inet_ntop(old_af, old_ip, oldstr, sizeof(oldstr));
 	format_mac(mac, macstr, sizeof(macstr));
 
-	log_msg("moved station %s %s -> %s on %s",
-	        macstr, oldstr, newstr, iface);
+	if (strcmp(old_iface, new_iface) == 0)
+		log_msg("moved station %s %s -> %s on %s",
+		    macstr, oldstr, newstr, new_iface);
+	else
+		log_msg("moved station %s %s on %s -> %s on %s",
+		    macstr, oldstr, old_iface, newstr, new_iface);
 	if (!cfg.quiet)
-		notify_moved(new_af, new_ip, mac, old_af, old_ip, iface);
+		notify_moved(new_af, new_ip, new_iface, mac, old_af, old_ip,
+		    old_iface);
 
-	if (db_delete(old_af, old_ip, mac, iface))
+	if (db_delete(old_af, old_ip, mac, old_iface))
 		log_msg("dropped obsolete %s %s on %s",
-		        oldstr, macstr, iface);
+		        oldstr, macstr, old_iface);
 
 	save = 1;
 }

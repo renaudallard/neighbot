@@ -172,7 +172,7 @@ sudo neighbot -r -m admin@example.com
 | **reappeared** | Known MAC/IP pair seen again after 180 days or more of silence | yes |
 | **bogon** | IP outside every local subnet of the monitored interfaces (possible spoofing); an IP foreign to the receiving interface but local to another monitored one is ignored. An interface with no subnet of an address family reports no bogons for it; a /32 or /128 address, such as a DHCPv6 lease, does not count as a subnet. Subnets are re-read every minute, on `SIGHUP`, and before reporting a bogon (at most once a second) | yes |
 | **ra-learned** | IPv6 on-link prefix announced by a Router Advertisement | yes (when learned; refreshes are silent) |
-| **moved** | MAC seen at a new IP while old IP no longer responds to probes. The obsolete entry is dropped | yes |
+| **moved** | MAC seen at a new IP while old IP no longer responds to probes. The obsolete entry is dropped. When the new IP is on another interface, both interfaces are named | yes |
 
 ## Active Probing
 

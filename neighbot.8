@@ -258,6 +258,8 @@ operator can investigate.
 A MAC address is seen at a new IP address while its old IP no longer
 responds to probes, or is answered by a different MAC (requires active
 probing).
+When the new address was seen on another interface than the old one,
+the report names both.
 The obsolete IP entry is removed from the database after the
 notification is sent, unless another MAC has taken the old IP over, in
 which case that is also reported as a changed station.

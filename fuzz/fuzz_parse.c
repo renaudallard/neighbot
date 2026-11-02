@@ -61,8 +61,10 @@ capture_add_learned_subnet(const char *iface, int af,
 }
 
 void probe_schedule(int af, const uint8_t *ip, const uint8_t *mac,
-    int new_af, const uint8_t *new_ip, const char *iface)
-{ (void)af; (void)ip; (void)mac; (void)new_af; (void)new_ip; (void)iface; }
+    int new_af, const uint8_t *new_ip, const char *new_iface,
+    const char *iface)
+{ (void)af; (void)ip; (void)mac; (void)new_af; (void)new_ip;
+  (void)new_iface; (void)iface; }
 
 void probe_mark_seen(int af, const uint8_t *ip, const uint8_t *mac,
     const char *iface)
@@ -88,9 +90,11 @@ void notify_reappeared(int af, const uint8_t *ip, const uint8_t *mac,
     const char *iface, time_t prev_seen)
 { (void)af; (void)ip; (void)mac; (void)iface; (void)prev_seen; }
 
-void notify_moved(int new_af, const uint8_t *new_ip, const uint8_t *mac,
-    int old_af, const uint8_t *old_ip, const char *iface)
-{ (void)new_af; (void)new_ip; (void)mac; (void)old_af; (void)old_ip; (void)iface; }
+void notify_moved(int new_af, const uint8_t *new_ip, const char *new_iface,
+    const uint8_t *mac, int old_af, const uint8_t *old_ip,
+    const char *old_iface)
+{ (void)new_af; (void)new_ip; (void)new_iface; (void)mac; (void)old_af;
+  (void)old_ip; (void)old_iface; }
 
 int notify_storm(int af, const uint8_t *ip, const uint8_t *mac_a,
     const uint8_t *mac_b, const char *iface)

@@ -29,10 +29,14 @@ int capture_probe_src(const char *iface, int af, const uint8_t *target,
 { (void)iface; (void)af; (void)target; memset(src, 0, 16); return 0; }
 
 static int moved_calls, multiple_calls;
+static char moved_new_iface[32], moved_old_iface[32];
 
-void handle_moved(int new_af, const uint8_t *new_ip, const uint8_t *mac,
-    int old_af, const uint8_t *old_ip, const char *iface)
-{ (void)new_af; (void)new_ip; (void)mac; (void)old_af; (void)old_ip; (void)iface;
+void handle_moved(int new_af, const uint8_t *new_ip, const char *new_iface,
+    const uint8_t *mac, int old_af, const uint8_t *old_ip,
+    const char *old_iface)
+{ (void)new_af; (void)new_ip; (void)mac; (void)old_af; (void)old_ip;
+  snprintf(moved_new_iface, sizeof(moved_new_iface), "%s", new_iface);
+  snprintf(moved_old_iface, sizeof(moved_old_iface), "%s", old_iface);
   moved_calls++; }
 
 void handle_multiple_ips(int af, const uint8_t *ip, const uint8_t *mac,
@@ -253,21 +257,23 @@ test_probe_schedule(void)
 	probe_reset();
 
 	/* schedule one probe */
-	probe_schedule(AF_INET, ip, mac, AF_INET, new_ip, "eth0");
+	probe_schedule(AF_INET, ip, mac, AF_INET, new_ip, "eth0", "eth0");
 
 	/* duplicate should be silently ignored (no crash, no second slot) */
-	probe_schedule(AF_INET, ip, mac, AF_INET, new_ip, "eth0");
+	probe_schedule(AF_INET, ip, mac, AF_INET, new_ip, "eth0", "eth0");
 
 	/* fill all remaining slots */
 	for (int i = 1; i < PROBE_MAX_SLOTS; i++) {
 		uint8_t ip2[4] = { 10, 0, 0, (uint8_t)i };
-		probe_schedule(AF_INET, ip2, mac, AF_INET, new_ip, "eth0");
+		probe_schedule(AF_INET, ip2, mac, AF_INET, new_ip, "eth0",
+		    "eth0");
 	}
 
 	/* 33rd should fail (logged as "no free slots") but not crash */
 	{
 		uint8_t ip3[4] = { 10, 1, 0, 1 };
-		probe_schedule(AF_INET, ip3, mac, AF_INET, new_ip, "eth0");
+		probe_schedule(AF_INET, ip3, mac, AF_INET, new_ip, "eth0",
+		    "eth0");
 	}
 
 	probe_reset();
@@ -287,12 +293,12 @@ test_probe_mark_seen(void)
 	moved_calls = multiple_calls = 0;
 
 	/* schedule and mark as answered (same MAC) */
-	probe_schedule(AF_INET, ip, mac, AF_INET, new_ip, "eth0");
+	probe_schedule(AF_INET, ip, mac, AF_INET, new_ip, "eth0", "eth0");
 	probe_mark_seen(AF_INET, ip, mac, "eth0");
 
 	/* schedule another and mark as stolen (different MAC) */
 	uint8_t ip2[4] = { 10, 0, 0, 1 };
-	probe_schedule(AF_INET, ip2, mac, AF_INET, new_ip, "eth0");
+	probe_schedule(AF_INET, ip2, mac, AF_INET, new_ip, "eth0", "eth0");
 	probe_mark_seen(AF_INET, ip2, other_mac, "eth0");
 
 	/* no interfaces: an unresolved probe is cancelled, not reported */
@@ -301,12 +307,22 @@ test_probe_mark_seen(void)
 	ASSERT(moved_calls == 1, "stolen probe should report a move");
 
 	/* the same IP used by another MAC on another link is unrelated */
-	probe_schedule(AF_INET, ip2, mac, AF_INET, new_ip, "eth0");
+	probe_schedule(AF_INET, ip2, mac, AF_INET, new_ip, "eth0", "eth0");
 	probe_mark_seen(AF_INET, ip2, other_mac, "eth1");
 	probe_mark_seen(AF_INET, ip2, mac, "eth1");
 	probe_tick(NULL, 0);
 	ASSERT(moved_calls == 1 && multiple_calls == 1,
 	       "traffic on another interface should not resolve a probe");
+
+	/* a move is reported on the interface where the new IP was seen,
+	 * and the old entry is dropped from the one it was probed on */
+	probe_reset();
+	probe_schedule(AF_INET, ip2, mac, AF_INET, new_ip, "eth1", "eth0");
+	probe_mark_seen(AF_INET, ip2, other_mac, "eth0");
+	probe_tick(NULL, 0);
+	ASSERT(moved_calls == 2 && strcmp(moved_new_iface, "eth1") == 0 &&
+	       strcmp(moved_old_iface, "eth0") == 0,
+	       "a move should name the interface of each address");
 
 	probe_reset();
 	printf("  probe_mark_seen: ok\n");

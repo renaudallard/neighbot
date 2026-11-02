@@ -41,6 +41,24 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
+
+      # the packages take their version from neighbot.h at ref, so a ref
+      # at another version would attach other code to this release
+      - name: Verify ref is at the release version
+        env:
+          REF: ${{ inputs.ref }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          ver=$(grep '#define NEIGHBOT_VERSION' neighbot.h | sed 's/.*"\(.*\)"/\1/')
+          if [ "v$ver" != "$TAG" ]; then
+            echo "::error::$REF is at version $ver, not ${TAG#v}"
+            exit 1
+          fi
+
   detect-versions:
     name: Detect distro versions
     needs: resolve-tag

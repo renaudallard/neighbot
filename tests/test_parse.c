@@ -937,18 +937,20 @@ test_temp_rotation_probes(void)
 	cfg.probe = saved_probe;
 }
 
-/* an address recorded under the same MAC is not a bogon when its prefix
- * is not (yet) known, e.g. after a restart before the next RA; another
- * MAC claiming it is */
+/* An address recorded on an interface is not a bogon there when its
+ * prefix is not known, as after a restart before the next RA or when a
+ * flood used up the route lookups: the same MAC refreshes it, and
+ * another MAC claiming it is a changed station, over ND and ARP. */
 static void
 test_known_not_bogon(void)
 {
 	const uint8_t mac[6] = { 0x02, 0, 0, 0, 0, 0x0e };
 	const uint8_t other[6] = { 0x02, 0, 0, 0, 0, 0x0f };
-	int saved_quiet = cfg.quiet;
+	int saved_quiet = cfg.quiet, before;
 
 	cfg.quiet = 0;
 	feed_na(mac, "2001:db8:7::1");
+	feed_gw_arp("known0", 0x0e);
 	stub_local = 0;
 	notify_bogon_calls = 0;
 	feed_na(mac, "2001:db8:7::1");
@@ -956,10 +958,12 @@ test_known_not_bogon(void)
 		fprintf(stderr, "FAIL: known station reported as bogon\n");
 		exit(1);
 	}
+	before = notify_changed_calls;
 	feed_na(other, "2001:db8:7::1");
-	if (notify_bogon_calls != 1) {
-		fprintf(stderr, "FAIL: another MAC on a foreign address was "
-		    "not reported as bogon\n");
+	feed_gw_arp("known0", 0x0f);
+	if (notify_bogon_calls != 0 || notify_changed_calls != before + 2) {
+		fprintf(stderr, "FAIL: another MAC claiming a known address "
+		    "was not reported as a change\n");
 		exit(1);
 	}
 	stub_local = 1;

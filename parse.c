@@ -552,9 +552,9 @@ parse_arp(const u_char *pkt, size_t len, const char *iface)
 	if (capture_is_bcast(iface, arp->spa))
 		return;
 
-	/* an address already recorded on this interface with this MAC
-	 * is not a bogon (see parse_ndp) */
-	if (!db_known(AF_INET, arp->spa, arp->sha, iface) &&
+	/* an address already recorded on this interface is not a bogon,
+	 * whatever MAC claims it (see parse_ndp) */
+	if (!db_known(AF_INET, arp->spa, NULL, iface) &&
 	    !capture_is_local_fresh(iface, AF_INET, arp->spa)) {
 		if (!capture_is_local_any(AF_INET, arp->spa))
 			handle_bogon(AF_INET, arp->spa, arp->sha, iface);
@@ -1042,10 +1042,14 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 		mac = eh->ether_shost;
 	}
 
-	/* an address already recorded on this interface with this MAC
-	 * is not a bogon: after a restart the RA-learned prefix that made
-	 * it local is only known again once the router re-advertises it */
-	if (!db_known(AF_INET6, ip_addr, mac, iface) &&
+	/* An address already recorded on this interface is not a bogon,
+	 * whatever MAC claims it, so that a spoof of it is reported as a
+	 * change: hosts still take it as on-link when neighbot cannot tell.
+	 * After a restart the RA-learned prefix that made it local is only
+	 * known again once the router re-advertises it, and a flood of
+	 * foreign addresses uses up the route lookups that find one behind
+	 * an on-link route. */
+	if (!db_known(AF_INET6, ip_addr, NULL, iface) &&
 	    !capture_is_local_fresh(iface, AF_INET6, ip_addr)) {
 		if (!capture_is_local_any(AF_INET6, ip_addr))
 			handle_bogon(AF_INET6, ip_addr, mac, iface);

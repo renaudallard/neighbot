@@ -725,7 +725,8 @@ db_find_other_entries(const uint8_t *mac, int exclude_af,
 	return count;
 }
 
-/* Whether (iface, af, ip) is recorded with this MAC. */
+/* Whether (iface, af, ip) is recorded with this MAC, or with any MAC
+ * when mac is NULL. */
 int
 db_known(int af, const uint8_t *ip, const uint8_t *mac, const char *iface)
 {
@@ -735,7 +736,7 @@ db_known(int af, const uint8_t *ip, const uint8_t *mac, const char *iface)
 	for (struct entry *e = buckets[idx]; e; e = e->next) {
 		if (e->af == af && memcmp(e->ip, ip, ilen) == 0 &&
 		    strcmp(e->iface, iface) == 0)
-			return memcmp(e->mac, mac, 6) == 0;
+			return mac == NULL || memcmp(e->mac, mac, 6) == 0;
 	}
 	return 0;
 }

@@ -241,9 +241,13 @@ Bogon packets are not added to the database.
 An interface with no subnet of an address family reports no bogons
 for it; a /32 or /128 address, such as a DHCPv6 lease, does not count
 as a subnet.
-An address already recorded on the receiving interface with the same
-MAC is not reported, so stations in an RA-learned prefix stay known
-after a restart until the router advertises the prefix again.
+An address already recorded on the receiving interface is not
+reported, whatever MAC claims it and even once it has left every
+subnet of the interface: another MAC is reported as a changed station.
+So stations in an RA-learned prefix stay known after a restart until
+the router advertises the prefix again, and a flood of foreign
+addresses cannot hide a spoof of a station reached through an on-link
+route.
 IPs that are foreign to the receiving interface but match another
 monitored interface's subnet are silently ignored (common with
 access points on VLAN trunks).

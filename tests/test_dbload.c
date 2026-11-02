@@ -674,6 +674,46 @@ test_clock_back(void)
 	unlink(TEST_TMP);
 }
 
+/* A row whose first_seen is later than its last_seen, as 0.5.17 wrote
+ * after the clock was set back, is read as first seen at its last
+ * sighting, and a later sighting does not move that. */
+static void
+test_first_after_last(void)
+{
+	uint8_t ip[4] = { 10, 0, 0, 8 };
+	uint8_t mac[6] = { 0xde, 0xad, 0xbe, 0xef, 0x00, 0x08 };
+	uint8_t old[6];
+	char line[160], first_s[32], last_s[32], saved[32];
+	time_t first = time(NULL) + 24 * 3600, last = time(NULL) - 60, ols;
+	struct tm tm;
+
+	localtime_r(&first, &tm);
+	strftime(first_s, sizeof(first_s), "%Y-%m-%dT%H:%M:%S", &tm);
+	localtime_r(&last, &tm);
+	strftime(last_s, sizeof(last_s), "%Y-%m-%dT%H:%M:%S", &tm);
+	snprintf(line, sizeof(line), "10.0.0.8,de:ad:be:ef:00:08,eth1,"
+	    "%s,%s,00:00:00:00:00:00\n", first_s, last_s);
+	write_file(TEST_TMP, line);
+
+	db_init();
+	db_load(TEST_TMP);
+	if (db_update(AF_INET, ip, mac, "eth1", old, &ols) != 0) {
+		fprintf(stderr, "FAIL: wrong event for a row first seen after "
+		    "its last sighting\n");
+		exit(1);
+	}
+	db_save(TEST_TMP2);
+	saved_field(TEST_TMP2, "10.0.0.8", 3, saved, sizeof(saved));
+	if (strcmp(saved, last_s) != 0) {
+		fprintf(stderr, "FAIL: first_seen %s saved for a row first seen "
+		    "after its last sighting %s\n", saved, last_s);
+		exit(1);
+	}
+	db_free();
+	unlink(TEST_TMP);
+	unlink(TEST_TMP2);
+}
+
 /* a refresh of last_seen changes no event but must mark the table for
  * saving, and a save clears the mark */
 static void
@@ -810,6 +850,7 @@ main(void)
 	test_clock_behind();
 	test_clock_ahead();
 	test_clock_back();
+	test_first_after_last();
 	test_nonexistent();
 	test_oversized_line();
 	test_embedded_nul_line();

@@ -396,6 +396,9 @@ future.
 A first-seen time recorded since the start goes back with the clock
 in the same way, and is never written later than the last-seen one,
 though in that repeated hour the two can look reversed.
+A row read with a first-seen time later than its last-seen one, as
+version 0.5.17 could write after the clock was set back, is taken as
+first seen at its last sighting.
 The database is saved atomically via a temporary file and rename,
 after each event, at least once an hour while last-seen times change,
 on

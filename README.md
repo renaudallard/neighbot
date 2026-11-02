@@ -426,7 +426,9 @@ hour repeated when daylight saving time ends is ambiguous and may be read
 back an hour off. A `first_seen` recorded since the start goes back with
 the clock like `last_seen` when the clock is set back, and is never written
 later than `last_seen`, though in that repeated hour the two can look
-reversed. The `prev_mac` field stores the previous MAC address for
+reversed; a row read with `first_seen` later than `last_seen`, as 0.5.17
+could write after the clock was set back, is taken as first seen at its
+last sighting. The `prev_mac` field stores the previous MAC address for
 flip-flop detection. Old database files without this field are loaded
 without errors. Fields are not quoted, so interfaces whose name contains a
 comma or a non-printable character are not monitored.

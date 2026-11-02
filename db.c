@@ -366,6 +366,12 @@ db_load(const char *path)
 		 * time_t is 32 bits; neighbot never writes such a row */
 		if (first_seen < 0 || last_seen < 0)
 			continue;
+		/* a station first seen after its last sighting, as 0.5.17
+		 * wrote after the clock was set back, or as a time in the
+		 * hour repeated at the DST change reads back: it was first
+		 * seen by its last sighting at the latest */
+		if (first_seen > last_seen)
+			first_seen = last_seen;
 
 		e = calloc(1, sizeof(*e));
 		if (!e) {

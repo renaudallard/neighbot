@@ -1362,6 +1362,35 @@ test_na_solicited_multicast(void)
 	}
 }
 
+/* hosts drop an NS for a multicast target and learn nothing from one
+ * for :: or ::1, which no host owns; an NS for an address is processed */
+static void
+test_ns_special_target(void)
+{
+	static const char *targets[] = { "ff02::1", "::", "::1",
+	    "2001:db8:9::1" };
+	uint8_t pkt[86], src[16];
+	uint8_t mac[6] = { 0x02, 0, 0, 0, 0, 0x53 };
+
+	for (size_t i = 0; i < sizeof(targets) / sizeof(targets[0]); i++) {
+		int want = i == sizeof(targets) / sizeof(targets[0]) - 1;
+
+		inet_pton(AF_INET6, "2001:db8:9::53", src);
+		src[14] = (uint8_t)i;
+		build_na(pkt, src, mac);
+		pkt[54] = 135;                   /* NS */
+		pkt[58] = 0;
+		inet_pton(AF_INET6, targets[i], pkt + 62);
+		pkt[78] = 1;                     /* Source LLA */
+		feed(pkt, sizeof(pkt));
+		if (db_known(AF_INET6, src, mac, "test0") != want) {
+			fprintf(stderr, "FAIL: NS for %s %s\n", targets[i],
+			    want ? "was dropped" : "was processed");
+			exit(1);
+		}
+	}
+}
+
 /* hosts take the Target LLA of an NA sent from :: like any other, so
  * it must change the entry; an NS from :: is a DAD probe and records
  * nothing */
@@ -1801,6 +1830,7 @@ main(void)
 	test_nd_code_and_checksum();
 	test_nd_ip6_header();
 	test_na_solicited_multicast();
+	test_ns_special_target();
 	test_na_unspecified_source();
 	test_nd_bad_options();
 	test_nd_redirect();

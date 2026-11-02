@@ -555,7 +555,8 @@ Crashes and slow inputs are written to the current directory.
    and so are messages with a code other than 0, a bad checksum or
    malformed options (one of length 0, or a link-layer address that is not
    6 bytes), advertisements to a multicast address with the Solicited
-   flag, and packets hosts drop before ND sees them (another IP
+   flag, solicitations for a multicast, `::` or `::1` target, and packets
+   hosts drop before ND sees them (another IP
    version, a loopback or multicast source, a destination of `::`, `::1`
    or a multicast scope of 0 or 1)
 6. Updates an in-memory hash table; on new/changed entries, logs and

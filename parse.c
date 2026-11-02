@@ -827,6 +827,12 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 		/* NS: type(1) + code(1) + cksum(2) + reserved(4) + target(16) + opts */
 		if (icmp_len < 24)
 			return;
+		/* hosts drop an NS for a multicast target (RFC 4861 7.1.1),
+		 * and only learn the solicitor's address from one for an
+		 * address of theirs, which :: and ::1 never are */
+		if (icmp[8] == 0xff || is_zero_ip6(icmp + 8) ||
+		    is_loopback_ip6(icmp + 8))
+			return;
 		/* use source IP from IPv6 header */
 		ip_addr = src;
 		opts = icmp + 24;

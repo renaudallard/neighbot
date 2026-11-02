@@ -100,10 +100,10 @@ fuzz: fuzz_parse fuzz_dbload fuzz_ouiload
 fuzz_parse: fuzz/fuzz_parse.c tests/nd_cksum.h parse.c db.c oui.c log.c
 	$(FUZZ_CC) $(FUZZ_CFLAGS) -o $@ fuzz/fuzz_parse.c parse.c db.c oui.c log.c $(FUZZ_LDFLAGS)
 
-fuzz_dbload: fuzz/fuzz_dbload.c db.c oui.c log.c
+fuzz_dbload: fuzz/fuzz_dbload.c fuzz/fuzz_tmp.h db.c oui.c log.c
 	$(FUZZ_CC) $(FUZZ_CFLAGS) -o $@ fuzz/fuzz_dbload.c db.c oui.c log.c $(FUZZ_LDFLAGS)
 
-fuzz_ouiload: fuzz/fuzz_ouiload.c oui.c log.c
+fuzz_ouiload: fuzz/fuzz_ouiload.c fuzz/fuzz_tmp.h oui.c log.c
 	$(FUZZ_CC) $(FUZZ_CFLAGS) -o $@ fuzz/fuzz_ouiload.c oui.c log.c $(FUZZ_LDFLAGS)
 
 fuzz-clean:

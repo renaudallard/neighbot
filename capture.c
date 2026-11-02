@@ -114,6 +114,19 @@ prefix_to_mask(int af, int prefix_len, uint8_t *mask)
 	}
 }
 
+/* Whether mask covers the whole address: a /32 or /128 host address. */
+static int
+is_host_mask(int af, const uint8_t *mask)
+{
+	int alen = ip_len(af);
+
+	for (int i = 0; i < alen; i++) {
+		if (mask[i] != 0xff)
+			return 0;
+	}
+	return 1;
+}
+
 /* Whether ip is in the network addr/mask. */
 static int
 net_match(int af, const uint8_t *ip, const uint8_t *addr,
@@ -533,7 +546,9 @@ capture_is_own_ip(int af, const uint8_t *ip)
  * Whether ip is local to iface, or to any monitored interface when iface
  * is NULL: link-local, or inside a configured or learned subnet. With no
  * subnet known for the address family, locality cannot be determined and
- * every address counts as local.
+ * every address counts as local. A /32 or /128 address, as DHCPv6 leases
+ * and point-to-point style setups use, says nothing about which neighbours
+ * are on-link: it matches itself but does not count as a known subnet.
  */
 static int
 is_local(const char *iface, int af, const uint8_t *ip)
@@ -552,9 +567,10 @@ is_local(const char *iface, int af, const uint8_t *ip)
 
 		if (s->af != af || (iface && strcmp(s->iface, iface) != 0))
 			continue;
-		has_subnet = 1;
 		if (net_match(af, ip, s->addr, s->mask))
 			return 1;
+		if (!is_host_mask(af, s->mask))
+			has_subnet = 1;
 	}
 
 	for (int i = 0; i < learned_count; i++) {
@@ -563,9 +579,10 @@ is_local(const char *iface, int af, const uint8_t *ip)
 		if (s->af != af || s->expires <= now ||
 		    (iface && strcmp(s->iface, iface) != 0))
 			continue;
-		has_subnet = 1;
 		if (net_match(af, ip, s->addr, s->mask))
 			return 1;
+		if (!is_host_mask(af, s->mask))
+			has_subnet = 1;
 	}
 
 	return !has_subnet;

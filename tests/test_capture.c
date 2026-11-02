@@ -327,6 +327,52 @@ test_is_local_any(void)
 	return 0;
 }
 
+/* a /32 or /128 address matches itself but is no subnet: DHCPv6 leases
+ * are /128, and a /32 host reaches its gateway through an on-link route */
+static int
+test_host_mask(void)
+{
+	uint8_t lease[16] = { 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0,
+	                      0, 0, 0, 0, 0, 0, 0x12, 0x34 };
+	uint8_t m128[16] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+	                     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+	uint8_t peer6[16] = { 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0,
+	                      0, 0, 0, 0, 0, 0, 0, 0x02 };
+	uint8_t host[4] = { 192, 0, 2, 10 };
+	uint8_t m32[4] = { 255, 255, 255, 255 };
+	uint8_t gw[4] = { 192, 0, 2, 1 };
+	uint8_t net[4] = { 10, 0, 0, 5 };
+	uint8_t m24[4] = { 255, 255, 255, 0 };
+	uint8_t vip[4] = { 198, 51, 100, 7 };
+	uint8_t foreign[4] = { 203, 0, 113, 9 };
+
+	capture_reset_subnets();
+	capture_reset_learned_subnets();
+
+	/* only a /128 lease: the on-link neighbour is not a bogon */
+	capture_add_subnet("eth0", AF_INET6, lease, m128);
+	ASSERT(capture_is_local("eth0", AF_INET6, peer6) == 1,
+	       "neighbour of a /128 lease should be local");
+
+	/* only a /32 address: the on-link gateway is not a bogon */
+	capture_add_subnet("eth0", AF_INET, host, m32);
+	ASSERT(capture_is_local("eth0", AF_INET, gw) == 1,
+	       "gateway of a /32 host should be local");
+
+	/* a /32 alias next to a /24 still counts as local itself, and the
+	 * /24 still makes other addresses foreign */
+	capture_reset_subnets();
+	capture_add_subnet("eth0", AF_INET, net, m24);
+	capture_add_subnet("eth0", AF_INET, vip, m32);
+	ASSERT(capture_is_local("eth0", AF_INET, vip) == 1,
+	       "a /32 alias should be local");
+	ASSERT(capture_is_local("eth0", AF_INET, foreign) == 0,
+	       "an address outside the /24 should not be local");
+
+	printf("  host_mask: ok\n");
+	return 0;
+}
+
 #if defined(__linux__)
 
 #define VLAN_TMP "tmp/test_vlan_parents.tmp"
@@ -438,6 +484,7 @@ main(void)
 	rc |= test_probe_src();
 	rc |= test_is_local_any();
 	rc |= test_learned_subnet();
+	rc |= test_host_mask();
 
 #if defined(__linux__)
 	rc |= test_vlan_parents_basic();

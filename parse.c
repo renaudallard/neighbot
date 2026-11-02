@@ -519,10 +519,9 @@ parse_arp(const u_char *pkt, size_t len, const char *iface)
 		return;
 	if (arp->hlen != 6 || arp->plen != 4)
 		return;
-	/* hosts only take requests and replies into their cache */
-	if (ntohs(arp->oper) != ARPOP_REQUEST &&
-	    ntohs(arp->oper) != ARPOP_REPLY)
-		return;
+	/* The opcode is not checked: FreeBSD and macOS update the sender's
+	 * entry from ARP whatever its opcode, not only from a request or a
+	 * reply as Linux and OpenBSD do. */
 
 	/* skip ARP probes (sender IP 0.0.0.0) */
 	if (is_zero_ip4(arp->spa))

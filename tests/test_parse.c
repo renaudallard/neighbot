@@ -1762,8 +1762,8 @@ test_nd_redirect(void)
 	cfg.quiet = saved_quiet;
 }
 
-/* hosts only process ARP requests and replies: another opcode must not
- * change an entry */
+/* FreeBSD and macOS update the sender's entry from ARP of any opcode,
+ * so every opcode is processed */
 static void
 test_arp_opcode(void)
 {
@@ -1782,11 +1782,9 @@ test_arp_opcode(void)
 		spa[3] = (uint8_t)(1 + op);
 		memcpy(pkt + 28, spa, 4);
 		feed(pkt, sizeof(pkt));
-		if (db_known(AF_INET, spa, mac, "test0") !=
-		    (op == 1 || op == 2)) {
-			fprintf(stderr, "FAIL: ARP opcode %d %s\n", op,
-			    (op == 1 || op == 2) ? "was dropped" :
-			    "was processed");
+		if (!db_known(AF_INET, spa, mac, "test0")) {
+			fprintf(stderr, "FAIL: ARP opcode %d was dropped\n",
+			    op);
 			exit(1);
 		}
 	}

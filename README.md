@@ -539,12 +539,12 @@ Crashes and slow inputs are written to the current directory.
    at startup, jumbo frames included; an ND message in a frame cut short
    is ignored, as it cannot be checked, but ARP is still read from it
 3. Main loop: `poll()` on all handles (1s timeout)
-4. **ARP**: extracts sender IP + MAC from requests/replies (skips probes,
-   multicast and broadcast senders, the broadcast address of a subnet of
-   the interface included, which hosts never learn, and other opcodes,
-   which hosts ignore; 240/4 senders are kept, as hosts use them, and so
-   is ARP for any target, as the BSDs and macOS update the sender's entry
-   whatever the target);
+4. **ARP**: extracts sender IP + MAC from ARP messages (skips probes,
+   and multicast and broadcast senders, the broadcast address of a subnet
+   of the interface included, which hosts never learn; 240/4 senders are
+   kept, as hosts use them, and so is ARP for any target and of any
+   opcode, as the BSDs and macOS update the sender's entry from all of
+   them);
    hardware type 6 (IEEE 802) is accepted like Ethernet, as hosts honour it
 5. **NDP**: parses Neighbor Advertisements (type 136) and Solicitations
    (type 135) for link-layer address options (skips DAD; a message without

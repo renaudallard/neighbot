@@ -691,6 +691,15 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 	 * on it would be misaligned and dereferencing it is undefined */
 	memcpy(&ip6, pkt, sizeof(ip6));
 
+	/* Parse the IPv6 payload only. Hosts ignore the bytes after it,
+	 * so an option placed there must not be read, and they drop a
+	 * packet longer than its frame. A zero length marks a jumbogram,
+	 * which ND never is. */
+	if (ntohs(ip6.ip6_plen) == 0 ||
+	    ntohs(ip6.ip6_plen) > len - sizeof(struct ip6_hdr))
+		return;
+	len = sizeof(struct ip6_hdr) + ntohs(ip6.ip6_plen);
+
 	/* Step over hop-by-hop, routing and destination options headers:
 	 * hosts process ND messages placed behind them, a known way past
 	 * RA-Guard, so they must be seen here too. Linux takes any number

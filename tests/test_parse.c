@@ -1089,6 +1089,52 @@ test_na_many_ext_headers(void)
 	cfg.quiet = saved_quiet;
 }
 
+/* bytes after the IPv6 payload are not part of the packet: a Target LLA
+ * option placed there is not used, and the Ethernet source is recorded;
+ * a payload length past the end of the frame drops the packet */
+static void
+test_nd_payload_length(void)
+{
+	uint8_t pkt[86];
+	uint8_t eth[6] = { 0x02, 0, 0, 0, 0, 0x48 };
+	uint8_t fake[6] = { 0x02, 0, 0, 0, 0, 0x66 };
+	uint8_t tgt[16];
+
+	memset(pkt, 0, sizeof(pkt));
+	pkt[0] = 0x33; pkt[1] = 0x33; pkt[5] = 0x01;
+	memcpy(pkt + 6, eth, 6);
+	pkt[12] = 0x86; pkt[13] = 0xdd;
+	pkt[14] = 0x60;
+	pkt[19] = 24;                            /* NA without options */
+	pkt[20] = 58; pkt[21] = 255;
+	inet_pton(AF_INET6, "2001:db8:9::48", tgt);
+	memcpy(pkt + 22, tgt, 16);
+	pkt[38] = 0xff; pkt[39] = 0x02; pkt[53] = 0x01;
+	pkt[54] = 136; pkt[58] = 0x20;
+	memcpy(pkt + 62, tgt, 16);
+	pkt[78] = 2; pkt[79] = 1;                /* trailer: Target LLA */
+	memcpy(pkt + 80, fake, 6);
+
+	feed(pkt, sizeof(pkt));
+	if (!db_known(AF_INET6, tgt, eth, "test0") ||
+	    db_known(AF_INET6, tgt, fake, "test0")) {
+		fprintf(stderr, "FAIL: option after the IPv6 payload was "
+		    "used\n");
+		exit(1);
+	}
+
+	/* a payload length longer than the frame */
+	pkt[19] = 40;
+	pkt[77] = tgt[15] = 0x49;                /* target 2001:db8:9::49 */
+	feed(pkt, sizeof(pkt));
+	if (db_known(AF_INET6, tgt, eth, "test0") ||
+	    db_known(AF_INET6, tgt, fake, "test0")) {
+		fprintf(stderr, "FAIL: IPv6 packet longer than its frame was "
+		    "processed\n");
+		exit(1);
+	}
+}
+
 /* ARP in an 802.1Q priority tag (VLAN ID 0) is processed, other VLAN
  * IDs are not */
 static void
@@ -1235,6 +1281,7 @@ main(void)
 	test_ra_rs_lladdr();
 	test_na_ext_header();
 	test_na_many_ext_headers();
+	test_nd_payload_length();
 	test_vlan0_priority_tag();
 	test_stacked_priority_tags();
 	test_truncated();

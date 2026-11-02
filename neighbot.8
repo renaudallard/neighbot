@@ -497,7 +497,7 @@ to allow sendmail execution, unless
 is given too, which prints the report instead.
 .Pp
 Each notification is delivered by a short-lived child process that
-performs a reverse DNS lookup and execs
+performs a reverse DNS lookup and runs
 .Xr sendmail 8 .
 To keep a flood of events, such as spoofed in-subnet ARP, from
 spawning children at packet rate, no more than 32 notification

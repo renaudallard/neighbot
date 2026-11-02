@@ -241,9 +241,13 @@ notify_report_open(const char *subject)
 
 	report_child = pid;
 
+	/* vendor names can hold UTF-8, which the content type declares,
+	 * and RFC 2045 only gives it effect with a MIME-Version header */
 	fprintf(fp, "To: %s\n", cfg.mailto);
 	fprintf(fp, "Subject: %s\n", subject);
+	fprintf(fp, "MIME-Version: 1.0\n");
 	fprintf(fp, "Content-Type: text/plain; charset=utf-8\n");
+	fprintf(fp, "Content-Transfer-Encoding: 8bit\n");
 	fprintf(fp, "\n");
 	return fp;
 }

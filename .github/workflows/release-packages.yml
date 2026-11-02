@@ -205,17 +205,14 @@ jobs:
               return sorted(set(versions), key=int)
 
 
-          def rocky_container_tags():
-              # the image tags quay.io serves, or None if it cannot be asked
-              try:
-                  data = fetch_text(
-                      "https://quay.io/api/v1/repository/rockylinux/rockylinux/tag/?page_size=100&onlyActiveTags=true"
-                  )
-                  return {
-                      t.get("name") for t in json.loads(data).get("tags", []) if t.get("name")
-                  }
-              except FAILURES:
-                  return None
+          def rocky_has_image(major):
+              # Ask for the tag itself: a page of the tag list holds 50 tags at
+              # most, out of hundreds, so the major tags need not be on it.
+              data = fetch_text(
+                  "https://quay.io/api/v1/repository/rockylinux/rockylinux/tag/"
+                  f"?specificTag={major}&onlyActiveTags=true"
+              )
+              return any(t.get("name") == major for t in json.loads(data).get("tags", []))
 
 
           def latest_rocky_releases(count=2):
@@ -227,10 +224,15 @@ jobs:
               if not versions_sorted:
                   raise ValueError("no release listed")
               majors = sorted({v.split(".")[0] for v in versions_sorted}, key=int)
-              tags = rocky_container_tags()
-              if tags is not None and any(m in tags for m in majors):
-                  majors = [m for m in majors if m in tags]
-              return majors[-count:]
+              found = []
+              for major in reversed(majors):
+                  if rocky_has_image(major):
+                      found.insert(0, major)
+                      if len(found) == count:
+                          break
+              if not found:
+                  raise ValueError("no release with a container image")
+              return found
 
 
           def latest_opensuse_leap():

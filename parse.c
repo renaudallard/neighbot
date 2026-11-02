@@ -1083,12 +1083,14 @@ parse_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt)
 		off += 4;
 	}
 
-	/* An ND message cut short by the snap length cannot be checked: its
-	 * checksum covers all of it, and the part cut off may hold the
-	 * option with the real link-layer address. An ARP message is whole
-	 * at the start of the frame, whatever follows it. */
+	/* A frame cut short by the snap length is parsed too. parse_ndp()
+	 * drops an IPv6 packet that is not all there, as its checksum covers
+	 * all of it and the part cut off may hold the option with the real
+	 * link-layer address, but one followed by an Ethernet trailer that
+	 * was cut is whole, and an ARP message is whole at the start of the
+	 * frame whatever follows it. */
 	if (etype == ETHERTYPE_ARP)
 		parse_arp(pkt + off, len - off, iface);
-	else if (etype == ETHERTYPE_IPV6 && hdr->caplen >= hdr->len)
+	else if (etype == ETHERTYPE_IPV6)
 		parse_ndp(pkt + off, len - off, iface, eh);
 }

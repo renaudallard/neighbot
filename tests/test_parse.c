@@ -959,8 +959,9 @@ test_known_not_bogon(void)
 }
 
 /* A frame cut short by the snap length: ARP is whole at its start and is
- * processed, but ND is not, as the cut may have taken the option with
- * the real link-layer address and its checksum cannot be checked */
+ * processed, and so is an NA when only a trailer after it was cut, but
+ * not an NA cut itself, as the cut may have taken the option with the
+ * real link-layer address and its checksum cannot be checked */
 static void
 test_snap_truncated(void)
 {
@@ -992,11 +993,17 @@ test_snap_truncated(void)
 	inet_pton(AF_INET6, "2001:db8:9::31", tgt);
 	build_na(pkt, tgt, mac);
 	nd_fix_cksum(pkt, sizeof(pkt));
-	hdr.caplen = sizeof(pkt);
+	hdr.caplen = sizeof(pkt) - 8;            /* the option is cut */
 	hdr.len = sizeof(pkt) + 100;
 	parse_packet((u_char *)"test0", &hdr, pkt);
 	if (db_known(AF_INET6, tgt, mac, "test0")) {
 		fprintf(stderr, "FAIL: truncated NA was processed\n");
+		exit(1);
+	}
+	hdr.caplen = sizeof(pkt);                /* only the trailer is cut */
+	parse_packet((u_char *)"test0", &hdr, pkt);
+	if (!db_known(AF_INET6, tgt, mac, "test0")) {
+		fprintf(stderr, "FAIL: whole NA in a cut frame was dropped\n");
 		exit(1);
 	}
 	cfg.quiet = saved_quiet;

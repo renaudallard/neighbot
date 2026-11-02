@@ -544,8 +544,9 @@ Crashes and slow inputs are written to the current directory.
    reported when they carry ND; the same is matched inside 802.1Q or 802.1ad
    priority tags (VLAN ID 0), however many are stacked, which hosts treat
    as untagged. Frames are captured whole up to the MTU the interface has
-   at startup, jumbo frames included; an ND message in a frame cut short
-   is ignored, as it cannot be checked, but ARP is still read from it
+   at startup, jumbo frames included; an ND message cut short is ignored,
+   as it cannot be checked, but one followed by an Ethernet trailer that
+   was cut is read, and so is ARP
 3. Main loop: `poll()` on all handles (1s timeout)
 4. **ARP**: extracts sender IP + MAC from ARP messages (skips probes,
    and multicast and broadcast senders, the broadcast address of a subnet

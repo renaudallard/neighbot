@@ -1044,6 +1044,45 @@ test_arp_hwtype(void)
 	}
 }
 
+/* NetBSD takes ARP with the protocol type of IP trailers (0x1000) as
+ * IPv4, so it is processed; another protocol type is not */
+static void
+test_arp_ptype(void)
+{
+	static const struct {
+		uint16_t ptype;
+		int      want;
+	} cases[] = {
+		{ 0x1000, 1 },
+		{ 0x86dd, 0 },
+	};
+	uint8_t pkt[42];
+	uint8_t mac[6] = { 0x02, 0, 0, 0, 0, 0x33 };
+	uint8_t spa[4] = { 10, 33, 1, 1 };
+
+	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		memset(pkt, 0, sizeof(pkt));
+		memset(pkt, 0xff, 6);
+		memcpy(pkt + 6, mac, 6);
+		pkt[12] = 0x08; pkt[13] = 0x06;
+		pkt[15] = 0x01;
+		pkt[16] = (uint8_t)(cases[i].ptype >> 8);
+		pkt[17] = (uint8_t)cases[i].ptype;
+		pkt[18] = 6; pkt[19] = 4;
+		pkt[21] = 0x02;
+		memcpy(pkt + 22, mac, 6);
+		spa[3] = (uint8_t)(1 + i);
+		memcpy(pkt + 28, spa, 4);
+		feed(pkt, sizeof(pkt));
+		if (db_known(AF_INET, spa, mac, "test0") != cases[i].want) {
+			fprintf(stderr, "FAIL: ARP protocol type 0x%04x %s\n",
+			    cases[i].ptype, cases[i].want ? "was dropped" :
+			    "was processed");
+			exit(1);
+		}
+	}
+}
+
 /* a known IP claimed by the broadcast MAC is reported as changed */
 static void
 test_broadcast_mac_claim(void)
@@ -2044,6 +2083,7 @@ main(void)
 	test_snap_truncated();
 	test_jumbo_frame();
 	test_arp_hwtype();
+	test_arp_ptype();
 	test_broadcast_mac_claim();
 	test_ra_rs_lladdr();
 	test_na_ext_header();

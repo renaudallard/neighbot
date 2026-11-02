@@ -512,8 +512,10 @@ parse_arp(const u_char *pkt, size_t len, const char *iface)
 	/* IPv4 ARP with 6-byte hardware addresses, of any hardware type:
 	 * besides Ethernet, Linux and FreeBSD take IEEE 802 (6), FreeBSD
 	 * FireWire (24) and NetBSD every type but FireWire, so ARP of any
-	 * type with addresses that size can poison some host */
-	if (ntohs(arp->ptype) != ETHERTYPE_IP)
+	 * type with addresses that size can poison some host. NetBSD also
+	 * takes the protocol type of IP trailers as IPv4. */
+	if (ntohs(arp->ptype) != ETHERTYPE_IP &&
+	    ntohs(arp->ptype) != ETHERTYPE_TRAIL)
 		return;
 	if (arp->hlen != 6 || arp->plen != 4)
 		return;

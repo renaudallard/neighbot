@@ -729,17 +729,17 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 	icmp_len = len - icmp_off;
 	type = icmp[0];
 
-	/* RFC 4861 6.1.1, 6.1.2, 7.1.1, 7.1.2: valid RS, RA, NS and NA
-	 * carry hop limit 255. A lower value proves the packet crossed a
-	 * router, so drop it to keep off-link spoofed traffic out of the
-	 * database and the learned prefixes */
+	/* RFC 4861 6.1.1, 6.1.2, 7.1.1, 7.1.2, 8.1: valid RS, RA, NS, NA
+	 * and Redirect carry hop limit 255. A lower value proves the packet
+	 * crossed a router, so drop it to keep off-link spoofed traffic out
+	 * of the database and the learned prefixes */
 	if (ip6.ip6_hlim != 255)
 		return;
 
 	/* Hosts also drop ND messages with a code other than 0 (same RFC
 	 * sections) or a bad checksum, so these must not change an entry
 	 * either. Other ICMPv6 types are not ND and need no checksum. */
-	if (type < ND_ROUTER_SOLICIT || type > ND_NEIGHBOR_ADVERT ||
+	if (type < ND_ROUTER_SOLICIT || type > ND_REDIRECT ||
 	    icmp[1] != 0 ||
 	    icmp6_checksum((const uint8_t *)&ip6.ip6_src,
 	    (const uint8_t *)&ip6.ip6_dst, icmp, icmp_len) != 0)
@@ -785,6 +785,25 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 		opts = icmp + 24;
 		opts_len = icmp_len - 24;
 		want = 1;	/* Source Link-Layer Address */
+	} else if (type == ND_REDIRECT) {
+		/* Redirect: type(1) + code(1) + cksum(2) + reserved(4) +
+		 * target(16) + destination(16) + opts. Hosts store its
+		 * Target LLA in the neighbour cache entry of the target (RFC
+		 * 4861 8.3), so a forged one sends traffic to another MAC:
+		 * record the target like an NA's. RFC 4861 8.1: the source is
+		 * link-local, the destination is not multicast, and the
+		 * target is a link-local router or the destination itself */
+		if (!IS_LINKLOCAL6((const uint8_t *)&ip6.ip6_src))
+			return;
+		if (icmp_len < 40 || icmp[24] == 0xff)
+			return;
+		ip_addr = icmp + 8;
+		if (!IS_LINKLOCAL6(ip_addr) &&
+		    memcmp(ip_addr, icmp + 24, 16) != 0)
+			return;
+		opts = icmp + 40;
+		opts_len = icmp_len - 40;
+		want = 2;	/* Target Link-Layer Address */
 	} else {
 		return;
 	}
@@ -797,9 +816,14 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 		parse_ra(icmp, icmp_len, iface,
 		    (const uint8_t *)&ip6.ip6_src);
 
-	/* fall back to Ethernet source MAC if NDP option is missing */
-	if (!mac)
+	/* Fall back to Ethernet source MAC if NDP option is missing. Not
+	 * for a Redirect: it comes from the router, not from the target,
+	 * and without the option hosts learn no address for the target */
+	if (!mac) {
+		if (type == ND_REDIRECT)
+			return;
 		mac = eth_src;
+	}
 
 	/* skip DAD probes (source ::) */
 	if (is_zero_ip6((const uint8_t *)&ip6.ip6_src))

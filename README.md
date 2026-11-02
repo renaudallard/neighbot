@@ -486,7 +486,7 @@ Crashes and slow inputs are written to the current directory.
    ports) and macvlan, macvtap and ipvlan devices (seen through their lower
    device, unless it is a skipped trunk)
 2. Opens one pcap handle per interface with a BPF filter matching ARP, ND
-   messages (ICMPv6 types 133 to 136), and IPv6 packets that start with a
+   messages (ICMPv6 types 133 to 137), and IPv6 packets that start with a
    hop-by-hop, routing or destination options header, which the parser
    walks, however many there are, so that ND hidden behind them (an
    RA-Guard evasion) is seen; the same is matched inside 802.1Q or 802.1ad
@@ -500,10 +500,13 @@ Crashes and slow inputs are written to the current directory.
    Advertisements (type 134) feed on-link prefixes to the bogon filter, and
    their source address and Source Link-Layer Address are recorded like a
    neighbor's, as are those of Router Solicitations (type 133), so a forged
-   advertisement taking over the router's address is reported. Only the
-   IPv6 payload is parsed: bytes after it are ignored, as hosts do, and
-   so are messages with a code other than 0, a bad checksum or malformed
-   options (one of length 0, or a link-layer address that is not 6 bytes)
+   advertisement taking over the router's address is reported; the target
+   and Target Link-Layer Address of a Redirect (type 137), which hosts
+   store in their neighbor cache, are recorded like an advertisement's.
+   Only the IPv6 payload is parsed: bytes after it are ignored, as hosts do,
+   and so are messages with a code other than 0, a bad checksum or
+   malformed options (one of length 0, or a link-layer address that is not
+   6 bytes)
 6. Updates an in-memory hash table; on new/changed entries, logs and
    optionally emails via `fork()`/`exec()` of sendmail
 

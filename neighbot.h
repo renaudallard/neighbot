@@ -65,13 +65,14 @@
 #define STORM_RECOVER    1800                /* seconds of quiet */
 #define NOTIFY_MAX_INFLIGHT 32               /* cap concurrent notify children */
 
-/* ARP, ND (RS, RA, NS, NA) right after the IPv6 header, and IPv6
- * packets starting with a hop-by-hop, routing or destination options
- * header, which the parser walks to find ND behind them; the same inside
- * an 802.1Q or 802.1ad priority tag (VLAN ID 0), and any frame with two
- * such tags or more, which the parser unwraps. A vlan clause shifts the
- * offsets of every primitive after it, so each must come last. */
-#define BPF_NDP    "(icmp6 and ip6[40] >= 133 and ip6[40] <= 136)"
+/* ARP, ND (RS, RA, NS, NA, Redirect) right after the IPv6 header, and
+ * IPv6 packets starting with a hop-by-hop, routing or destination
+ * options header, which the parser walks to find ND behind them; the
+ * same inside an 802.1Q or 802.1ad priority tag (VLAN ID 0), and any
+ * frame with two such tags or more, which the parser unwraps. A vlan
+ * clause shifts the offsets of every primitive after it, so each must
+ * come last. */
+#define BPF_NDP    "(icmp6 and ip6[40] >= 133 and ip6[40] <= 137)"
 #define BPF_EXTHDR "(ip6 and (ip6[6] == 0 or ip6[6] == 43 or ip6[6] == 60))"
 #define BPF_MATCH  "arp or " BPF_NDP " or " BPF_EXTHDR
 #define BPF_FILTER BPF_MATCH " or (vlan 0 and (" BPF_MATCH " or vlan 0))"

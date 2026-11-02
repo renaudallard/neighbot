@@ -1281,6 +1281,106 @@ test_nd_bad_options(void)
 	}
 }
 
+/* Redirect from src to ff02::1 for dest through target, with a Target
+ * LLA option set to mac unless it is NULL; returns the frame length */
+static size_t
+build_redirect(uint8_t *pkt, const char *src, const char *target,
+    const char *dest, const uint8_t *mac)
+{
+	size_t plen = mac ? 48 : 40;
+
+	memset(pkt, 0, 102);
+	pkt[0] = 0x33; pkt[1] = 0x33; pkt[5] = 0x01;
+	pkt[6] = 0x02; pkt[11] = 0x01;           /* the router */
+	pkt[12] = 0x86; pkt[13] = 0xdd;
+	pkt[14] = 0x60; pkt[19] = (uint8_t)plen; pkt[20] = 58; pkt[21] = 255;
+	inet_pton(AF_INET6, src, pkt + 22);
+	pkt[38] = 0xff; pkt[39] = 0x02; pkt[53] = 0x01;
+	pkt[54] = 137;                           /* Redirect */
+	inet_pton(AF_INET6, target, pkt + 62);
+	inet_pton(AF_INET6, dest, pkt + 78);
+	if (mac) {
+		pkt[94] = 2; pkt[95] = 1;
+		memcpy(pkt + 96, mac, 6);
+	}
+	return 54 + plen;
+}
+
+/* a Redirect makes hosts store its Target LLA for the target, so it is
+ * recorded like an NA; one that hosts reject is not */
+static void
+test_nd_redirect(void)
+{
+	uint8_t pkt[102], tgt[16], onlink[16];
+	uint8_t real[6] = { 0x02, 0, 0, 0, 0, 0x07 };
+	uint8_t evil[6] = { 0x02, 0, 0, 0, 0, 0x66 };
+	uint8_t rtr[6] = { 0x02, 0, 0, 0, 0, 0x01 };
+	int saved_quiet = cfg.quiet, before;
+	size_t len;
+
+	cfg.quiet = 0;
+	inet_pton(AF_INET6, "fe80::7", tgt);
+	feed_na_on("test0", real, "fe80::7");
+
+	/* a forged Redirect pointing traffic for 2001:db8:ff::1 at fe80::7,
+	 * which it says is at another MAC */
+	before = notify_changed_calls;
+	len = build_redirect(pkt, "fe80::1", "fe80::7", "2001:db8:ff::1",
+	    evil);
+	feed(pkt, len);
+	if (notify_changed_calls != before + 1 ||
+	    !db_known(AF_INET6, tgt, evil, "test0")) {
+		fprintf(stderr, "FAIL: Redirect changing fe80::7 was not "
+		    "reported\n");
+		exit(1);
+	}
+
+	/* without a Target LLA there is no MAC to record, and the Ethernet
+	 * source is the router's */
+	inet_pton(AF_INET6, "fe80::8", tgt);
+	len = build_redirect(pkt, "fe80::1", "fe80::8", "2001:db8:ff::1",
+	    NULL);
+	feed(pkt, len);
+	if (db_known(AF_INET6, tgt, rtr, "test0")) {
+		fprintf(stderr, "FAIL: Redirect without Target LLA recorded "
+		    "the router's MAC\n");
+		exit(1);
+	}
+
+	/* a redirect to the on-link destination itself */
+	inet_pton(AF_INET6, "2001:db8:ff::9", onlink);
+	len = build_redirect(pkt, "fe80::1", "2001:db8:ff::9",
+	    "2001:db8:ff::9", evil);
+	feed(pkt, len);
+	if (!db_known(AF_INET6, onlink, evil, "test0")) {
+		fprintf(stderr, "FAIL: on-link Redirect was not recorded\n");
+		exit(1);
+	}
+
+	/* rejected by hosts: a global target that is not the destination,
+	 * a source that is not link-local, a multicast destination */
+	inet_pton(AF_INET6, "2001:db8:ff::a", tgt);
+	len = build_redirect(pkt, "fe80::1", "2001:db8:ff::a",
+	    "2001:db8:ff::1", evil);
+	feed(pkt, len);
+	len = build_redirect(pkt, "2001:db8::1", "2001:db8:ff::a",
+	    "2001:db8:ff::a", evil);
+	feed(pkt, len);
+	if (db_known(AF_INET6, tgt, evil, "test0")) {
+		fprintf(stderr, "FAIL: invalid Redirect was recorded\n");
+		exit(1);
+	}
+	inet_pton(AF_INET6, "fe80::a", tgt);
+	len = build_redirect(pkt, "fe80::1", "fe80::a", "ff02::2", evil);
+	feed(pkt, len);
+	if (db_known(AF_INET6, tgt, evil, "test0")) {
+		fprintf(stderr, "FAIL: Redirect for a multicast destination "
+		    "was recorded\n");
+		exit(1);
+	}
+	cfg.quiet = saved_quiet;
+}
+
 /* ARP in an 802.1Q priority tag (VLAN ID 0) is processed, other VLAN
  * IDs are not */
 static void
@@ -1430,6 +1530,7 @@ main(void)
 	test_nd_payload_length();
 	test_nd_code_and_checksum();
 	test_nd_bad_options();
+	test_nd_redirect();
 	test_vlan0_priority_tag();
 	test_stacked_priority_tags();
 	test_truncated();

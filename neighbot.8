@@ -241,6 +241,9 @@ The source address and Source Link-Layer Address of Router
 Advertisements and Router Solicitations are recorded like those of
 neighbor messages, so a forged advertisement taking over the router's
 address is reported as a changed station.
+So are the target and Target Link-Layer Address of a Redirect, which
+hosts store in their neighbor cache: a forged Redirect pointing a
+neighbor's address at another MAC is reported too.
 .Pp
 Router Advertisements are validated per RFC 4861: only RAs with an
 IPv6 hop limit of 255 and a link-local source address are accepted,

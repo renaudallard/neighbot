@@ -432,13 +432,17 @@ placed(time_t stamp, time_t stamp_mono, time_t now, time_t mono)
 
 /* When an entry was last seen. It is never placed before the time read
  * from the file, which a clock still behind at the sighting would replace
- * otherwise. */
+ * otherwise, nor before the first sighting, which a last one stamped
+ * while the clock was stepped back could be. */
 static time_t
 seen_time(const struct entry *e, time_t now, time_t mono)
 {
 	time_t t = placed(e->last_seen, e->seen_mono, now, mono);
+	time_t first = placed(e->first_seen, e->first_mono, now, mono);
 
-	return t > e->file_seen ? t : e->file_seen;
+	if (t < e->file_seen)
+		t = e->file_seen;
+	return t > first ? t : first;
 }
 
 int
@@ -477,13 +481,10 @@ db_save(const char *path)
 			char first_str[32], last_str[32];
 			struct tm tm;
 			time_t seen = seen_time(e, now, mono);
+			/* placed like the last sighting, never after it */
 			time_t first = placed(e->first_seen, e->first_mono, now,
 			    mono);
 
-			/* the first sighting is placed like the last one, and
-			 * never written after it */
-			if (first > seen)
-				first = seen;
 			inet_ntop(e->af, e->ip, ipstr, sizeof(ipstr));
 
 			localtime_r(&first, &tm);

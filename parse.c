@@ -853,8 +853,9 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 	 * RA-Guard, so they must be seen here too. Linux takes any number
 	 * of them, so walk them all; each is at least 8 bytes, which bounds
 	 * the walk by the frame length. A fragment header is walked too in
-	 * the first fragment of a packet, to report fragmented ND below; a
-	 * later fragment shows nothing and ends the walk. */
+	 * the first fragment of a packet, to report fragmented ND below, and
+	 * so is another behind it, which OpenBSD takes; a later fragment
+	 * shows nothing and ends the walk. */
 	nxt = ip6.ip6_nxt;
 	icmp_off = sizeof(struct ip6_hdr);
 	while (nxt == IPPROTO_HOPOPTS || nxt == IPPROTO_ROUTING ||
@@ -872,9 +873,9 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 			return;
 		}
 		if (nxt == IPPROTO_FRAGMENT) {
-			/* a later fragment, or a second fragment header */
-			if (frag || ((pkt[icmp_off + 2] << 8 |
-			    pkt[icmp_off + 3]) & 0xfff8) != 0)
+			/* a later fragment */
+			if (((pkt[icmp_off + 2] << 8 | pkt[icmp_off + 3]) &
+			    0xfff8) != 0)
 				return;
 			frag = 1;
 			nxt = pkt[icmp_off];

@@ -1573,11 +1573,12 @@ test_nd_without_lla(void)
 /* Feed a fragment from src to ff02::1 with hop limit hlim, whose
  * fragment header holds frag after its next header nxt. It carries an
  * ND message of the given type for tgt, with a link-layer address
- * option of mac, or with dstopt the first 8 bytes of a 16-byte
- * destination options header. */
+ * option of mac, right behind that header, or with inner 2 or 3 behind
+ * a second fragment header, at offset 0 or 8. With inner 1 it carries
+ * instead the first 8 bytes of a 16-byte destination options header. */
 static void
 feed_frag(const char *src, const uint8_t frag[6], uint8_t nxt,
-    uint8_t hlim, int dstopt, uint8_t type, const uint8_t *tgt,
+    uint8_t hlim, int inner, uint8_t type, const uint8_t *tgt,
     const uint8_t *mac)
 {
 	uint8_t pkt[128];
@@ -1592,10 +1593,15 @@ feed_frag(const char *src, const uint8_t frag[6], uint8_t nxt,
 	pkt[38] = 0xff; pkt[39] = 0x02; pkt[53] = 0x01;
 	pkt[54] = nxt;
 	memcpy(pkt + 56, frag, 6);
-	if (dstopt) {
+	if (inner == 1) {
 		pkt[o] = 58; pkt[o + 1] = 1;
 		o += 8;
 	} else {
+		if (inner >= 2) {
+			pkt[o] = 58; pkt[o + 3] = inner == 3 ? 8 : 0;
+			pkt[o + 7] = 9;
+			o += 8;
+		}
 		pkt[o] = type; pkt[o + 4] = 0x20;
 		memcpy(pkt + o + 8, tgt, 16);
 		pkt[o + 24] = type == 135 ? 1 : 2;
@@ -1608,11 +1614,11 @@ feed_frag(const char *src, const uint8_t frag[6], uint8_t nxt,
 	feed_raw("test0", pkt, o);
 }
 
-/* An ND message in the first fragment of a packet, atomic or not, or a
- * first fragment whose headers go on in the next one, is reported and
- * not recorded: OpenBSD and NetBSD reassemble fragmented ND and act on
- * it. A later fragment, another protocol or a hop limit below 255 is
- * not reported. */
+/* An ND message in the first fragment of a packet, atomic or not, also
+ * behind a second fragment header, or a first fragment whose headers go
+ * on in the next one, is reported and not recorded: OpenBSD and NetBSD
+ * reassemble fragmented ND and act on it. A later fragment, another
+ * protocol or a hop limit below 255 is not reported. */
 static void
 test_fragmented_nd(void)
 {
@@ -1620,7 +1626,7 @@ test_fragmented_nd(void)
 		const char *name;
 		uint8_t     frag[6];         /* after the next header byte */
 		uint8_t     nxt, hlim;
-		int         dstopt, want;
+		int         inner, want;
 	} cases[] = {
 		{ "atomic fragment", { 0, 0, 0, 0, 0, 1 }, 58, 255, 0, 136 },
 		{ "first fragment", { 0, 1, 0, 0, 0, 2 }, 58, 255, 0, 136 },
@@ -1628,6 +1634,10 @@ test_fragmented_nd(void)
 		{ "UDP fragment", { 0, 1, 0, 0, 0, 4 }, 17, 255, 0, -1 },
 		{ "cut header chain", { 0, 1, 0, 0, 0, 5 }, 60, 255, 1, 0 },
 		{ "hop limit 64", { 0, 1, 0, 0, 0, 6 }, 58, 64, 0, -1 },
+		{ "two fragment headers", { 0, 0, 0, 0, 0, 7 }, 44, 255, 2,
+		    136 },
+		{ "later inner fragment", { 0, 0, 0, 0, 0, 8 }, 44, 255, 3,
+		    -1 },
 	};
 	uint8_t tgt[16];
 	uint8_t mac[6] = { 0x02, 0, 0, 0, 0, 0x57 };
@@ -1640,7 +1650,7 @@ test_fragmented_nd(void)
 		inet_pton(AF_INET6, "2001:db8:9::5700", tgt);
 		tgt[15] = (uint8_t)i;
 		feed_frag("2001:db8:9::99", cases[i].frag, cases[i].nxt,
-		    cases[i].hlim, cases[i].dstopt, 136, tgt, mac);
+		    cases[i].hlim, cases[i].inner, 136, tgt, mac);
 		if ((cases[i].want < 0 && notify_fragment_calls != before) ||
 		    (cases[i].want >= 0 &&
 		    (notify_fragment_calls != before + 1 ||

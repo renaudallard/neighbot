@@ -882,8 +882,8 @@ sysfs_net_has(const char *name, const char *attr)
 }
 
 /*
- * Whether name is a macvlan, macvtap or ipvlan device whose lower device
- * is known, written into lower. macvtap uses the macvlan driver.
+ * Whether name is a macvlan or macvtap device whose lower device is
+ * known, written into lower. macvtap uses the macvlan driver.
  */
 static int
 macvlan_lower(const char *name, char lower[IF_NAMESIZE])
@@ -903,8 +903,7 @@ macvlan_lower(const char *name, char lower[IF_NAMESIZE])
 	info.cmd = ETHTOOL_GDRVINFO;
 	ifr.ifr_data = (void *)&info;
 	if (ioctl(s, SIOCETHTOOL, &ifr) == 0 &&
-	    (strncmp(info.driver, "macvlan", sizeof(info.driver)) == 0 ||
-	    strncmp(info.driver, "ipvlan", sizeof(info.driver)) == 0))
+	    strncmp(info.driver, "macvlan", sizeof(info.driver)) == 0)
 		found = 1;
 	close(s);
 	if (!found)
@@ -985,16 +984,18 @@ capture_open_all(struct iface *ifaces, int max)
 			continue;
 		}
 
-		/* Skip macvlan, macvtap and ipvlan devices for the same
-		 * reason: their lower device carries the frames they send and
-		 * receive. Keep one whose lower device is a VLAN trunk skipped
-		 * above, as it is then the only view of untagged traffic. */
+		/* Skip macvlan and macvtap devices for the same reason: their
+		 * lower device carries the frames they send and receive, even
+		 * between two of them. Keep one whose lower device is a VLAN
+		 * trunk skipped above, as it is then the only view of untagged
+		 * traffic. Not ipvlan, which passes unicast between two of its
+		 * devices without the lower device seeing it. */
 		{
 			char lower[IF_NAMESIZE];
 
 			if (!cfg.iface && macvlan_lower(dev->name, lower) &&
 			    !is_vlan_parent(lower, vlan_parents, nparents)) {
-				log_msg("skipping %s (macvlan or ipvlan on %s)",
+				log_msg("skipping %s (macvlan on %s)",
 				    dev->name, lower);
 				continue;
 			}

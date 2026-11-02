@@ -343,7 +343,10 @@ jobs:
               ):
                   try:
                       fetch_text(f"https://cdn.openbsd.org/pub/OpenBSD/{v}/amd64/")
-                  except urllib.error.HTTPError:
+                  except urllib.error.HTTPError as e:
+                      # only a missing directory says the release is not out
+                      if e.code != 404:
+                          raise
                       continue
                   supported.insert(0, v)
                   if len(supported) == count:

@@ -152,7 +152,7 @@ neighbot [-B seconds] [-d] [-e days] [-f dbfile] [-i iface] [-m mailto] [-o ouif
 | `-o ouifile` | OUI vendor database file (default: `/var/neighbot/oui.txt`) |
 | `-p` | Disable active probing (passive only) |
 | `-q` | Quiet mode. No email notifications, events are still logged |
-| `-r` | Report mode. Print database summary to stdout (or email with `-m`), then exit |
+| `-r` | Report mode. Print database summary to stdout (or email with `-m`, killing a `sendmail` still running after two minutes), then exit |
 | `-s sendmail` | Path to sendmail-compatible MTA (default: `/usr/sbin/sendmail`) |
 | `-u user` | Drop privileges to this user after opening pcap handles (default: `nobody`) |
 | `-V` | Print the version number and exit |

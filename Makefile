@@ -73,16 +73,20 @@ oui-update:
 # The daemon hands _DBDIR to the user it runs as, so install(1), which
 # sets the mode of a file by path once written, must not write there as
 # root: that user could swap in a link to any file. Write the OUI file in
-# /var, which root owns, and rename it into place, which replaces a link
-# instead of following it; and keep the mode the daemon gives _DBDIR.
+# a directory of /var, which root owns, and move it into _DBDIR: mv(1)
+# then renames it to the same name there, which replaces a link instead
+# of following it, where naming the file as target would follow a link
+# to a directory. Keep the mode the daemon gives _DBDIR.
 install: $(BIN) oui.txt
 	install -d $(DESTDIR)$(BINDIR)
 	install -m 755 $(BIN) $(DESTDIR)$(BINDIR)/$(BIN)
 	install -d $(DESTDIR)$(MANDIR)/man8
 	install -m 644 neighbot.8 $(DESTDIR)$(MANDIR)/man8/neighbot.8
 	install -d -m 750 $(DESTDIR)$(_DBDIR)
-	install -m 644 oui.txt $(DESTDIR)/var/.neighbot-oui.txt
-	mv -f $(DESTDIR)/var/.neighbot-oui.txt $(DESTDIR)$(_DBDIR)/oui.txt
+	install -d -m 700 $(DESTDIR)/var/.neighbot-oui
+	install -m 644 oui.txt $(DESTDIR)/var/.neighbot-oui/oui.txt
+	mv -f $(DESTDIR)/var/.neighbot-oui/oui.txt $(DESTDIR)$(_DBDIR)
+	rmdir $(DESTDIR)/var/.neighbot-oui
 
 # the unit and rc script name /usr/local/sbin; point them at BINDIR
 install-systemd: install

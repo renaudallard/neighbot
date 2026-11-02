@@ -53,8 +53,6 @@ jobs:
       fedora_release: ${{ steps.detect.outputs.fedora_release }}
       rocky_previous: ${{ steps.detect.outputs.rocky_previous }}
       rocky_latest: ${{ steps.detect.outputs.rocky_latest }}
-      rocky_container_previous: ${{ steps.detect.outputs.rocky_container_previous }}
-      rocky_container_latest: ${{ steps.detect.outputs.rocky_container_latest }}
       opensuse_leap: ${{ steps.detect.outputs.opensuse_leap }}
       suse_bci: ${{ steps.detect.outputs.suse_bci }}
       alpine_release: ${{ steps.detect.outputs.alpine_release }}
@@ -165,39 +163,32 @@ jobs:
               return sorted(set(versions), key=int)
 
 
-          def rocky_container_tags(majors, count=2):
+          def rocky_container_tags():
+              # the image tags quay.io serves, or None if it cannot be asked
               try:
                   data = fetch_text(
                       "https://quay.io/api/v1/repository/rockylinux/rockylinux/tag/?page_size=100&onlyActiveTags=true"
                   )
-                  tags = {
+                  return {
                       t.get("name") for t in json.loads(data).get("tags", []) if t.get("name")
                   }
               except Exception:
-                  tags = set()
-
-              chosen = []
-              for rel in reversed(majors):
-                  if rel in tags and rel not in chosen:
-                      chosen.append(rel)
-                  if len(chosen) >= count:
-                      break
-
-              if not chosen:
-                  chosen.append("9")
-              while len(chosen) < count:
-                  chosen.append(chosen[-1])
-
-              return chosen[:count]
+                  return None
 
 
           def latest_rocky_releases(count=2):
+              # Majors listed on dl.rockylinux.org that quay.io has an image for,
+              # as a new one can reach the mirror first. The job name, the package
+              # label and the container all use the same major, so a failed
+              # lookup can never build a package in another release's container.
               versions_sorted = rocky_version_list()
               if not versions_sorted:
                   return ["9"][:count]
               majors = sorted({v.split(".")[0] for v in versions_sorted}, key=int)
-              trimmed = majors[-count:]
-              return trimmed or [versions_sorted[-1].split(".")[0]]
+              tags = rocky_container_tags()
+              if tags is not None and any(m in tags for m in majors):
+                  majors = [m for m in majors if m in tags]
+              return majors[-count:]
 
 
           def latest_opensuse_leap():
@@ -365,9 +356,6 @@ jobs:
           rocky_releases = latest_rocky_releases()
           rocky_latest = rocky_releases[-1]
           rocky_previous = rocky_releases[-2] if len(rocky_releases) > 1 else rocky_releases[-1]
-          rocky_container_latest, rocky_container_previous = rocky_container_tags(
-              rocky_releases, count=2
-          )
           opensuse_leap = latest_opensuse_leap()
           suse_bci = latest_suse_bci()
           alpine_release = latest_alpine_release()
@@ -381,8 +369,6 @@ jobs:
               fh.write(f"fedora_release={fedora_release}\n")
               fh.write(f"rocky_previous={rocky_previous}\n")
               fh.write(f"rocky_latest={rocky_latest}\n")
-              fh.write(f"rocky_container_latest={rocky_container_latest}\n")
-              fh.write(f"rocky_container_previous={rocky_container_previous}\n")
               fh.write(f"opensuse_leap={opensuse_leap}\n")
               fh.write(f"suse_bci={suse_bci}\n")
               fh.write(f"alpine_release={alpine_release}\n")
@@ -751,7 +737,7 @@ jobs:
       - detect-versions
       - fetch-oui
     container:
-      image: quay.io/rockylinux/rockylinux:${{ needs.detect-versions.outputs.rocky_container_latest }}
+      image: quay.io/rockylinux/rockylinux:${{ needs.detect-versions.outputs.rocky_latest }}
     defaults:
       run:
         shell: bash
@@ -846,7 +832,7 @@ jobs:
       - detect-versions
       - fetch-oui
     container:
-      image: quay.io/rockylinux/rockylinux:${{ needs.detect-versions.outputs.rocky_container_previous }}
+      image: quay.io/rockylinux/rockylinux:${{ needs.detect-versions.outputs.rocky_previous }}
     defaults:
       run:
         shell: bash

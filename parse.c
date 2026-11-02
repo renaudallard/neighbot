@@ -529,31 +529,36 @@ parse_arp(const u_char *pkt, size_t len, const char *iface)
 		             old_mac, iface, old_last_seen);
 }
 
-/* NDP option header */
-struct ndp_opt {
-	uint8_t  type;
-	uint8_t  len;   /* in units of 8 octets */
-};
-
-static const uint8_t *
-ndp_find_lladdr_opt(const u_char *opts, size_t opts_len, uint8_t want_type)
+/*
+ * Check the options of an ND message and find its first link-layer
+ * address option of want_type (1 Source, 2 Target), setting *lla to the
+ * address, or to NULL if there is none. Returns 0 when hosts drop the
+ * whole message: an option of length 0 or running past the end, or the
+ * wanted option not 8 bytes long, its size for an Ethernet address.
+ */
+static int
+ndp_lladdr_opt(const u_char *opts, size_t opts_len, uint8_t want_type,
+               const uint8_t **lla)
 {
 	size_t off = 0;
 
-	while (off + 2 <= opts_len) {
-		const struct ndp_opt *opt = (const struct ndp_opt *)(opts + off);
-		size_t olen = (size_t)opt->len * 8;
+	*lla = NULL;
+	while (off < opts_len) {
+		size_t olen;
 
-		if (olen == 0 || off + olen > opts_len)
-			break;
-
-		/* type 1 = Source LLA, type 2 = Target LLA */
-		if (opt->type == want_type && olen >= 8)
-			return opts + off + 2;
-
+		if (opts_len - off < 2)
+			return 0;
+		olen = (size_t)opts[off + 1] * 8;	/* in units of 8 bytes */
+		if (olen == 0 || olen > opts_len - off)
+			return 0;
+		if (opts[off] == want_type && *lla == NULL) {
+			if (olen != 8)
+				return 0;
+			*lla = opts + off + 2;
+		}
 		off += olen;
 	}
-	return NULL;
+	return 1;
 }
 
 static uint32_t
@@ -673,7 +678,7 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 {
 	struct ip6_hdr ip6;
 	const uint8_t *icmp;
-	uint8_t type, nxt;
+	uint8_t type, nxt, want;
 	size_t icmp_off, icmp_len;
 	const uint8_t *ip_addr;
 	const uint8_t *mac;
@@ -747,15 +752,13 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 			return;
 		if (icmp_len < 16)
 			return;
-		parse_ra(icmp, icmp_len, iface,
-		    (const uint8_t *)&ip6.ip6_src);
 		/* hosts cache the router's address and Source LLA from
 		 * the RA itself, so check them like a neighbor's: a forged
 		 * RA would otherwise take over the gateway unnoticed */
 		ip_addr = (const uint8_t *)&ip6.ip6_src;
 		opts = icmp + 16;
 		opts_len = icmp_len - 16;
-		mac = ndp_find_lladdr_opt(opts, opts_len, 1);
+		want = 1;
 	} else if (type == ND_ROUTER_SOLICIT) {
 		/* RS: type(1) + code(1) + cksum(2) + reserved(4) + opts.
 		 * Routers cache the solicitor's Source LLA from it */
@@ -764,7 +767,7 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 		ip_addr = (const uint8_t *)&ip6.ip6_src;
 		opts = icmp + 8;
 		opts_len = icmp_len - 8;
-		mac = ndp_find_lladdr_opt(opts, opts_len, 1);
+		want = 1;
 	} else if (type == ND_NEIGHBOR_ADVERT) {
 		/* NA: type(1) + code(1) + cksum(2) + flags(4) + target(16) + opts */
 		if (icmp_len < 24)
@@ -772,8 +775,7 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 		ip_addr = icmp + 8;  /* target address */
 		opts = icmp + 24;
 		opts_len = icmp_len - 24;
-		/* look for Target Link-Layer Address (type 2) */
-		mac = ndp_find_lladdr_opt(opts, opts_len, 2);
+		want = 2;	/* Target Link-Layer Address */
 	} else if (type == ND_NEIGHBOR_SOLICIT) {
 		/* NS: type(1) + code(1) + cksum(2) + reserved(4) + target(16) + opts */
 		if (icmp_len < 24)
@@ -782,11 +784,18 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 		ip_addr = (const uint8_t *)&ip6.ip6_src;
 		opts = icmp + 24;
 		opts_len = icmp_len - 24;
-		/* look for Source Link-Layer Address (type 1) */
-		mac = ndp_find_lladdr_opt(opts, opts_len, 1);
+		want = 1;	/* Source Link-Layer Address */
 	} else {
 		return;
 	}
+
+	if (!ndp_lladdr_opt(opts, opts_len, want, &mac))
+		return;
+
+	/* an RA that passed the checks above is one hosts process */
+	if (type == ND_ROUTER_ADVERT)
+		parse_ra(icmp, icmp_len, iface,
+		    (const uint8_t *)&ip6.ip6_src);
 
 	/* fall back to Ethernet source MAC if NDP option is missing */
 	if (!mac)

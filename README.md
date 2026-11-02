@@ -502,7 +502,8 @@ Crashes and slow inputs are written to the current directory.
    neighbor's, as are those of Router Solicitations (type 133), so a forged
    advertisement taking over the router's address is reported. Only the
    IPv6 payload is parsed: bytes after it are ignored, as hosts do, and
-   so are messages with a code other than 0 or a bad checksum
+   so are messages with a code other than 0, a bad checksum or malformed
+   options (one of length 0, or a link-layer address that is not 6 bytes)
 6. Updates an in-memory hash table; on new/changed entries, logs and
    optionally emails via `fork()`/`exec()` of sendmail
 

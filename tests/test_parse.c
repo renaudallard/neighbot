@@ -1205,6 +1205,82 @@ test_nd_code_and_checksum(void)
 	}
 }
 
+/* hosts drop an ND message whose options are malformed: an option of
+ * length 0, or a link-layer address option that is not 8 bytes long. A
+ * second Target LLA option is ignored, as hosts keep the first */
+static void
+test_nd_bad_options(void)
+{
+	uint8_t pkt[110], tgt[16];
+	uint8_t mac[6] = { 0x02, 0, 0, 0, 0, 0x4b };
+	uint8_t dup[6] = { 0x02, 0, 0, 0, 0, 0x4c };
+	int before;
+
+	inet_pton(AF_INET6, "2001:db8:9::4b", tgt);
+
+	/* Target LLA option 16 bytes long */
+	memset(pkt, 0, sizeof(pkt));
+	build_na(pkt, tgt, mac);
+	pkt[19] = 40; pkt[79] = 2;
+	feed(pkt, 94);
+	if (db_known(AF_INET6, tgt, mac, "test0")) {
+		fprintf(stderr, "FAIL: NA with a 16-byte Target LLA was "
+		    "processed\n");
+		exit(1);
+	}
+
+	/* an option of length 0 before the Target LLA option, which ends
+	 * the walk and left the Ethernet source to be recorded */
+	memset(pkt, 0, sizeof(pkt));
+	build_na(pkt, tgt, mac);
+	pkt[19] = 40;
+	memmove(pkt + 86, pkt + 78, 8);
+	memset(pkt + 78, 0, 8);
+	pkt[78] = 14;                            /* unknown, length 0 */
+	feed(pkt, 94);
+	if (db_known(AF_INET6, tgt, mac, "test0")) {
+		fprintf(stderr, "FAIL: NA with a zero-length option was "
+		    "processed\n");
+		exit(1);
+	}
+
+	/* a valid Target LLA option followed by a second one, too long */
+	memset(pkt, 0, sizeof(pkt));
+	build_na(pkt, tgt, mac);
+	pkt[19] = 48;
+	pkt[86] = 2; pkt[87] = 2;
+	memcpy(pkt + 88, dup, 6);
+	feed(pkt, 102);
+	if (!db_known(AF_INET6, tgt, mac, "test0")) {
+		fprintf(stderr, "FAIL: second Target LLA option was not "
+		    "ignored\n");
+		exit(1);
+	}
+
+	/* an RA with a prefix option, then an option of length 0: no
+	 * prefix is learned from it */
+	memset(pkt, 0, sizeof(pkt));
+	pkt[0] = 0x33; pkt[1] = 0x33; pkt[5] = 0x01;
+	pkt[6] = 0x02; pkt[11] = 0x4d;
+	pkt[12] = 0x86; pkt[13] = 0xdd;
+	pkt[14] = 0x60; pkt[19] = 56; pkt[20] = 58; pkt[21] = 255;
+	pkt[22] = 0xfe; pkt[23] = 0x80; pkt[37] = 0x4d;
+	pkt[38] = 0xff; pkt[39] = 0x02; pkt[53] = 0x01;
+	pkt[54] = 134; pkt[58] = 64; pkt[60] = 0x07; pkt[61] = 0x08;
+	pkt[70] = 3; pkt[71] = 4; pkt[72] = 64; pkt[73] = 0x80;
+	pkt[76] = 0x0e; pkt[77] = 0x10;          /* valid lifetime 3600 */
+	pkt[86] = 0x20; pkt[87] = 0x01; pkt[88] = 0x0d; pkt[89] = 0xb8;
+	pkt[90] = 0x4d;                          /* 2001:db8:4d00::/64 */
+	pkt[102] = 14;                           /* unknown, length 0 */
+	before = ra_learned_calls;
+	feed(pkt, 110);
+	if (ra_learned_calls != before) {
+		fprintf(stderr, "FAIL: prefix learned from an RA with a "
+		    "zero-length option\n");
+		exit(1);
+	}
+}
+
 /* ARP in an 802.1Q priority tag (VLAN ID 0) is processed, other VLAN
  * IDs are not */
 static void
@@ -1353,6 +1429,7 @@ main(void)
 	test_na_many_ext_headers();
 	test_nd_payload_length();
 	test_nd_code_and_checksum();
+	test_nd_bad_options();
 	test_vlan0_priority_tag();
 	test_stacked_priority_tags();
 	test_truncated();

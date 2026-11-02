@@ -731,6 +731,15 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 	if (ip6.ip6_hlim != 255)
 		return;
 
+	/* Hosts also drop ND messages with a code other than 0 (same RFC
+	 * sections) or a bad checksum, so these must not change an entry
+	 * either. Other ICMPv6 types are not ND and need no checksum. */
+	if (type < ND_ROUTER_SOLICIT || type > ND_NEIGHBOR_ADVERT ||
+	    icmp[1] != 0 ||
+	    icmp6_checksum((const uint8_t *)&ip6.ip6_src,
+	    (const uint8_t *)&ip6.ip6_dst, icmp, icmp_len) != 0)
+		return;
+
 	if (type == ND_ROUTER_ADVERT) {
 		/* a valid Router Advertisement also has a link-local
 		 * source (RFC 4861 6.1.2) */

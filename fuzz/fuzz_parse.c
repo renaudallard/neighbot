@@ -15,6 +15,7 @@
 #include "../neighbot.h"
 #include "../db.h"
 #include "../parse.h"
+#include "../tests/nd_cksum.h"
 
 /* globals required by the linker */
 struct config          cfg;
@@ -116,6 +117,16 @@ LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 	hdr.caplen = size;
 	hdr.len    = size;
 
+	/* give ND messages a valid checksum, or almost none would get past
+	 * the check to the code behind it; frames longer than the snap
+	 * length are rejected by the parser, so pass them as they are */
+	static uint8_t buf[SNAP_LEN];
+
+	if (size <= sizeof(buf)) {
+		memcpy(buf, data, size);
+		nd_fix_cksum(buf, size);
+		data = buf;
+	}
 	parse_packet((u_char *)"fuzz0", &hdr, data);
 
 	/* reset DB so entries do not accumulate across iterations */

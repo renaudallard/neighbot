@@ -112,4 +112,32 @@ mono_now(void)
 	return ts.tv_sec + 1;
 }
 
+/* ICMPv6 checksum over the pseudo-header and the message. Over a message
+ * that carries its checksum, it is 0 when that checksum is right. */
+static inline uint16_t
+icmp6_checksum(const uint8_t *src6, const uint8_t *dst6,
+               const uint8_t *icmp, size_t icmplen)
+{
+	uint32_t sum = 0;
+
+	/* pseudo-header: src, dst, length (32-bit), next header */
+	for (int i = 0; i < 16; i += 2)
+		sum += ((uint32_t)src6[i] << 8) | src6[i + 1];
+	for (int i = 0; i < 16; i += 2)
+		sum += ((uint32_t)dst6[i] << 8) | dst6[i + 1];
+	sum += (uint32_t)icmplen;
+	sum += IPPROTO_ICMPV6;
+
+	/* ICMPv6 message */
+	for (size_t i = 0; i + 1 < icmplen; i += 2)
+		sum += ((uint32_t)icmp[i] << 8) | icmp[i + 1];
+	if (icmplen & 1)
+		sum += (uint32_t)icmp[icmplen - 1] << 8;
+
+	while (sum >> 16)
+		sum = (sum & 0xffff) + (sum >> 16);
+
+	return (uint16_t)~sum;
+}
+
 #endif

@@ -18,6 +18,7 @@
 #include "../neighbot.h"
 #include "../db.h"
 #include "../parse.h"
+#include "nd_cksum.h"
 
 /* globals required by the linker */
 struct config          cfg;
@@ -141,8 +142,9 @@ void notify_ra_learned(const char *iface, const uint8_t *prefix,
     int prefix_len, const uint8_t *router, uint32_t lifetime)
 { (void)iface; (void)prefix; (void)prefix_len; (void)router; (void)lifetime; }
 
+/* feed a frame as captured, without touching its ICMPv6 checksum */
 static void
-feed_on(const char *iface, const uint8_t *pkt, size_t len)
+feed_raw(const char *iface, const uint8_t *pkt, size_t len)
 {
 	struct pcap_pkthdr hdr;
 
@@ -150,6 +152,22 @@ feed_on(const char *iface, const uint8_t *pkt, size_t len)
 	hdr.caplen = len;
 	hdr.len    = len;
 	parse_packet((u_char *)iface, &hdr, pkt);
+}
+
+/* feed a frame with its ICMPv6 checksum set, as the test frames are
+ * built with a zero checksum */
+static void
+feed_on(const char *iface, const uint8_t *pkt, size_t len)
+{
+	uint8_t buf[SNAP_LEN];
+
+	if (len > sizeof(buf)) {
+		feed_raw(iface, pkt, len);
+		return;
+	}
+	memcpy(buf, pkt, len);
+	nd_fix_cksum(buf, len);
+	feed_raw(iface, buf, len);
 }
 
 static void
@@ -1135,6 +1153,58 @@ test_nd_payload_length(void)
 	}
 }
 
+/* NA for target with Target LLA mac */
+static void
+build_na(uint8_t *pkt, const uint8_t *target, const uint8_t *mac)
+{
+	memset(pkt, 0, 86);
+	pkt[0] = 0x33; pkt[1] = 0x33; pkt[5] = 0x01;
+	memcpy(pkt + 6, mac, 6);
+	pkt[12] = 0x86; pkt[13] = 0xdd;
+	pkt[14] = 0x60; pkt[19] = 32; pkt[20] = 58; pkt[21] = 255;
+	memcpy(pkt + 22, target, 16);
+	pkt[38] = 0xff; pkt[39] = 0x02; pkt[53] = 0x01;
+	pkt[54] = 136; pkt[58] = 0x20;
+	memcpy(pkt + 62, target, 16);
+	pkt[78] = 2; pkt[79] = 1;
+	memcpy(pkt + 80, mac, 6);
+}
+
+/* hosts drop ND messages with a non-zero code or a bad checksum, so
+ * neither may change an entry */
+static void
+test_nd_code_and_checksum(void)
+{
+	uint8_t pkt[86], tgt[16];
+	uint8_t mac[6] = { 0x02, 0, 0, 0, 0, 0x4a };
+
+	inet_pton(AF_INET6, "2001:db8:9::4a", tgt);
+
+	build_na(pkt, tgt, mac);
+	pkt[55] = 1;                             /* code 1 */
+	feed(pkt, sizeof(pkt));
+	if (db_known(AF_INET6, tgt, mac, "test0")) {
+		fprintf(stderr, "FAIL: NA with code 1 was processed\n");
+		exit(1);
+	}
+
+	build_na(pkt, tgt, mac);
+	nd_fix_cksum(pkt, sizeof(pkt));
+	pkt[56] ^= 0x55;                         /* break the checksum */
+	feed_raw("test0", pkt, sizeof(pkt));
+	if (db_known(AF_INET6, tgt, mac, "test0")) {
+		fprintf(stderr, "FAIL: NA with a bad checksum was processed\n");
+		exit(1);
+	}
+
+	pkt[56] ^= 0x55;
+	feed_raw("test0", pkt, sizeof(pkt));
+	if (!db_known(AF_INET6, tgt, mac, "test0")) {
+		fprintf(stderr, "FAIL: NA with a good checksum was dropped\n");
+		exit(1);
+	}
+}
+
 /* ARP in an 802.1Q priority tag (VLAN ID 0) is processed, other VLAN
  * IDs are not */
 static void
@@ -1282,6 +1352,7 @@ main(void)
 	test_na_ext_header();
 	test_na_many_ext_headers();
 	test_nd_payload_length();
+	test_nd_code_and_checksum();
 	test_vlan0_priority_tag();
 	test_stacked_priority_tags();
 	test_truncated();

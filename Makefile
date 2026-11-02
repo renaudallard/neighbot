@@ -97,7 +97,7 @@ FUZZ_LDFLAGS = -fsanitize=fuzzer,address,undefined -lpcap
 
 fuzz: fuzz_parse fuzz_dbload fuzz_ouiload
 
-fuzz_parse: fuzz/fuzz_parse.c parse.c db.c oui.c log.c
+fuzz_parse: fuzz/fuzz_parse.c tests/nd_cksum.h parse.c db.c oui.c log.c
 	$(FUZZ_CC) $(FUZZ_CFLAGS) -o $@ fuzz/fuzz_parse.c parse.c db.c oui.c log.c $(FUZZ_LDFLAGS)
 
 fuzz_dbload: fuzz/fuzz_dbload.c db.c oui.c log.c
@@ -112,7 +112,7 @@ fuzz-clean:
 # Test harnesses (for valgrind, no sanitizers)
 test: tests/test_parse tests/test_dbload tests/test_dbexpire tests/test_ouiload tests/test_probe tests/test_capture tests/test_notify
 
-tests/test_parse: tests/test_parse.c parse.c db.c oui.c log.c
+tests/test_parse: tests/test_parse.c tests/nd_cksum.h parse.c db.c oui.c log.c
 	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(CFLAGS) -o $@ tests/test_parse.c parse.c db.c oui.c log.c $(LDFLAGS) $(_LIBS)
 
 tests/test_dbload: tests/test_dbload.c db.c oui.c log.c

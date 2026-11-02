@@ -1302,6 +1302,14 @@ jobs:
           path: release-assets/openbsd
           merge-multiple: true
 
+      # the debug symbol packages of the deb and rpm builds are not for
+      # users, and a glob such as neighbot-*.rpm would pick them up
+      - name: Leave out debug packages
+        run: |
+          rm -f release-assets/deb/neighbot-dbgsym_*.deb \
+            release-assets/rpm/neighbot-debuginfo-*.rpm \
+            release-assets/rpm/neighbot-debugsource-*.rpm
+
       - name: Upload release assets
         uses: softprops/action-gh-release@v3
         with:

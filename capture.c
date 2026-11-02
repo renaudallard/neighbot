@@ -1076,8 +1076,10 @@ carp_parent(const char *name, char carpdev[IFNAMSIZ])
 /*
  * The snap length for name: room for its MTU, the Ethernet header and
  * VLAN tags, as hosts take ARP and ND from any frame their interface
- * receives. No more: the capture ring of Linux keeps a slot of that size
- * for every frame, so a larger one holds fewer frames.
+ * receives, and at least SNAP_MIN: a bridge or a VLAN interface also
+ * receives frames as large as those of a port or parent with a larger
+ * MTU. No more: the capture ring of Linux keeps a slot of that size for
+ * every frame, so a larger one holds fewer frames.
  */
 static int
 snap_len(const char *name)
@@ -1095,7 +1097,7 @@ snap_len(const char *name)
 	}
 	if (mtu <= 0 || mtu > SNAP_LEN - SNAP_HDR)
 		return SNAP_LEN;
-	return mtu + SNAP_HDR;
+	return mtu + SNAP_HDR > SNAP_MIN ? mtu + SNAP_HDR : SNAP_MIN;
 }
 
 int

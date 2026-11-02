@@ -543,8 +543,10 @@ Crashes and slow inputs are written to the current directory.
    RA-Guard evasion) is seen, or that are the first fragment of a packet,
    reported when they carry ND; the same is matched inside 802.1Q or 802.1ad
    priority tags (VLAN ID 0), however many are stacked, which hosts treat
-   as untagged. Frames are captured whole up to the MTU the interface has
-   at startup, jumbo frames included; an ND message cut short is ignored,
+   as untagged. Frames are captured whole up to 9216 bytes, or to the MTU
+   the interface has at startup when larger, as a bridge or a VLAN
+   interface also receives frames as large as a port or parent with a
+   larger MTU takes; an ND message cut short is ignored,
    as it cannot be checked, but one followed by an Ethernet trailer that
    was cut is read, and so is ARP
 3. Main loop: `poll()` on all handles (1s timeout)

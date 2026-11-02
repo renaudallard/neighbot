@@ -168,7 +168,7 @@ sudo neighbot -r -m admin@example.com
 |-------|-------------|-------|
 | **new** | Previously unknown IP address seen for the first time | yes (suppressed for IPv6 temporary address rotations) |
 | **changed** | IP seen with a different MAC than previously recorded | yes |
-| **flip-flop** | IP alternates between two known MACs (VRRP/HSRP, dual-homing, or spoofing). Storm detection suppresses rapid repeats, also when three or more MACs take turns (seen as changed events) | yes |
+| **flip-flop** | IP alternates between two known MACs (VRRP/HSRP, dual-homing, or spoofing). Storm detection suppresses rapid repeats, also when three or more MACs take turns (seen as changed events), separately on each interface | yes |
 | **reappeared** | Known MAC/IP pair seen again after 180 days or more of silence | yes |
 | **bogon** | IP outside every local subnet of the monitored interfaces (possible spoofing); an IP foreign to the receiving interface but local to another monitored one is ignored. An interface with no subnet of an address family reports no bogons for it; a /32 or /128 address, such as a DHCPv6 lease, does not count as a subnet. Subnets are re-read every minute, on `SIGHUP`, and before reporting a bogon (at most once a second) | yes |
 | **ra-learned** | IPv6 on-link prefix announced by a Router Advertisement | yes (when learned; refreshes are silent) |

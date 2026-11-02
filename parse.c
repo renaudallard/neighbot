@@ -86,12 +86,12 @@ is_zero_ip6(const uint8_t *ip)
 
 #define STORM_CACHE_SIZE 32
 
+/* keyed by (iface, af, ip) like the database: the same address on two
+ * links is two stations, and a storm on one must not silence the other */
 struct storm_slot {
 	int     af;
 	uint8_t ip[16];
 	char    iface[32];
-	uint8_t mac_a[6];
-	uint8_t mac_b[6];
 	time_t  first_flip;
 	time_t  last_flip;
 	int     count;
@@ -128,7 +128,8 @@ storm_check(int af, const uint8_t *ip, const uint8_t *mac,
 			continue;
 		}
 		if (storm_cache[i].af == af &&
-		    memcmp(storm_cache[i].ip, ip, ilen) == 0) {
+		    memcmp(storm_cache[i].ip, ip, ilen) == 0 &&
+		    strcmp(storm_cache[i].iface, iface) == 0) {
 			found = i;
 			break;
 		}
@@ -169,9 +170,6 @@ storm_check(int af, const uint8_t *ip, const uint8_t *mac,
 			s->count++;
 		}
 		s->last_flip = now;
-		memcpy(s->mac_a, mac, 6);
-		memcpy(s->mac_b, old_mac, 6);
-		snprintf(s->iface, sizeof(s->iface), "%s", iface);
 
 		if (s->count >= STORM_THRESHOLD) {
 			char ipstr[INET6_ADDRSTRLEN];
@@ -203,8 +201,6 @@ storm_check(int af, const uint8_t *ip, const uint8_t *mac,
 	memset(s, 0, sizeof(*s));
 	s->af = af;
 	memcpy(s->ip, ip, ilen);
-	memcpy(s->mac_a, mac, 6);
-	memcpy(s->mac_b, old_mac, 6);
 	snprintf(s->iface, sizeof(s->iface), "%s", iface);
 	s->first_flip = now;
 	s->last_flip = now;

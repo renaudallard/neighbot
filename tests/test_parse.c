@@ -630,6 +630,55 @@ test_three_mac_storm(void)
 	cfg.quiet = saved_quiet;
 }
 
+/* ARP reply for 10.0.0.1 from 02:00:00:00:00:<last> on iface */
+static void
+feed_gw_arp(const char *iface, uint8_t last)
+{
+	uint8_t pkt[42];
+
+	memset(pkt, 0, sizeof(pkt));
+	memset(pkt, 0xff, 6);
+	pkt[6] = pkt[22] = 0x02;
+	pkt[11] = pkt[27] = last;
+	pkt[12] = 0x08; pkt[13] = 0x06;
+	pkt[15] = 0x01; pkt[16] = 0x08; pkt[18] = 6; pkt[19] = 4;
+	pkt[21] = 0x02;
+	pkt[28] = 10; pkt[31] = 1;
+	feed_on(iface, pkt, sizeof(pkt));
+}
+
+/* a storm for an address on one link must not silence a change of the
+ * same address on another link, where it is a different station */
+static void
+test_storm_per_iface(void)
+{
+	int saved_quiet = cfg.quiet, before;
+
+	cfg.quiet = 0;
+	storm_reset();
+	notify_storm_calls = 0;
+
+	feed_gw_arp("vlan20", 0x0c);
+	for (int i = 0; i < 8; i++)
+		feed_gw_arp("vlan10", (i & 1) ? 0x0b : 0x0a);
+	if (notify_storm_calls != 1) {
+		fprintf(stderr, "FAIL: storm on vlan10: %d storm alerts\n",
+		    notify_storm_calls);
+		exit(1);
+	}
+
+	before = notify_changed_calls;
+	feed_gw_arp("vlan20", 0x0d);
+	if (notify_changed_calls != before + 1) {
+		fprintf(stderr, "FAIL: storm on vlan10 silenced a change "
+		    "on vlan20\n");
+		exit(1);
+	}
+
+	storm_reset();
+	cfg.quiet = saved_quiet;
+}
+
 /* Neighbor Advertisement for target, Target LLA option set to mac */
 static void
 feed_na_on(const char *iface, const uint8_t *mac, const char *target)
@@ -1078,6 +1127,7 @@ main(void)
 	test_ndp_ra_withdraw_no_l_flag();
 	test_ndp_hlim();
 	test_three_mac_storm();
+	test_storm_per_iface();
 	test_temp_takeover();
 	test_linklocal_two_links();
 	test_storm_alert_dropped();

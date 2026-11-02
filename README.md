@@ -476,6 +476,8 @@ Crashes and slow inputs are written to the current directory.
 ## How It Works
 
 1. Enumerates non-loopback Ethernet interfaces via `pcap_findalldevs()`,
+   ignoring the capture sources it also lists that are not network
+   interfaces (D-Bus, Bluetooth, USB, netfilter), which are never opened,
    skipping VLAN trunk parents that have subinterfaces and no address
    besides link-local ones, and on Linux
    bridge ports and bonding slaves (seen through the bridge or bond device,

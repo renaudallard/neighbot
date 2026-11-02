@@ -878,6 +878,14 @@ capture_open_all(struct iface *ifaces, int max)
 		if (dev->flags & PCAP_IF_LOOPBACK)
 			continue;
 
+		/* skip capture sources that are not network interfaces
+		 * (D-Bus, Bluetooth, USB, netfilter). Only Ethernet is kept,
+		 * and opening the D-Bus one connects to the system bus as
+		 * root, a connection libdbus keeps open after pcap_close()
+		 * and the privilege drop. */
+		if (if_nametoindex(dev->name) == 0)
+			continue;
+
 		/* skip VLAN trunk parents when monitoring all interfaces */
 		if (nparents > 0 &&
 		    is_vlan_parent(dev->name, vlan_parents, nparents)) {

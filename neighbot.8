@@ -244,7 +244,8 @@ Prefixes expire after the RA valid-lifetime (capped at 7 days), and a
 prefix re-advertised with the L flag and a zero valid-lifetime is
 withdrawn at once.
 A prefix option without the L flag is ignored, since it says nothing
-about which addresses are on-link.
+about which addresses are on-link, and so is one whose preferred
+lifetime exceeds its valid lifetime, which hosts ignore too.
 Prefixes shorter than /48 are ignored and logged: real on-link
 prefixes are /64, and a short prefix would whitelist an implausibly
 wide slice of the address space.

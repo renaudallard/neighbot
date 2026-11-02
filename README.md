@@ -282,7 +282,8 @@ was withdrawn or was evicted is reported again when it is announced again. Prefi
 after the RA valid-lifetime (capped at 7 days), and a prefix re-advertised
 with the L flag and a zero valid-lifetime is withdrawn immediately. Prefix
 options without the L flag are ignored, withdrawals included, as RFC 4861
-requires.
+requires, and so are those whose preferred lifetime exceeds the valid one,
+which hosts ignore too (RFC 4862).
 
 Incoming Router Advertisements are validated per RFC 4861: only RAs with
 an IPv6 hop limit of 255 and a link-local source address are accepted, so

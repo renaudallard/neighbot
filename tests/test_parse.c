@@ -528,6 +528,37 @@ test_ndp_ra_zero_lifetime(void)
 	}
 }
 
+/* hosts ignore a prefix option whose preferred lifetime exceeds its
+ * valid one, so it neither teaches nor withdraws a prefix */
+static void
+test_ndp_ra_bad_lifetimes(void)
+{
+	uint8_t pkt[102];
+	int before = ra_learned_calls, wbefore = ra_withdraw_calls;
+
+	memset(pkt, 0, sizeof(pkt));
+	pkt[0]  = 0x33; pkt[1]  = 0x33; pkt[5]  = 0x01;
+	pkt[6]  = 0x02; pkt[11] = 0x56;
+	pkt[12] = 0x86; pkt[13] = 0xdd;
+	pkt[14] = 0x60; pkt[19] = 48; pkt[20] = 58; pkt[21] = 255;
+	pkt[22] = 0xfe; pkt[23] = 0x80; pkt[37] = 0x56;
+	pkt[38] = 0xff; pkt[39] = 0x02; pkt[53] = 0x01;
+	pkt[54] = 134;
+	pkt[70] = 3; pkt[71] = 4; pkt[72] = 64; pkt[73] = 0x80;
+	pkt[76] = 0x07; pkt[77] = 0x08;          /* valid 1800 */
+	pkt[80] = 0x0e; pkt[81] = 0x10;          /* preferred 3600 */
+	pkt[86] = 0x20; pkt[87] = 0x01; pkt[88] = 0x0d; pkt[89] = 0xbb;
+	feed(pkt, sizeof(pkt));
+
+	pkt[76] = pkt[77] = 0;                   /* a withdrawal */
+	feed(pkt, sizeof(pkt));
+	if (ra_learned_calls != before || ra_withdraw_calls != wbefore) {
+		fprintf(stderr, "FAIL: prefix option with a preferred lifetime "
+		    "above the valid one was used\n");
+		exit(1);
+	}
+}
+
 /* a zero-lifetime PIO without the L flag must not withdraw an on-link
  * prefix (RFC 4861 6.3.4) */
 static void
@@ -1641,6 +1672,7 @@ main(void)
 	test_ndp_ra();
 	test_ndp_ra_no_l_flag();
 	test_ndp_ra_zero_lifetime();
+	test_ndp_ra_bad_lifetimes();
 	test_ndp_ra_withdraw_no_l_flag();
 	test_ndp_hlim();
 	test_three_mac_storm();

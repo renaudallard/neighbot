@@ -608,12 +608,18 @@ parse_ra(const uint8_t *icmp, size_t icmp_len, const char *iface,
 			uint8_t prefix_len = opts[off + 2];
 			uint8_t flags      = opts[off + 3];
 			uint32_t valid     = read_u32_be(opts + off + 4);
+			uint32_t preferred = read_u32_be(opts + off + 8);
 			const uint8_t *prefix = opts + off + 16;
 
 			/* require the on-link (L) flag, for withdrawal too: a
 			 * PIO without it must not change what is known to be
 			 * on-link (RFC 4861 6.3.4) */
 			if (!(flags & 0x80))
+				goto next;
+			/* hosts ignore the whole option, withdrawal included,
+			 * when its preferred lifetime exceeds the valid one
+			 * (RFC 4862 5.5.3) */
+			if (preferred > valid)
 				goto next;
 			if (prefix_len == 0 || prefix_len > 128)
 				goto next;

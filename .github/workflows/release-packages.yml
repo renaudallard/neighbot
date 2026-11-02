@@ -121,11 +121,15 @@ jobs:
           def detect(what, lookup, default=""):
               # A failed lookup must not fall back to a release that may be old or
               # out of support: say so on the run page and return default, which
-              # makes the jobs that need it skip.
+              # makes the jobs that need it skip, or is a name that always means
+              # the right release, such as a Debian track.
               try:
                   return lookup()
               except FAILURES as e:
-                  print(f"::warning::cannot detect {what}, not building it: {e}", flush=True)
+                  if default:
+                      print(f"::warning::cannot detect {what}, using {default}: {e}", flush=True)
+                  else:
+                      print(f"::warning::cannot detect {what}, not building it: {e}", flush=True)
                   return default
 
 

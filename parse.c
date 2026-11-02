@@ -46,6 +46,9 @@
 #ifndef ETHERTYPE_VLAN
 #define ETHERTYPE_VLAN 0x8100
 #endif
+#ifndef ETHERTYPE_8021AD
+#define ETHERTYPE_8021AD 0x88a8	/* 802.1ad service tag */
+#endif
 
 #include "neighbot.h"
 #include "capture.h"
@@ -830,10 +833,12 @@ parse_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt)
 	etype = ntohs(eh->ether_type);
 	off = sizeof(struct ether_header);
 
-	/* An 802.1Q priority tag (VLAN ID 0) marks untagged traffic with a
-	 * priority only, and hosts process the ARP or ND inside it. Other
-	 * VLAN IDs belong to the VLAN subinterfaces. */
-	if (etype == ETHERTYPE_VLAN) {
+	/* An 802.1Q or 802.1ad priority tag (VLAN ID 0) marks untagged
+	 * traffic with a priority only. Linux strips any number of them and
+	 * processes the ARP or ND inside, so unwrap them all; each is 4
+	 * bytes, which bounds the loop by the frame length. Other VLAN IDs
+	 * belong to the VLAN subinterfaces. */
+	while (etype == ETHERTYPE_VLAN || etype == ETHERTYPE_8021AD) {
 		if (len < off + 4 || ((pkt[off] << 8 | pkt[off + 1]) & 0x0fff))
 			return;
 		etype = (uint16_t)(pkt[off + 2] << 8 | pkt[off + 3]);

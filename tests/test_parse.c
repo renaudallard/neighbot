@@ -1126,6 +1126,60 @@ test_vlan0_priority_tag(void)
 	cfg.quiet = saved_quiet;
 }
 
+/* ARP behind an 802.1ad priority tag, or behind three stacked priority
+ * tags, is processed like Linux does; a VLAN ID under a priority tag
+ * is not */
+static void
+test_stacked_priority_tags(void)
+{
+	uint8_t pkt[54];
+	int saved_quiet = cfg.quiet;
+	int before;
+
+	cfg.quiet = 0;
+	memset(pkt, 0, sizeof(pkt));
+	memset(pkt, 0xff, 6);
+	pkt[6] = 0x02; pkt[11] = 0x47;
+	pkt[12] = 0x88; pkt[13] = 0xa8;          /* 802.1ad, VLAN ID 0 */
+	pkt[16] = 0x81; pkt[17] = 0x00;          /* 802.1Q, VLAN ID 0 */
+	pkt[20] = 0x81; pkt[21] = 0x00;          /* 802.1Q, VLAN ID 0 */
+	pkt[24] = 0x08; pkt[25] = 0x06;
+	pkt[27] = 0x01; pkt[28] = 0x08; pkt[30] = 6; pkt[31] = 4;
+	pkt[33] = 0x02;
+	pkt[34] = 0x02; pkt[39] = 0x47;          /* sender MAC */
+	pkt[40] = 10; pkt[41] = 47; pkt[42] = 0; pkt[43] = 1;
+
+	before = notify_new_calls;
+	feed(pkt, sizeof(pkt));
+	if (notify_new_calls != before + 1) {
+		fprintf(stderr, "FAIL: ARP behind stacked priority tags was "
+		    "ignored\n");
+		exit(1);
+	}
+
+	/* the same ARP behind one 802.1ad priority tag */
+	memmove(pkt + 16, pkt + 24, 30);
+	pkt[35] = 2;
+	feed(pkt, 46);
+	if (notify_new_calls != before + 2) {
+		fprintf(stderr, "FAIL: ARP behind an 802.1ad priority tag "
+		    "was ignored\n");
+		exit(1);
+	}
+
+	/* VLAN 5 inside a priority tag belongs to a subinterface */
+	memmove(pkt + 20, pkt + 16, 30);
+	pkt[16] = 0x81; pkt[17] = 0x00; pkt[18] = 0x00; pkt[19] = 0x05;
+	pkt[39] = 3;
+	feed(pkt, 50);
+	if (notify_new_calls != before + 2) {
+		fprintf(stderr, "FAIL: VLAN 5 under a priority tag was "
+		    "processed\n");
+		exit(1);
+	}
+	cfg.quiet = saved_quiet;
+}
+
 static void
 test_truncated(void)
 {
@@ -1182,6 +1236,7 @@ main(void)
 	test_na_ext_header();
 	test_na_many_ext_headers();
 	test_vlan0_priority_tag();
+	test_stacked_priority_tags();
 	test_truncated();
 
 	/* reset and run batch */

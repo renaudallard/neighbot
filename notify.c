@@ -108,6 +108,16 @@ notify_fork(void)
 		notify_inflight++;
 		return 1;
 	}
+
+	/* The child takes the default action on the signals the daemon
+	 * catches, so that stopping the service ends it too, and gives up
+	 * on a stalled resolver or mailer rather than hold its slot for
+	 * good. */
+	signal(SIGTERM, SIG_DFL);
+	signal(SIGINT, SIG_DFL);
+	signal(SIGHUP, SIG_DFL);
+	signal(SIGUSR1, SIG_DFL);
+	alarm(NOTIFY_TIMEOUT);
 	return 0;
 }
 
@@ -225,6 +235,9 @@ notify_report_open(const char *subject)
 
 		close_inherited_fds();
 
+		/* fork() drops a pending alarm but exec keeps one: end a
+		 * sendmail that stalls, in report mode too */
+		alarm(NOTIFY_TIMEOUT);
 		execl(cfg.sendmail, "sendmail", "-t", (char *)NULL);
 		_exit(127);
 	}

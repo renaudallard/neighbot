@@ -65,6 +65,7 @@
 #define STORM_WINDOW     60                  /* seconds */
 #define STORM_RECOVER    1800                /* seconds of quiet */
 #define NOTIFY_MAX_INFLIGHT 32               /* cap concurrent notify children */
+#define NOTIFY_TIMEOUT   120                 /* seconds a notification may take */
 
 /* ARP, ND (RS, RA, NS, NA, Redirect) right after the IPv6 header, and
  * IPv6 packets starting with a hop-by-hop, routing or destination

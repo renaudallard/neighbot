@@ -460,7 +460,9 @@ Each notification is delivered by a short-lived child process (reverse DNS
 plus `sendmail`). To keep a flood of events (for example spoofed in-subnet
 ARP) from spawning children at packet rate, no more than 32 notification
 children run at once; further notifications are suppressed and logged until
-the backlog clears.
+the backlog clears. A child, and the `sendmail` it runs, are killed after two
+minutes, so a stalled resolver or mailer cannot hold the slots for good, and
+a child stops on the signals that stop the daemon.
 
 ## Testing
 

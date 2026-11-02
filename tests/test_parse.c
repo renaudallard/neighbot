@@ -1349,10 +1349,11 @@ test_nd_ip6_header(void)
 	}
 }
 
-/* hosts drop an ND message behind a hop-by-hop header that is not the
- * first, an option they must discard or one breaking the padding, count
- * or Router Alert rules, or a routing header with segments left or not
- * in a unicast frame and packet; they process the rest */
+/* every host drops an ND message behind a hop-by-hop header that is not
+ * the first, an option it must discard, a Router Alert of the wrong
+ * length or a routing header with segments left; the BSDs and macOS
+ * take the padding, option count and routing cases that only Linux
+ * drops, so those are processed */
 static void
 test_ext_header_rules(void)
 {
@@ -1373,9 +1374,9 @@ test_ext_header_rules(void)
 		{ "icmp option", 0, 0, 1, 0, { { 60, 6, { 0x8f, 4 } } } },
 		{ "icmp option to multicast", 1, 0, 1, 0,
 		    { { 60, 6, { 0xcf, 4 } } } },
-		{ "14 bytes of PadN", 0, 0, 1, 0, { { 60, 14, { 1, 12 } } } },
-		{ "PadN not zero", 0, 0, 1, 0, { { 60, 6, { 1, 4, 0, 0, 0, 1 } } } },
-		{ "9 options", 0, 0, 1, 0, { { 60, 22, { 0x0f, 0, 0x0f, 0,
+		{ "14 bytes of PadN", 0, 0, 1, 1, { { 60, 14, { 1, 12 } } } },
+		{ "PadN not zero", 0, 0, 1, 1, { { 60, 6, { 1, 4, 0, 0, 0, 1 } } } },
+		{ "9 options", 0, 0, 1, 1, { { 60, 22, { 0x0f, 0, 0x0f, 0,
 		    0x0f, 0, 0x0f, 0, 0x0f, 0, 0x0f, 0, 0x0f, 0, 0x0f, 0,
 		    0x0f, 0, 1, 2 } } } },
 		{ "router alert of 4", 0, 0, 1, 0, { { 0, 6, { 5, 4 } } } },
@@ -1383,8 +1384,9 @@ test_ext_header_rules(void)
 		    { { 0, 6, { 5, 2, 0, 0, 1, 0 } } } },
 		{ "routing, none left", 0, 0, 1, 1, { { 43, 6, { 0, 0 } } } },
 		{ "routing, one left", 0, 0, 1, 0, { { 43, 6, { 0, 1 } } } },
-		{ "routing to multicast", 1, 0, 1, 0, { { 43, 6, { 0, 0 } } } },
-		{ "routing in broadcast", 0, 1, 1, 0, { { 43, 6, { 0, 0 } } } },
+		{ "routing to multicast", 1, 0, 1, 1, { { 43, 6, { 0, 0 } } } },
+		{ "routing in broadcast", 0, 1, 1, 1, { { 43, 6, { 0, 0 } } } },
+		{ "option past its header", 0, 0, 1, 0, { { 60, 6, { 0x0f, 5 } } } },
 		{ "segment routing", 0, 0, 1, 1, { { 43, 6, { 4, 0 } } } },
 	};
 	static uint8_t pkt[200];

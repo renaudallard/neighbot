@@ -716,23 +716,21 @@ next:
 
 /*
  * Check the options of the hop-by-hop or destination options header at
- * off, hlen bytes long, as Linux does: padding of 7 bytes at most, made
- * of zeros, at most 8 other options, a Router Alert of 2 bytes, and no
- * unknown option whose type says to discard the packet. Returns 0 when
- * hosts drop it. Checks that depend on the kernel version or settings
- * (IOAM, CALIPSO) are left out: a host that takes the packet must not
- * be missed.
+ * off, hlen bytes long. Every host drops the packet on an option running
+ * past the header, a Router Alert that is not 2 bytes long, or an
+ * unknown option whose type says to discard the packet (RFC 8200 4.2):
+ * returns 0 then. The stricter padding and option count checks of Linux
+ * are left out, as the BSDs and macOS take such packets, and so are the
+ * checks that depend on how a kernel is built or set up (IOAM, CALIPSO):
+ * a host that takes the packet must not be missed.
  */
 static int
 ip6_opts_ok(const u_char *pkt, size_t off, size_t hlen, int hopopts)
 {
 	size_t i = off + 2, end = off + hlen, olen;
-	int padlen = 0, count = 0;
 
 	while (i < end) {
 		if (pkt[i] == IP6OPT_PAD1) {
-			if (++padlen > 7)
-				return 0;
 			i++;
 			continue;
 		}
@@ -741,25 +739,12 @@ ip6_opts_ok(const u_char *pkt, size_t off, size_t hlen, int hopopts)
 		olen = (size_t)pkt[i + 1] + 2;
 		if (olen > end - i)
 			return 0;
-		if (pkt[i] == IP6OPT_PADN) {
-			padlen += (int)olen;
-			if (padlen > 7)
-				return 0;
-			for (size_t j = 2; j < olen; j++)
-				if (pkt[i + j] != 0)
-					return 0;
-		} else {
-			if (++count > 8)
-				return 0;
-			if (hopopts && pkt[i] == IP6OPT_ROUTER_ALERT &&
-			    olen != 4)
-				return 0;
-			/* the two high bits of the type: 00 skips an
-			 * unknown option, the others drop the packet */
-			if ((pkt[i] >> 6) != 0)
-				return 0;
-			padlen = 0;
-		}
+		if (hopopts && pkt[i] == IP6OPT_ROUTER_ALERT && olen != 4)
+			return 0;
+		/* the two high bits of the type: 00 skips an unknown
+		 * option, the others drop the packet */
+		if (pkt[i] != IP6OPT_PADN && (pkt[i] >> 6) != 0)
+			return 0;
 		i += olen;
 	}
 	return 1;
@@ -829,12 +814,11 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 		/* Hosts drop the packet when a hop-by-hop header is not
 		 * the first, or its options or those of a destination
 		 * header fail ip6_opts_ok(). A routing header must have no
-		 * segments left and come in a unicast frame and packet;
-		 * its type is not checked, as a host may have segment
-		 * routing enabled. */
+		 * segments left; its type is not checked, as a host may
+		 * have segment routing enabled, nor the destination: the
+		 * BSDs and macOS take one in a multicast packet or frame. */
 		if (nxt == IPPROTO_ROUTING) {
-			if (pkt[icmp_off + 3] != 0 || dst[0] == 0xff ||
-			    (eh->ether_dhost[0] & 0x01))
+			if (pkt[icmp_off + 3] != 0)
 				return;
 		} else if ((nxt == IPPROTO_HOPOPTS &&
 		    icmp_off != sizeof(struct ip6_hdr)) ||

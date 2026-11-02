@@ -563,10 +563,11 @@ Crashes and slow inputs are written to the current directory.
    hosts drop before ND sees them (another IP
    version, a loopback or multicast source, a destination of `::`, `::1`
    or a multicast scope of 0 or 1) or for their extension headers (a
-   hop-by-hop header after the first, an option that asks for the packet
-   to be discarded, bad padding, more than 8 options, a Router Alert of
-   the wrong length, a routing header with segments left or not sent
-   unicast)
+   hop-by-hop header after the first, an option that runs past its header
+   or asks for the packet to be discarded, a Router Alert of the wrong
+   length, a routing header with segments left); stricter checks of one
+   kernel only, such as the padding and option count limits of Linux, are
+   not made, as other hosts take those packets
 6. Updates an in-memory hash table; on new/changed entries, logs and
    optionally emails via `fork()`/`exec()` of sendmail
 

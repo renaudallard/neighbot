@@ -560,10 +560,11 @@ Crashes and slow inputs are written to the current directory.
 4. **ARP**: extracts sender IP + MAC from ARP messages (skips probes, and
    multicast and broadcast senders, the broadcast address of a subnet of the
    interface included, which hosts never learn; 240/4 senders are kept, as
-   hosts use them, and so is ARP for any target and of any opcode, as the
-   BSDs and macOS update the sender's entry from all of them); any hardware
-   type with 6-byte addresses is accepted, as FreeBSD and NetBSD honour more
-   than Ethernet, and so is the protocol type of IP trailers (0x1000), which
+   hosts use them, and so is ARP for any target, as the BSDs and macOS
+   update the sender's entry whatever the target, and ARP of any opcode, as
+   FreeBSD and macOS do so whatever the opcode); any hardware type with
+   6-byte addresses is accepted, as FreeBSD and NetBSD honour more than
+   Ethernet, and so is the protocol type of IP trailers (0x1000), which
    NetBSD takes as IPv4
 5. **NDP**: parses Neighbor Advertisements (type 136) and Solicitations
    (type 135) for link-layer address options (skips DAD; a message without

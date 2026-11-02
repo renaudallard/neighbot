@@ -32,14 +32,15 @@ The options are as follows:
 .Bl -tag -width Ds
 .It Fl B Ar seconds
 Bogon cooldown.
-Suppress duplicate bogon log lines and email notifications for the
-same IP and interface within
+Suppress duplicate bogon and fragmented log lines and email
+notifications for the same IP and interface within
 .Ar seconds .
-Bogons are not stored in the database, so this cooldown is what bounds
+They are not stored in the database, so this cooldown is what bounds
 per-address reporting.
 Default: 1800 (30 minutes).
 Set to 0 to disable this per-address cooldown; a global rate cap on
-total bogon reporting still applies as a flood backstop.
+total bogon and fragmented reporting still applies as a flood
+backstop.
 .It Fl d
 Daemonize.
 Detach from the terminal and log to syslog instead of stderr.
@@ -237,6 +238,18 @@ The configured subnets are re-read every 60 seconds, on
 and before an address is reported as a bogon (at most once a second),
 so an address just added to an interface does not make its
 neighbours look foreign.
+.It fragmented
+The first fragment of an IPv6 packet carries a Neighbor Discovery
+message, or extension headers going on into the next fragment that
+may hide one.
+RFC 6980 forbids fragmented Neighbor Discovery, and Linux, FreeBSD
+and macOS drop it, but OpenBSD and NetBSD reassemble it and act on
+it, so this may indicate NDP spoofing.
+Nothing is recorded in the database.
+The report names the source address, the Ethernet source of the
+fragment and, when the fragment holds it, the target of the message;
+it is rate-limited per source address like bogons
+.Pq see Fl B .
 .It ra-learned
 A Router Advertisement announced a new on-link IPv6 prefix on an
 interface.

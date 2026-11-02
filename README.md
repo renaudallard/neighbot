@@ -34,7 +34,7 @@ Linux, FreeBSD, OpenBSD, and NetBSD.
 | | |
 |---|---|
 | **Protocols** | ARP (IPv4), NDP (IPv6) |
-| **Events** | New stations, MAC changes, flip-flops, reappearances, bogons, moves |
+| **Events** | New stations, MAC changes, flip-flops, reappearances, bogons, fragmented ND, moves |
 | **Notifications** | Email via sendmail with hostname, vendor, and timestamps |
 | **Active probing** | ARP requests / NDP solicitations to detect moved vs. multi-homed hosts |
 | **OUI database** | Optional hardware vendor identification from MAC prefix |
@@ -139,7 +139,7 @@ neighbot [-B seconds] [-d] [-e days] [-f dbfile] [-i iface] [-m mailto] [-o ouif
 
 | Flag | Description |
 |------|-------------|
-| `-B seconds` | Bogon log and notification cooldown in seconds (default: 1800). Set to 0 to disable the per-address cooldown (a global flood cap still applies) |
+| `-B seconds` | Bogon and fragment log and notification cooldown in seconds (default: 1800). Set to 0 to disable the per-address cooldown (a global flood cap still applies) |
 | `-d` | Daemonize (log to syslog instead of stderr; errors before detaching are printed on stderr too) |
 | `-e days` | Drop entries unseen for more than `days` days (checked hourly). 0 disables (default); the 7-day stale non-EUI-64 IPv6 sweep runs regardless |
 | `-f dbfile` | Database file (default: `/var/neighbot/neighbot.csv`) |
@@ -181,6 +181,7 @@ sudo neighbot -r -m admin@example.com
 | **flip-flop** | IP alternates between two known MACs (VRRP/HSRP, dual-homing, or spoofing). Storm detection suppresses rapid repeats, also when three or more MACs take turns (seen as changed events), separately on each interface | yes |
 | **reappeared** | Known MAC/IP pair seen again after 180 days or more of silence | yes |
 | **bogon** | IP outside every local subnet of the monitored interfaces (possible spoofing); an IP foreign to the receiving interface but local to another monitored one is ignored. On Linux, an IP the host reaches without a gateway through the interface, as with an on-link route holding no address of the host, is local too. An interface with no subnet of an address family reports no bogons for it; a /32 or /128 address, such as a DHCPv6 lease, does not count as a subnet. Subnets are re-read every minute, on `SIGHUP`, and before reporting a bogon (at most once a second) | yes |
+| **fragmented** | The first fragment of an IPv6 packet carries an ND message, or headers going on into the next fragment that may hide one. RFC 6980 forbids fragmented ND, and Linux, FreeBSD and macOS drop it, but OpenBSD and NetBSD reassemble it and act on it (possible spoofing). Never stored; rate-limited per source address like bogons | yes |
 | **ra-learned** | IPv6 on-link prefix announced by a Router Advertisement | yes (when learned; refreshes are silent) |
 | **moved** | MAC seen at a new IP while old IP no longer responds to probes. The obsolete entry is dropped. When the new IP is on another interface, both interfaces are named | yes |
 
@@ -533,7 +534,8 @@ Crashes and slow inputs are written to the current directory.
    messages (ICMPv6 types 133 to 137), and IPv6 packets that start with a
    hop-by-hop, routing or destination options header, which the parser
    walks, however many there are, so that ND hidden behind them (an
-   RA-Guard evasion) is seen; the same is matched inside 802.1Q or 802.1ad
+   RA-Guard evasion) is seen, or that are the first fragment of a packet,
+   reported when they carry ND; the same is matched inside 802.1Q or 802.1ad
    priority tags (VLAN ID 0), however many are stacked, which hosts treat
    as untagged. Frames are captured whole up to the MTU the interface has
    at startup, jumbo frames included; an ND message in a frame cut short

@@ -446,6 +446,69 @@ notify_bogon(int af, const uint8_t *ip, const uint8_t *mac,
 }
 
 void
+notify_fragment(const uint8_t *src, const uint8_t *dst, const uint8_t *mac,
+                const char *iface, int type, const uint8_t *target)
+{
+	static const char *const names[] = {
+		"Router Solicitation", "Router Advertisement",
+		"Neighbor Solicitation", "Neighbor Advertisement", "Redirect"
+	};
+
+	if (notify_fork() != 0)
+		return;
+
+	char subject[256];
+	char body[2048];
+	char srcstr[INET6_ADDRSTRLEN], dststr[INET6_ADDRSTRLEN];
+	char tgtstr[INET6_ADDRSTRLEN];
+	char message[128];
+	char macstr[18];
+	char host[256];
+	char timebuf[128];
+	const char *vendor;
+
+	inet_ntop(AF_INET6, src, srcstr, sizeof(srcstr));
+	inet_ntop(AF_INET6, dst, dststr, sizeof(dststr));
+	format_mac(mac, macstr, sizeof(macstr));
+	resolve_hostname(AF_INET6, src, host, sizeof(host));
+	format_timestamp(time(NULL), timebuf, sizeof(timebuf));
+	vendor = oui_lookup(mac);
+
+	if (type >= 133 && type <= 137 && target != NULL) {
+		inet_ntop(AF_INET6, target, tgtstr, sizeof(tgtstr));
+		snprintf(message, sizeof(message), "%s for %s",
+		    names[type - 133], tgtstr);
+	} else if (type >= 133 && type <= 137)
+		snprintf(message, sizeof(message), "%s", names[type - 133]);
+	else
+		snprintf(message, sizeof(message),
+		    "unknown, its headers go on in the next fragment");
+
+	snprintf(subject, sizeof(subject),
+	         "neighbot: fragmented %s on %s", srcstr, iface);
+	snprintf(body, sizeof(body),
+	         "          hostname: %s\n"
+	         "        ip address: %s\n"
+	         "  ethernet address: %s\n"
+	         "   ethernet vendor: %s\n"
+	         "       destination: %s\n"
+	         "           message: %s\n"
+	         "         interface: %s\n"
+	         "         timestamp: %s\n"
+	         "\n"
+	         "This packet was sent in IPv6 fragments. RFC 6980 forbids\n"
+	         "fragmenting Neighbor Discovery: Linux, FreeBSD and macOS\n"
+	         "drop such messages, but OpenBSD and NetBSD reassemble them\n"
+	         "and act on them. This may indicate NDP spoofing.\n",
+	         host, srcstr, macstr,
+	         vendor ? vendor : "<unknown>",
+	         dststr, message, iface, timebuf);
+
+	send_mail(subject, body);
+	_exit(0);
+}
+
+void
 notify_reappeared(int af, const uint8_t *ip, const uint8_t *mac,
                   const char *iface, time_t prev_seen)
 {

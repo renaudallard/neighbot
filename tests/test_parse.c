@@ -130,6 +130,14 @@ void notify_bogon(int af, const uint8_t *ip, const uint8_t *mac,
     const char *iface)
 { (void)af; (void)ip; (void)mac; (void)iface; notify_bogon_calls++; }
 
+int notify_fragment_calls;
+int notify_fragment_type;
+
+void notify_fragment(const uint8_t *src, const uint8_t *dst,
+    const uint8_t *mac, const char *iface, int type, const uint8_t *target)
+{ (void)src; (void)dst; (void)mac; (void)iface; (void)target;
+  notify_fragment_calls++; notify_fragment_type = type; }
+
 void notify_reappeared(int af, const uint8_t *ip, const uint8_t *mac,
     const char *iface, time_t prev_seen)
 { (void)af; (void)ip; (void)mac; (void)iface; (void)prev_seen; }
@@ -1534,6 +1542,76 @@ test_nd_without_lla(void)
 	cfg.quiet = saved_quiet;
 }
 
+/* An ND message in the first fragment of a packet, atomic or not, or a
+ * first fragment whose headers go on in the next one, is reported and
+ * not recorded: OpenBSD and NetBSD reassemble fragmented ND and act on
+ * it. A later fragment, another protocol or a hop limit below 255 is
+ * not reported. */
+static void
+test_fragmented_nd(void)
+{
+	static const struct {
+		const char *name;
+		uint8_t     frag[6];         /* after the next header byte */
+		uint8_t     nxt, hlim;
+		int         dstopt, want;
+	} cases[] = {
+		{ "atomic fragment", { 0, 0, 0, 0, 0, 1 }, 58, 255, 0, 136 },
+		{ "first fragment", { 0, 1, 0, 0, 0, 2 }, 58, 255, 0, 136 },
+		{ "later fragment", { 0, 9, 0, 0, 0, 3 }, 58, 255, 0, -1 },
+		{ "UDP fragment", { 0, 1, 0, 0, 0, 4 }, 17, 255, 0, -1 },
+		{ "cut header chain", { 0, 1, 0, 0, 0, 5 }, 60, 255, 1, 0 },
+		{ "hop limit 64", { 0, 1, 0, 0, 0, 6 }, 58, 64, 0, -1 },
+	};
+	uint8_t pkt[128], tgt[16];
+	uint8_t mac[6] = { 0x02, 0, 0, 0, 0, 0x57 };
+	int saved_quiet = cfg.quiet;
+
+	cfg.quiet = 0;
+	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		int before = notify_fragment_calls;
+		size_t o = 62;
+
+		inet_pton(AF_INET6, "2001:db8:9::5700", tgt);
+		tgt[15] = (uint8_t)i;
+		memset(pkt, 0, sizeof(pkt));
+		pkt[0] = 0x33; pkt[1] = 0x33; pkt[5] = 0x01;
+		memcpy(pkt + 6, mac, 6);
+		pkt[12] = 0x86; pkt[13] = 0xdd;
+		pkt[14] = 0x60; pkt[20] = 44; pkt[21] = cases[i].hlim;
+		inet_pton(AF_INET6, "2001:db8:9::99", pkt + 22);
+		pkt[38] = 0xff; pkt[39] = 0x02; pkt[53] = 0x01;
+		pkt[54] = cases[i].nxt;
+		memcpy(pkt + 56, cases[i].frag, 6);
+		if (cases[i].dstopt) {
+			/* a 16-byte destination options header, of which
+			 * the fragment only holds the first 8 bytes */
+			pkt[o] = 58; pkt[o + 1] = 1;
+			o += 8;
+		} else {
+			pkt[o] = 136; pkt[o + 4] = 0x20;
+			memcpy(pkt + o + 8, tgt, 16);
+			pkt[o + 24] = 2; pkt[o + 25] = 1;
+			memcpy(pkt + o + 26, mac, 6);
+			o += 32;
+		}
+		pkt[18] = (uint8_t)((o - 54) >> 8);
+		pkt[19] = (uint8_t)(o - 54);
+		feed_raw("test0", pkt, o);
+		if ((cases[i].want < 0 && notify_fragment_calls != before) ||
+		    (cases[i].want >= 0 &&
+		    (notify_fragment_calls != before + 1 ||
+		    notify_fragment_type != cases[i].want)) ||
+		    db_known(AF_INET6, tgt, mac, "test0")) {
+			fprintf(stderr, "FAIL: %s was %s\n", cases[i].name,
+			    cases[i].want < 0 ? "reported" : "not reported or "
+			    "recorded");
+			exit(1);
+		}
+	}
+	cfg.quiet = saved_quiet;
+}
+
 /* hosts drop an NA with the Solicited flag sent to a multicast address,
  * but take one sent to a unicast address */
 static void
@@ -2093,6 +2171,7 @@ main(void)
 	test_nd_ip6_header();
 	test_ext_header_rules();
 	test_nd_without_lla();
+	test_fragmented_nd();
 	test_na_solicited_multicast();
 	test_ns_special_target();
 	test_na_unspecified_source();

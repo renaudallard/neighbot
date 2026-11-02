@@ -68,13 +68,14 @@
 
 /* ARP, ND (RS, RA, NS, NA, Redirect) right after the IPv6 header, and
  * IPv6 packets starting with a hop-by-hop, routing or destination
- * options header, which the parser walks to find ND behind them; the
- * same inside an 802.1Q or 802.1ad priority tag (VLAN ID 0), and any
- * frame with two such tags or more, which the parser unwraps. A vlan
- * clause shifts the offsets of every primitive after it, so each must
- * come last. */
+ * options header, or the first fragment of a packet, which the parser
+ * walks to find ND behind them; the same inside an 802.1Q or 802.1ad
+ * priority tag (VLAN ID 0), and any frame with two such tags or more,
+ * which the parser unwraps. A vlan clause shifts the offsets of every
+ * primitive after it, so each must come last. */
 #define BPF_NDP    "(icmp6 and ip6[40] >= 133 and ip6[40] <= 137)"
-#define BPF_EXTHDR "(ip6 and (ip6[6] == 0 or ip6[6] == 43 or ip6[6] == 60))"
+#define BPF_EXTHDR "(ip6 and (ip6[6] == 0 or ip6[6] == 43 or ip6[6] == 60 " \
+	"or (ip6[6] == 44 and ip6[42:2] & 0xfff8 == 0)))"
 #define BPF_MATCH  "arp or " BPF_NDP " or " BPF_EXTHDR
 #if defined(__OpenBSD__)
 /* The vlan keyword of OpenBSD's libpcap keeps the offsets it shifts in
@@ -87,7 +88,8 @@
 	"ether[14:2] & 0x0fff == 0 and (ether[16:2] == 0x0806 or " \
 	"(ether[16:2] == 0x86dd and ((ether[24] == 58 and " \
 	"ether[58] >= 133 and ether[58] <= 137) or ether[24] == 0 or " \
-	"ether[24] == 43 or ether[24] == 60)) or " \
+	"ether[24] == 43 or ether[24] == 60 or (ether[24] == 44 and " \
+	"ether[60:2] & 0xfff8 == 0))) or " \
 	"((ether[16:2] == 0x8100 or ether[16:2] == 0x88a8) and " \
 	"ether[18:2] & 0x0fff == 0)))"
 #else

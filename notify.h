@@ -47,6 +47,9 @@ void notify_flipflop(int af, const uint8_t *ip, const uint8_t *mac,
                      time_t prev_seen);
 void notify_bogon(int af, const uint8_t *ip, const uint8_t *mac,
                   const char *iface);
+void notify_fragment(const uint8_t *src, const uint8_t *dst,
+                     const uint8_t *mac, const char *iface, int type,
+                     const uint8_t *target);
 void notify_reappeared(int af, const uint8_t *ip, const uint8_t *mac,
                        const char *iface, time_t prev_seen);
 void notify_moved(int new_af, const uint8_t *new_ip,

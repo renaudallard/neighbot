@@ -399,8 +399,8 @@ bogon_log_allowed(time_t now)
 	}
 	if (bogon_log_count >= BOGON_LOG_MAX) {
 		if (!bogon_log_suppressed) {
-			log_msg("bogon reports rate-limited (>%d/%ds)",
-			    BOGON_LOG_MAX, BOGON_LOG_WINDOW);
+			log_msg("bogon and fragment reports rate-limited "
+			    "(>%d/%ds)", BOGON_LOG_MAX, BOGON_LOG_WINDOW);
 			bogon_log_suppressed = 1;
 		}
 		return 0;
@@ -465,6 +465,32 @@ bogon_mark(int af, const uint8_t *ip, const char *iface, time_t now)
 	bogon_cache[slot].last_notified = now;
 }
 
+/*
+ * Whether a report about ip on iface that is not stored in the database,
+ * a bogon or a fragment, may be made now.
+ */
+static int
+report_allowed(int af, const uint8_t *ip, const char *iface)
+{
+	time_t now = mono_now();
+
+	/* Decide with both rate limits before mutating either, so a report
+	 * dropped by the global cap does not stamp the per-address cooldown
+	 * (which would silence a genuine report for the full -B period).
+	 * Per-(af,ip,iface) cooldown suppresses repeats; -B 0 disables it. */
+	if (cfg.bogon_cooldown != 0 && bogon_in_cooldown(af, ip, iface, now))
+		return 0;
+
+	/* Global backstop: a flood of DISTINCT sources bypasses the
+	 * per-key cooldown, so cap total reporting per window. */
+	if (!bogon_log_allowed(now))
+		return 0;
+
+	if (cfg.bogon_cooldown != 0)
+		bogon_mark(af, ip, iface, now);
+	return 1;
+}
+
 static void
 handle_bogon(int af, const uint8_t *ip, const uint8_t *mac,
              const char *iface)
@@ -472,22 +498,8 @@ handle_bogon(int af, const uint8_t *ip, const uint8_t *mac,
 	char ipstr[INET6_ADDRSTRLEN];
 	char macstr[18];
 
-	time_t now = mono_now();
-
-	/* Decide with both rate limits before mutating either, so a report
-	 * dropped by the global cap does not stamp the per-address cooldown
-	 * (which would silence a genuine bogon for the full -B period).
-	 * Per-(af,ip,iface) cooldown suppresses repeats; -B 0 disables it. */
-	if (cfg.bogon_cooldown != 0 && bogon_in_cooldown(af, ip, iface, now))
+	if (!report_allowed(af, ip, iface))
 		return;
-
-	/* Global backstop: a flood of DISTINCT bogon sources bypasses the
-	 * per-key cooldown, so cap total reporting per window. */
-	if (!bogon_log_allowed(now))
-		return;
-
-	if (cfg.bogon_cooldown != 0)
-		bogon_mark(af, ip, iface, now);
 
 	inet_ntop(af, ip, ipstr, sizeof(ipstr));
 	format_mac(mac, macstr, sizeof(macstr));
@@ -743,6 +755,35 @@ ip6_opts_ok(const u_char *pkt, size_t off, size_t hlen, int hopopts)
 	return 1;
 }
 
+/*
+ * Report the first fragment of an IPv6 packet that carries an ND message
+ * of the given type, or whose header chain runs into the next fragment
+ * and may hide one (type 0). RFC 6980 forbids fragmented ND and Linux,
+ * FreeBSD and macOS drop it, but OpenBSD and NetBSD reassemble it and act
+ * on it, so it is reported as an attack rather than recorded.
+ */
+static void
+handle_fragment(const uint8_t *src, const uint8_t *dst, const uint8_t *mac,
+                const char *iface, uint8_t type, const uint8_t *target)
+{
+	char srcstr[INET6_ADDRSTRLEN];
+	char macstr[18];
+
+	if (!report_allowed(AF_INET6, src, iface))
+		return;
+
+	inet_ntop(AF_INET6, src, srcstr, sizeof(srcstr));
+	format_mac(mac, macstr, sizeof(macstr));
+	if (type != 0)
+		log_msg("fragmented %s %s on %s (ND type %u)", srcstr, macstr,
+		    iface, type);
+	else
+		log_msg("fragmented %s %s on %s (header chain cut)", srcstr,
+		    macstr, iface);
+	if (!cfg.quiet)
+		notify_fragment(src, dst, mac, iface, type, target);
+}
+
 static void
 parse_ndp(const u_char *pkt, size_t len, const char *iface,
           const struct ether_header *eh)
@@ -750,6 +791,7 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 	struct ip6_hdr ip6;
 	const uint8_t *icmp, *src, *dst;
 	uint8_t type, nxt, want;
+	int frag = 0;
 	size_t icmp_off, icmp_len;
 	const uint8_t *ip_addr;
 	const uint8_t *mac;
@@ -792,19 +834,35 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 	 * hosts process ND messages placed behind them, a known way past
 	 * RA-Guard, so they must be seen here too. Linux takes any number
 	 * of them, so walk them all; each is at least 8 bytes, which bounds
-	 * the walk by the frame length. ND must not be fragmented (RFC
-	 * 6980), so a fragment header ends the walk. */
+	 * the walk by the frame length. A fragment header is walked too in
+	 * the first fragment of a packet, to report fragmented ND below; a
+	 * later fragment shows nothing and ends the walk. */
 	nxt = ip6.ip6_nxt;
 	icmp_off = sizeof(struct ip6_hdr);
 	while (nxt == IPPROTO_HOPOPTS || nxt == IPPROTO_ROUTING ||
-	    nxt == IPPROTO_DSTOPTS) {
-		size_t hlen;
+	    nxt == IPPROTO_DSTOPTS || nxt == IPPROTO_FRAGMENT) {
+		size_t hlen = 8;	/* a fragment header */
 
-		if (len < icmp_off + 2)
+		if (nxt != IPPROTO_FRAGMENT && len >= icmp_off + 2)
+			hlen = ((size_t)pkt[icmp_off + 1] + 1) * 8;
+		if (len < icmp_off + hlen) {
+			/* in a first fragment, a header chain cut short
+			 * may hide ND that hosts reassemble */
+			if (frag && ip6.ip6_hlim == 255)
+				handle_fragment(src, dst, eh->ether_shost,
+				    iface, 0, NULL);
 			return;
-		hlen = ((size_t)pkt[icmp_off + 1] + 1) * 8;
-		if (len < icmp_off + hlen)
-			return;
+		}
+		if (nxt == IPPROTO_FRAGMENT) {
+			/* a later fragment, or a second fragment header */
+			if (frag || ((pkt[icmp_off + 2] << 8 |
+			    pkt[icmp_off + 3]) & 0xfff8) != 0)
+				return;
+			frag = 1;
+			nxt = pkt[icmp_off];
+			icmp_off += hlen;
+			continue;
+		}
 		/* Hosts drop the packet when a hop-by-hop header is not
 		 * the first, or its options or those of a destination
 		 * header fail ip6_opts_ok(). A routing header must have no
@@ -824,8 +882,12 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 	}
 	if (nxt != IPPROTO_ICMPV6)
 		return;
-	if (len < icmp_off + 4)
+	if (len < icmp_off + 4) {
+		if (frag && ip6.ip6_hlim == 255)
+			handle_fragment(src, dst, eh->ether_shost, iface, 0,
+			    NULL);
 		return;
+	}
 
 	icmp = pkt + icmp_off;
 	icmp_len = len - icmp_off;
@@ -837,6 +899,18 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 	 * of the database and the learned prefixes */
 	if (ip6.ip6_hlim != 255)
 		return;
+
+	/* Only the first fragment of a fragmented ND message is here, and
+	 * its checksum cannot be checked: report it, with its target when
+	 * the fragment holds it, and record nothing */
+	if (frag) {
+		if (type >= ND_ROUTER_SOLICIT && type <= ND_REDIRECT &&
+		    icmp[1] == 0)
+			handle_fragment(src, dst, eh->ether_shost, iface,
+			    type, (type >= ND_NEIGHBOR_SOLICIT &&
+			    icmp_len >= 24) ? icmp + 8 : NULL);
+		return;
+	}
 
 	/* Hosts also drop ND messages with a code other than 0 (same RFC
 	 * sections) or a bad checksum, so these must not change an entry

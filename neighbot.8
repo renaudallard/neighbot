@@ -224,10 +224,10 @@ is received.
 A known MAC/IP pair is seen again after 180 days or more of silence.
 Once a station has been seen since
 .Nm
-started, its silence is measured on the monotonic clock, and the
-last-seen time stored for it never moves back, so a step of the wall
-clock, as when NTP sets the clock of a board without a real-time clock
-after the start, does not make stations look as if they reappeared.
+started, its silence is measured on the monotonic clock, so a step of
+the wall clock, as when NTP sets the clock of a board without a
+real-time clock after the start, does not make stations look as if
+they reappeared.
 .It bogon
 An IP address is seen that does not belong to any subnet configured
 on any monitored interface.
@@ -370,6 +370,10 @@ the same address seen on two monitored interfaces is tracked as two
 separate entries rather than reported as a conflict.
 .Pp
 Timestamps are in ISO 8601 format (local time).
+A last-seen time never goes back past the one read from the file, as a
+clock still behind at the start would replace it, but one recorded
+while the clock was ahead goes back with the clock when it is set
+right, so that the entry does not stay in the future.
 The database is saved atomically via a temporary file and rename,
 after each event, at least once an hour while last-seen times change,
 on

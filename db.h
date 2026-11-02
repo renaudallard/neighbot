@@ -46,6 +46,8 @@ struct entry {
 	char           iface[32];
 	time_t         first_seen;
 	time_t         last_seen;
+	time_t         file_seen; /* last_seen as read from the file, 0 for an
+	                           * entry made since the start */
 	time_t         seen_mono; /* mono_now() at the last sighting, 0 if none
 	                           * since the start */
 	struct entry  *next;      /* chain within the (iface, af, ip) bucket */

@@ -255,7 +255,11 @@ Both sweeps run once an hour. A sweep that comes an hour or more late, as
 when the wall clock jumps forward because NTP sets the clock of a board
 without RTC after the start or the host resumes from suspend, waits
 another hour instead, so stations seen before the jump are not taken for
-idle ones; the systemd unit also starts after `time-sync.target`.
+idle ones; the systemd unit also starts after `time-sync.target`. A
+last-seen time recorded while the clock was ahead goes back with the
+clock once it is set right, so that entry still expires, but it never
+goes back past the time read from the database, which a clock still
+behind at the start would replace otherwise.
 
 This reaping is always on so that RFC 4941 privacy addresses left behind
 by an offline device or a prefix change do not linger in the `also known

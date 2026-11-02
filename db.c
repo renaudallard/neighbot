@@ -386,7 +386,7 @@ db_load(const char *path)
 		snprintf(e->iface, sizeof(e->iface), "%s", iface);
 
 		e->first_seen = first_seen;
-		e->last_seen = last_seen;
+		e->last_seen = e->file_seen = last_seen;
 
 		e->next = buckets[idx];
 		buckets[idx] = e;
@@ -408,12 +408,34 @@ db_load(const char *path)
 	return count;
 }
 
+/*
+ * When an entry was last seen, on the wall clock as it reads now. A
+ * sighting since the start keeps the wall-clock time it was stamped with,
+ * unless the clock has been set back since, as after a start with the
+ * clock ahead: the monotonic clock places the sighting then. That clock
+ * alone would not do, as on Linux it stops while the host is suspended.
+ * A sighting is never placed before the time read from the file, which a
+ * clock still behind at the sighting would replace otherwise.
+ */
+static time_t
+seen_time(const struct entry *e, time_t now, time_t mono)
+{
+	time_t t = e->last_seen;
+
+	if (e->seen_mono == 0)
+		return t;
+	if (now - (mono - e->seen_mono) < t)
+		t = now - (mono - e->seen_mono);
+	return t > e->file_seen ? t : e->file_seen;
+}
+
 int
 db_save(const char *path)
 {
 	char tmp[PATH_MAX];
 	FILE *fp;
 	int fd, count = 0, n;
+	time_t now = time(NULL), mono = mono_now();
 
 	n = snprintf(tmp, sizeof(tmp), "%s.tmp", path);
 	if (n < 0 || (size_t)n >= sizeof(tmp)) {
@@ -442,13 +464,14 @@ db_save(const char *path)
 			char ipstr[INET6_ADDRSTRLEN];
 			char first_str[32], last_str[32];
 			struct tm tm;
+			time_t seen = seen_time(e, now, mono);
 
 			inet_ntop(e->af, e->ip, ipstr, sizeof(ipstr));
 
 			localtime_r(&e->first_seen, &tm);
 			strftime(first_str, sizeof(first_str),
 			         "%Y-%m-%dT%H:%M:%S", &tm);
-			localtime_r(&e->last_seen, &tm);
+			localtime_r(&seen, &tm);
 			strftime(last_str, sizeof(last_str),
 			         "%Y-%m-%dT%H:%M:%S", &tm);
 
@@ -540,8 +563,8 @@ db_update(int af, const uint8_t *ip, const uint8_t *mac,
 	for (struct entry *e = buckets[idx]; e; e = e->next) {
 		if (e->af == af && memcmp(e->ip, ip, ilen) == 0 &&
 		    strcmp(e->iface, iface) == 0) {
-			time_t prev = e->last_seen;
 			time_t mono = mono_now();
+			time_t prev = seen_time(e, now, mono);
 			/* How long the station was silent: by the monotonic
 			 * clock once it has been seen since the start, as a
 			 * wall-clock step would make a station seen while the
@@ -549,10 +572,7 @@ db_update(int af, const uint8_t *ip, const uint8_t *mac,
 			time_t silent = e->seen_mono != 0 ?
 			    mono - e->seen_mono : now - prev;
 
-			/* never move last_seen back: a clock still behind at
-			 * boot would replace the time read from the file */
-			if (now > e->last_seen)
-				e->last_seen = now;
+			e->last_seen = now;
 			e->seen_mono = mono;
 			dirty = 1;
 			if (memcmp(e->mac, mac, 6) != 0) {
@@ -757,7 +777,7 @@ db_delete(int af, const uint8_t *ip, const uint8_t *mac, const char *iface)
 static int
 expire(time_t idle_secs, int temp_only)
 {
-	time_t now = time(NULL);
+	time_t now = time(NULL), mono = mono_now();
 	int removed = 0;
 
 	if (idle_secs <= 0)
@@ -772,7 +792,7 @@ expire(time_t idle_secs, int temp_only)
 
 			if ((temp_only && (e->af != AF_INET6 ||
 			    IS_LINKLOCAL6(e->ip) || is_eui64(e->ip, e->mac))) ||
-			    now - e->last_seen <= idle_secs) {
+			    now - seen_time(e, now, mono) <= idle_secs) {
 				prev = e;
 				e = next;
 				continue;

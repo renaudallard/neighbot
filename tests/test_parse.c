@@ -1761,6 +1761,45 @@ test_arp_special_senders(void)
 	}
 }
 
+/* hosts drop ARP for a multicast target, but those with route_localnet
+ * set take one for a loopback target */
+static void
+test_arp_special_targets(void)
+{
+	static const struct {
+		uint8_t tpa[4];
+		int     want;
+	} cases[] = {
+		{ { 224, 0, 0, 1 }, 0 },
+		{ { 239, 1, 2, 3 }, 0 },
+		{ { 127, 0, 0, 1 }, 1 },
+		{ { 10, 61, 0, 200 }, 1 },
+	};
+	uint8_t pkt[42], spa[4] = { 10, 61, 0, 1 };
+	uint8_t mac[6] = { 0x02, 0, 0, 0, 0, 0x61 };
+
+	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		spa[3] = (uint8_t)(1 + i);
+		memset(pkt, 0, sizeof(pkt));
+		memset(pkt, 0xff, 6);
+		memcpy(pkt + 6, mac, 6);
+		pkt[12] = 0x08; pkt[13] = 0x06;
+		pkt[15] = 0x01; pkt[16] = 0x08; pkt[18] = 6; pkt[19] = 4;
+		pkt[21] = 0x01;
+		memcpy(pkt + 22, mac, 6);
+		memcpy(pkt + 28, spa, 4);
+		memcpy(pkt + 38, cases[i].tpa, 4);
+		feed(pkt, sizeof(pkt));
+		if (db_known(AF_INET, spa, mac, "test0") != cases[i].want) {
+			fprintf(stderr, "FAIL: ARP for %u.%u.%u.%u %s\n",
+			    cases[i].tpa[0], cases[i].tpa[1], cases[i].tpa[2],
+			    cases[i].tpa[3], cases[i].want ? "was dropped" :
+			    "was processed");
+			exit(1);
+		}
+	}
+}
+
 /* ARP in an 802.1Q priority tag (VLAN ID 0) is processed, other VLAN
  * IDs are not */
 static void
@@ -1920,6 +1959,7 @@ main(void)
 	test_nd_redirect();
 	test_arp_opcode();
 	test_arp_special_senders();
+	test_arp_special_targets();
 	test_vlan0_priority_tag();
 	test_stacked_priority_tags();
 	test_truncated();

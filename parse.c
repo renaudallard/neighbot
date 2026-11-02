@@ -524,6 +524,12 @@ parse_arp(const u_char *pkt, size_t len, const char *iface)
 	    ntohs(arp->oper) != ARPOP_REPLY)
 		return;
 
+	/* hosts drop ARP for a multicast target before looking at the
+	 * sender. ARP for a loopback target is kept: hosts with
+	 * route_localnet set, as Kubernetes nodes have, take it */
+	if ((arp->tpa[0] & 0xf0) == 0xe0)
+		return;
+
 	/* skip ARP probes (sender IP 0.0.0.0) */
 	if (is_zero_ip4(arp->spa))
 		return;

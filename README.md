@@ -377,7 +377,9 @@ previous MAC address for flip-flop detection. Old database files without
 this field are loaded without errors. Fields are not quoted, so interfaces
 whose name contains a comma or a non-printable character are not monitored.
 
-Saves are atomic (write to temp file + rename). The entry limit is
+Saves are atomic (write to temp file + rename). The file is written after
+each event, at least once an hour while last-seen times change, on
+`SIGHUP` and at shutdown. The entry limit is
 100,000 to prevent memory exhaustion from spoofed traffic. If the file
 exists but cannot be read in full (read error, not a regular file),
 neighbot exits instead of starting with a partial table that the next

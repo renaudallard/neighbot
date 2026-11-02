@@ -45,6 +45,7 @@ static struct entry *mac_buckets[HT_BUCKETS];
 static unsigned     entry_count;
 static int          limit_warned;
 static int          mac_cap_warned;
+static int          dirty;          /* changed since the last save */
 
 /* Random per-process seed for both hash indices. The IP and MAC bytes fed
  * to the hashes are attacker-controlled, so a fixed seed would let an
@@ -493,6 +494,7 @@ db_save(const char *path)
 		unlink(tmp);
 		return -1;
 	}
+	dirty = 0;
 
 	/* fsync the directory so the rename itself survives a crash */
 	{
@@ -540,6 +542,7 @@ db_update(int af, const uint8_t *ip, const uint8_t *mac,
 		    strcmp(e->iface, iface) == 0) {
 			time_t prev = e->last_seen;
 			e->last_seen = now;
+			dirty = 1;
 			if (memcmp(e->mac, mac, 6) != 0) {
 				int ev;
 
@@ -615,6 +618,7 @@ db_update(int af, const uint8_t *ip, const uint8_t *mac,
 	buckets[idx] = e;
 	mac_link(e);
 	entry_count++;
+	dirty = 1;
 	return EVENT_NEW;
 }
 
@@ -728,6 +732,7 @@ db_delete(int af, const uint8_t *ip, const uint8_t *mac, const char *iface)
 		mac_unlink(e);
 		free(e);
 		entry_count--;
+		dirty = 1;
 		return 1;
 	}
 	return 0;
@@ -771,6 +776,8 @@ expire(time_t idle_secs, int temp_only)
 			e = next;
 		}
 	}
+	if (removed > 0)
+		dirty = 1;
 	return removed;
 }
 
@@ -932,4 +939,13 @@ db_free(void)
 	entry_count = 0;
 	limit_warned = 0;
 	mac_cap_warned = 0;
+	dirty = 0;
+}
+
+/* Whether the table changed since it was loaded or last saved, last
+ * seen times included, which change without any event. */
+int
+db_dirty(void)
+{
+	return dirty;
 }

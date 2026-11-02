@@ -80,6 +80,7 @@ int   db_delete(int af, const uint8_t *ip, const uint8_t *mac,
                 const char *iface);
 int   db_expire(time_t idle_secs);
 int   db_expire_temp(time_t idle_secs);
+int   db_dirty(void);
 
 /* Whether s contains a byte that is not printable ASCII: control bytes,
  * DEL, and the 0x80-0x9f range that 8-bit terminals take as controls. */

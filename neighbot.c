@@ -484,21 +484,23 @@ check_signals:
 			    now - last_expire >= EXPIRE_CHECK_INTERVAL) {
 				int n = db_expire_temp(TEMP_IDLE_EXPIRE);
 
-				if (n > 0) {
+				if (n > 0)
 					log_msg("expired %d stale "
 					    "temporary IPv6 address%s",
 					    n, n == 1 ? "" : "es");
-					save = 1;
-				}
 				if (cfg.expire_secs > 0) {
 					n = db_expire(cfg.expire_secs);
-					if (n > 0) {
+					if (n > 0)
 						log_msg("expired %d idle "
 						    "entr%s", n,
 						    n == 1 ? "y" : "ies");
-						save = 1;
-					}
 				}
+				/* last seen times change without any event, so
+				 * write them out at least once an interval: the
+				 * file is what a report shows, and what is left
+				 * after a crash */
+				if (db_dirty())
+					save = 1;
 				last_expire = now;
 			}
 

@@ -428,6 +428,49 @@ test_control_bytes_iface(void)
 	}
 }
 
+/* a refresh of last_seen changes no event but must mark the table for
+ * saving, and a save clears the mark */
+static void
+test_dirty(void)
+{
+	uint8_t ip[4] = { 10, 0, 0, 1 };
+	uint8_t mac[6] = { 0xde, 0xad, 0xbe, 0xef, 0x00, 0x01 };
+	uint8_t old[6];
+	time_t ols;
+
+	write_file(TEST_TMP,
+	    "10.0.0.1,de:ad:be:ef:00:01,eth1,"
+	    "2026-06-15T10:30:00,2026-06-15T11:00:00,"
+	    "00:00:00:00:00:00\n");
+
+	db_init();
+	db_load(TEST_TMP);
+	if (db_dirty()) {
+		fprintf(stderr, "FAIL: freshly loaded table is dirty\n");
+		exit(1);
+	}
+	if (db_update(AF_INET, ip, mac, "eth1", old, &ols) != 0 ||
+	    !db_dirty()) {
+		fprintf(stderr, "FAIL: last_seen refresh not marked dirty\n");
+		exit(1);
+	}
+	if (db_save(TEST_TMP2) != 1 || db_dirty()) {
+		fprintf(stderr, "FAIL: save did not clear the dirty mark\n");
+		exit(1);
+	}
+	if (!db_delete(AF_INET, ip, mac, "eth1") || !db_dirty()) {
+		fprintf(stderr, "FAIL: delete not marked dirty\n");
+		exit(1);
+	}
+	db_free();
+	if (db_dirty()) {
+		fprintf(stderr, "FAIL: db_free left the dirty mark\n");
+		exit(1);
+	}
+	unlink(TEST_TMP);
+	unlink(TEST_TMP2);
+}
+
 static void
 test_nonexistent(void)
 {
@@ -516,6 +559,7 @@ main(void)
 	test_mac_cap_load();
 	test_control_bytes_iface();
 	test_pre_epoch();
+	test_dirty();
 	test_nonexistent();
 	test_oversized_line();
 	test_embedded_nul_line();

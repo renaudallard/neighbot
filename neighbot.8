@@ -249,9 +249,9 @@ So stations in an RA-learned prefix stay known after a restart until
 the router advertises the prefix again, and a flood of foreign
 addresses cannot hide a spoof of a station reached through an on-link
 route.
-IPs that are foreign to the receiving interface but match another
-monitored interface's subnet are silently ignored (common with
-access points on VLAN trunks).
+IPs not recorded on the receiving interface that are foreign to it
+but match another monitored interface's subnet are silently ignored
+(common with access points on VLAN trunks).
 The configured subnets are re-read every 60 seconds, on
 .Dv SIGHUP ,
 and before an address is reported as a bogon (at most once a second),

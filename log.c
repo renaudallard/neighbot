@@ -31,11 +31,16 @@
 #include "log.h"
 
 static int use_syslog;
+static int err_stderr;
 
+/* Log to syslog with syslog_mode, else to stderr. With stderr_errors,
+ * errors also go to stderr, so a daemon that fails before detaching
+ * says why on the terminal it was started from. */
 void
-log_init(const char *name, int syslog_mode)
+log_init(const char *name, int syslog_mode, int stderr_errors)
 {
 	use_syslog = syslog_mode;
+	err_stderr = stderr_errors;
 	if (use_syslog)
 		openlog(name, LOG_PID | LOG_NDELAY, LOG_DAEMON);
 }
@@ -62,6 +67,14 @@ log_err(const char *fmt, ...)
 
 	va_start(ap, fmt);
 	if (use_syslog) {
+		if (err_stderr) {
+			va_list aq;
+
+			va_copy(aq, ap);
+			vfprintf(stderr, fmt, aq);
+			fputc('\n', stderr);
+			va_end(aq);
+		}
 		vsyslog(LOG_ERR, fmt, ap);
 	} else {
 		vfprintf(stderr, fmt, ap);

@@ -33,7 +33,7 @@
 #define LOG_PRINTF_FMT(a, b)
 #endif
 
-void log_init(const char *name, int use_syslog);
+void log_init(const char *name, int use_syslog, int stderr_errors);
 void log_msg(const char *fmt, ...) LOG_PRINTF_FMT(1, 2);
 void log_err(const char *fmt, ...) LOG_PRINTF_FMT(1, 2);
 

@@ -43,6 +43,8 @@ total bogon reporting still applies as a flood backstop.
 .It Fl d
 Daemonize.
 Detach from the terminal and log to syslog instead of stderr.
+Errors that happen before detaching, such as an unknown user or no
+usable interface, are printed on stderr as well.
 .It Fl e Ar days
 Drop entries that have not been seen for more than
 .Ar days

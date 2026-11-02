@@ -264,7 +264,8 @@ main(int argc, char *argv[])
 	if (!cfg.mailto)
 		cfg.mailto = DEFAULT_MAILTO;
 
-	log_init("neighbot", cfg.daemonize);
+	/* with -d, errors before daemon() also go to the terminal */
+	log_init("neighbot", cfg.daemonize, 1);
 
 	/* signals */
 	struct sigaction sa;
@@ -309,8 +310,8 @@ main(int argc, char *argv[])
 			cleanup(ifaces, nifaces);
 			return 1;
 		}
-		/* re-init logging after daemon() closes stderr */
-		log_init("neighbot", 1);
+		/* stderr now goes to /dev/null: log to syslog only */
+		log_init("neighbot", 1, 0);
 	}
 
 	/* drop privileges */

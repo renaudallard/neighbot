@@ -123,6 +123,8 @@ doas pkg_add -D unsigned ./neighbot-*.tgz        # OpenBSD
 The `.deb` enables and starts the service on install. The `.rpm` installs
 the unit but leaves it disabled (`sudo systemctl enable --now neighbot`).
 The `.apk` ships no init script, and on OpenBSD use `rcctl enable neighbot`.
+The OpenBSD rc script reads vendor names from the file of the `mac-vendor`
+package (`doas pkg_add mac-vendor`); without it, alerts show no vendor.
 
 ## Usage
 
@@ -364,9 +366,9 @@ Two file formats are supported:
 | Format | Example | Source |
 |--------|---------|--------|
 | neighbot | `aa:bb:cc Vendor Name` | `make oui.txt` (`make oui-update` refreshes it) |
-| arp-scan | `AABBCC\tVendor Name` | `net/arp-scan,-mac` package |
+| arp-scan | `AABBCC\tVendor Name` | `mac-vendor` package (`net/arp-scan,-mac`) |
 
-On OpenBSD, install the `arp-scan,-mac` package and point neighbot at
+On OpenBSD, install the `mac-vendor` package and point neighbot at
 `/usr/local/share/arp-scan/ieee-oui.txt`.
 
 To keep the bundled format current, add a daily job to `/etc/crontab`

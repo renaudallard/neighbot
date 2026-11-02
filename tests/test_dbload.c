@@ -563,11 +563,11 @@ test_clock_behind(void)
 /* A sighting made while the wall clock was ahead, as with a bad real-time
  * clock, is placed by the monotonic clock once the clock is set back: its
  * last_seen time is not left in the future, first_seen is not written
- * after it, and it can expire. */
+ * after it, nor moved by later sightings, and it can expire. */
 static void
 test_clock_ahead(void)
 {
-	uint8_t ip[4] = { 10, 0, 0, 5 };
+	uint8_t ip[4] = { 10, 0, 0, 5 }, ip2[4] = { 10, 0, 0, 6 };
 	uint8_t mac[6] = { 0xde, 0xad, 0xbe, 0xef, 0x00, 0x05 };
 	uint8_t old[6];
 	char saved[32], first[32], lo[32], hi[32];
@@ -579,7 +579,8 @@ test_clock_ahead(void)
 	localtime_r(&t, &tm);
 	strftime(lo, sizeof(lo), "%Y-%m-%dT%H:%M:%S", &tm);
 	clock_step = 365 * 24 * 3600;
-	if (db_update(AF_INET, ip, mac, "eth1", old, &ols) != EVENT_NEW) {
+	if (db_update(AF_INET, ip, mac, "eth1", old, &ols) != EVENT_NEW ||
+	    db_update(AF_INET, ip2, mac, "eth1", old, &ols) != EVENT_NEW) {
 		fprintf(stderr, "FAIL: wrong event with the clock ahead\n");
 		exit(1);
 	}
@@ -601,9 +602,18 @@ test_clock_ahead(void)
 		exit(1);
 	}
 	sleep(3);
-	if (db_expire(1) != 1) {
+	if (db_update(AF_INET, ip2, mac, "eth1", old, &ols) != 0 ||
+	    db_expire(1) != 1) {
 		fprintf(stderr, "FAIL: an entry seen with the clock ahead "
 		    "did not expire\n");
+		exit(1);
+	}
+	db_save(TEST_TMP);
+	saved_field(TEST_TMP, "10.0.0.6", 3, first, sizeof(first));
+	if (strcmp(first, lo) < 0 || strcmp(first, hi) > 0) {
+		fprintf(stderr, "FAIL: first_seen %s of a station first seen "
+		    "with the clock ahead is not between %s and %s\n", first,
+		    lo, hi);
 		exit(1);
 	}
 	db_free();

@@ -575,6 +575,11 @@ db_update(int af, const uint8_t *ip, const uint8_t *mac,
 			time_t silent = e->seen_mono != 0 ?
 			    mono - e->seen_mono : now - prev;
 
+			/* first seen with the clock ahead: bring it back to the
+			 * previous sighting before that is stamped over, so the
+			 * saved first sighting does not move with each one */
+			if (e->first_seen > prev)
+				e->first_seen = prev;
 			e->last_seen = now;
 			e->seen_mono = mono;
 			dirty = 1;

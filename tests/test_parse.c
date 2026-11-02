@@ -287,8 +287,8 @@ test_ndp_na(void)
 
 	/* ICMPv6 NA: type=136, code=0, cksum=0 (ignored by parser) */
 	pkt[54] = 136;
-	/* flags: S=1, O=1 */
-	pkt[58] = 0x60;
+	/* flags: O=1, no S flag as it goes to a multicast address */
+	pkt[58] = 0x20;
 
 	/* target: 2001:db8::1 */
 	pkt[62] = 0x20; pkt[63] = 0x01; pkt[64] = 0x0d; pkt[65] = 0xb8;
@@ -381,7 +381,7 @@ test_ndp_na_no_tlla(void)
 
 	/* ICMPv6 NA: type=136, code=0 */
 	pkt[54] = 136;
-	pkt[58] = 0x60;                                  /* flags: S=1, O=1 */
+	pkt[58] = 0x20;                                  /* flags: O=1 */
 
 	/* target: 2001:db8::3 */
 	pkt[62] = 0x20; pkt[63] = 0x01; pkt[64] = 0x0d; pkt[65] = 0xb8;
@@ -619,7 +619,7 @@ test_ndp_hlim(void)
 	pkt[22] = 0x20;                          /* src non-zero */
 	pkt[38] = 0xff; pkt[39] = 0x02; pkt[53] = 0x01;
 	pkt[54] = 136;                           /* NA */
-	pkt[58] = 0x60;                          /* flags S=1 O=1 */
+	pkt[58] = 0x20;                          /* flags O=1 */
 	pkt[62] = 0x20; pkt[63] = 0x01; pkt[64] = 0x0d; pkt[65] = 0xb8;
 	pkt[77] = 0x11;                          /* target 2001:db8::11 */
 	pkt[78] = 2; pkt[79] = 1;                /* Target LLA option */
@@ -1338,6 +1338,30 @@ test_nd_ip6_header(void)
 	}
 }
 
+/* hosts drop an NA with the Solicited flag sent to a multicast address,
+ * but take one sent to a unicast address */
+static void
+test_na_solicited_multicast(void)
+{
+	uint8_t pkt[86], tgt[16];
+	uint8_t mac[6] = { 0x02, 0, 0, 0, 0, 0x52 };
+
+	inet_pton(AF_INET6, "2001:db8:9::52", tgt);
+	build_na(pkt, tgt, mac);
+	pkt[58] |= 0x40;                         /* S flag, to ff02::1 */
+	feed(pkt, sizeof(pkt));
+	if (db_known(AF_INET6, tgt, mac, "test0")) {
+		fprintf(stderr, "FAIL: solicited NA to ff02::1 was processed\n");
+		exit(1);
+	}
+	inet_pton(AF_INET6, "2001:db8:9::1", pkt + 38);
+	feed(pkt, sizeof(pkt));
+	if (!db_known(AF_INET6, tgt, mac, "test0")) {
+		fprintf(stderr, "FAIL: solicited unicast NA was dropped\n");
+		exit(1);
+	}
+}
+
 /* hosts take the Target LLA of an NA sent from :: like any other, so
  * it must change the entry; an NS from :: is a DAD probe and records
  * nothing */
@@ -1776,6 +1800,7 @@ main(void)
 	test_nd_payload_length();
 	test_nd_code_and_checksum();
 	test_nd_ip6_header();
+	test_na_solicited_multicast();
 	test_na_unspecified_source();
 	test_nd_bad_options();
 	test_nd_redirect();

@@ -815,6 +815,10 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 		/* NA: type(1) + code(1) + cksum(2) + flags(4) + target(16) + opts */
 		if (icmp_len < 24)
 			return;
+		/* RFC 4861 7.1.2: an NA to a multicast address has no
+		 * Solicited flag, and hosts drop one that has it */
+		if (dst[0] == 0xff && (icmp[4] & 0x40))
+			return;
 		ip_addr = icmp + 8;  /* target address */
 		opts = icmp + 24;
 		opts_len = icmp_len - 24;

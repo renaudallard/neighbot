@@ -128,11 +128,11 @@ sanitise_stdfd(void)
  * exec: an ignored SIGCHLD makes Linux reap the children itself, so
  * waitpid() fails and notification children are never counted as done,
  * and a blocked or ignored SIGALRM keeps the alarm from ending a stalled
- * child. Children and the sendmail they run inherit this. An alarm armed
- * while SIGALRM was ignored or blocked, or already pending, is dropped
- * first, as it would end neighbot; one armed with the default action is
- * the launcher's own time limit, and is kept. The signals the daemon
- * handles are unblocked once it handles them.
+ * child. Children and the sendmail they run inherit this. An alarm left
+ * armed, or already pending, when neighbot starts with SIGALRM ignored or
+ * blocked is dropped first, as it would end neighbot; with SIGALRM at its
+ * default action an alarm is the launcher's own time limit, and is kept.
+ * The signals the daemon handles are unblocked once it handles them.
  */
 static void
 reset_signals(void)

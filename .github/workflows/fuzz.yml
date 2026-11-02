@@ -41,4 +41,5 @@ jobs:
           path: |
             crash-*
             leak-*
+            oom-*
             timeout-*

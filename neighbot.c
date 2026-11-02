@@ -123,22 +123,28 @@ sanitise_stdfd(void)
 }
 
 /*
- * Start from the default signal state whatever the parent left, as the
- * mask and ignored signals survive exec: an ignored SIGCHLD makes Linux
- * reap the children itself, so waitpid() fails and notification children
- * are never counted as done, a blocked or ignored SIGALRM keeps the alarm
- * from ending a stalled child, and a blocked SIGTERM keeps the daemon
- * from stopping. Children and the sendmail they run inherit this.
+ * Give SIGCHLD and SIGALRM their default action and unblock them,
+ * whatever the parent left, as the mask and ignored signals survive
+ * exec: an ignored SIGCHLD makes Linux reap the children itself, so
+ * waitpid() fails and notification children are never counted as done,
+ * and a blocked or ignored SIGALRM keeps the alarm from ending a stalled
+ * child. Children and the sendmail they run inherit this. An alarm left
+ * armed, or already pending, is dropped first, as it would end neighbot.
+ * The signals the daemon handles are unblocked once it handles them.
  */
 static void
 reset_signals(void)
 {
-	sigset_t none;
+	sigset_t set;
 
-	sigemptyset(&none);
-	sigprocmask(SIG_SETMASK, &none, NULL);
-	signal(SIGCHLD, SIG_DFL);
+	signal(SIGALRM, SIG_IGN);
+	alarm(0);
 	signal(SIGALRM, SIG_DFL);
+	signal(SIGCHLD, SIG_DFL);
+	sigemptyset(&set);
+	sigaddset(&set, SIGALRM);
+	sigaddset(&set, SIGCHLD);
+	sigprocmask(SIG_UNBLOCK, &set, NULL);
 }
 
 int
@@ -289,6 +295,7 @@ main(int argc, char *argv[])
 
 	/* signals */
 	struct sigaction sa;
+	sigset_t handled;
 	memset(&sa, 0, sizeof(sa));
 	sa.sa_handler = sig_handler;
 	sigemptyset(&sa.sa_mask);
@@ -297,6 +304,14 @@ main(int argc, char *argv[])
 	sigaction(SIGHUP, &sa, NULL);
 	sigaction(SIGUSR1, &sa, NULL);
 	signal(SIGPIPE, SIG_IGN);
+	/* a launcher may have left them blocked, which would keep the
+	 * daemon from stopping; one already pending goes to the handler */
+	sigemptyset(&handled);
+	sigaddset(&handled, SIGTERM);
+	sigaddset(&handled, SIGINT);
+	sigaddset(&handled, SIGHUP);
+	sigaddset(&handled, SIGUSR1);
+	sigprocmask(SIG_UNBLOCK, &handled, NULL);
 
 	/* resolve the run user before daemon() so a bad -u fails in the
 	 * foreground with a non-zero exit status */

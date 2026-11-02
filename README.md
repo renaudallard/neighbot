@@ -61,6 +61,10 @@ OUI database unless `oui.txt` is already present in the source tree, so it
 needs network access the first time. It uses `curl` where installed, else
 `fetch` on FreeBSD or `ftp` on OpenBSD and NetBSD, from the base system.
 
+The usual `CPPFLAGS`, `CFLAGS` and `LDFLAGS` are honoured. `CPPFLAGS`
+defaults to `-D_FORTIFY_SOURCE=2`, so a distribution's own fortify level
+replaces it.
+
 | OS | Install libpcap |
 |----|-----------------|
 | Debian / Ubuntu | `apt install libpcap-dev` |

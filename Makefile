@@ -6,9 +6,10 @@ BINDIR  ?= $(PREFIX)/sbin
 MANDIR  ?= $(PREFIX)/$(_MANSUB)
 
 CC      ?= cc
+# a default only, so a distribution's own fortify level replaces it
+CPPFLAGS ?= -D_FORTIFY_SOURCE=2
 CFLAGS  ?= -O2 -pipe
 CFLAGS  += -Wall -Wextra -Wpedantic -Wformat=2
-CFLAGS  += -D_FORTIFY_SOURCE=2
 CFLAGS  += -fstack-protector-strong
 LDFLAGS += -Wl,-z,relro -Wl,-z,now
 
@@ -36,7 +37,7 @@ $(BIN): $(OBJS)
 	$(CC) $(OBJS) $(LDFLAGS) $(_LIBS) -o $@
 
 .c.o:
-	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(CFLAGS) -MMD -MP -c $<
+	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(CPPFLAGS) $(CFLAGS) -MMD -MP -c $<
 
 -include $(DEPS)
 
@@ -122,25 +123,25 @@ fuzz-clean:
 test: tests/test_parse tests/test_dbload tests/test_dbexpire tests/test_ouiload tests/test_probe tests/test_capture tests/test_notify
 
 tests/test_parse: tests/test_parse.c tests/nd_cksum.h parse.c db.c oui.c log.c
-	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(CFLAGS) -o $@ tests/test_parse.c parse.c db.c oui.c log.c $(LDFLAGS) $(_LIBS)
+	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(CPPFLAGS) $(CFLAGS) -o $@ tests/test_parse.c parse.c db.c oui.c log.c $(LDFLAGS) $(_LIBS)
 
 tests/test_dbload: tests/test_dbload.c db.c oui.c log.c
-	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(CFLAGS) -o $@ tests/test_dbload.c db.c oui.c log.c $(LDFLAGS) $(_LIBS)
+	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(CPPFLAGS) $(CFLAGS) -o $@ tests/test_dbload.c db.c oui.c log.c $(LDFLAGS) $(_LIBS)
 
 tests/test_dbexpire: tests/test_dbexpire.c db.c oui.c log.c
-	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(CFLAGS) -o $@ tests/test_dbexpire.c db.c oui.c log.c $(LDFLAGS) $(_LIBS)
+	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(CPPFLAGS) $(CFLAGS) -o $@ tests/test_dbexpire.c db.c oui.c log.c $(LDFLAGS) $(_LIBS)
 
 tests/test_ouiload: tests/test_ouiload.c oui.c log.c
-	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(CFLAGS) -o $@ tests/test_ouiload.c oui.c log.c $(LDFLAGS) $(_LIBS)
+	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(CPPFLAGS) $(CFLAGS) -o $@ tests/test_ouiload.c oui.c log.c $(LDFLAGS) $(_LIBS)
 
 tests/test_probe: tests/test_probe.c probe.c log.c db.c oui.c
-	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(CFLAGS) -o $@ tests/test_probe.c probe.c log.c db.c oui.c $(LDFLAGS) $(_LIBS)
+	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(CPPFLAGS) $(CFLAGS) -o $@ tests/test_probe.c probe.c log.c db.c oui.c $(LDFLAGS) $(_LIBS)
 
 tests/test_capture: tests/test_capture.c capture.c log.c
-	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(CFLAGS) -o $@ tests/test_capture.c capture.c log.c $(LDFLAGS) $(_LIBS)
+	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(CPPFLAGS) $(CFLAGS) -o $@ tests/test_capture.c capture.c log.c $(LDFLAGS) $(_LIBS)
 
 tests/test_notify: tests/test_notify.c notify.c db.c oui.c log.c
-	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(CFLAGS) -o $@ tests/test_notify.c notify.c db.c oui.c log.c $(LDFLAGS) $(_LIBS)
+	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(CPPFLAGS) $(CFLAGS) -o $@ tests/test_notify.c notify.c db.c oui.c log.c $(LDFLAGS) $(_LIBS)
 
 test-clean:
 	rm -f tests/test_parse tests/test_dbload tests/test_dbexpire tests/test_ouiload tests/test_probe tests/test_capture tests/test_notify

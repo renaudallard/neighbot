@@ -592,6 +592,29 @@ is_local(const char *iface, int af, const uint8_t *ip)
 	return !has_subnet;
 }
 
+/* Whether ip is the broadcast address of an IPv4 subnet of iface, which
+ * hosts keep a fixed entry for. A /31 or /32 has none. */
+int
+capture_is_bcast(const char *iface, const uint8_t *ip)
+{
+	for (int i = 0; i < subnet_count; i++) {
+		struct subnet *s = &subnets[i];
+		int j;
+
+		if (s->af != AF_INET || strcmp(s->iface, iface) != 0 ||
+		    (s->mask[3] & 0x03) != 0)
+			continue;
+		for (j = 0; j < 4; j++) {
+			if ((ip[j] & s->mask[j]) != (s->addr[j] & s->mask[j]) ||
+			    (ip[j] | s->mask[j]) != 0xff)
+				break;
+		}
+		if (j == 4)
+			return 1;
+	}
+	return 0;
+}
+
 /* Whether prefix/prefix_len lies inside a subnet configured on iface, or
  * is a /64 or longer holding a /128 address of iface, as the on-link
  * prefix of a DHCPv6 lease does. A shorter prefix around an address is

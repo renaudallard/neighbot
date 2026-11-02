@@ -543,6 +543,9 @@ parse_arp(const u_char *pkt, size_t len, const char *iface)
 	    (arp->spa[0] == 255 && arp->spa[1] == 255 &&
 	    arp->spa[2] == 255 && arp->spa[3] == 255))
 		return;
+	/* and so is the broadcast address of a subnet of the interface */
+	if (capture_is_bcast(iface, arp->spa))
+		return;
 
 	/* an address already recorded on this interface with this MAC
 	 * is not a bogon (see parse_ndp) */

@@ -423,6 +423,47 @@ test_prefix_configured(void)
 	return 0;
 }
 
+/* the broadcast address of a subnet of the interface, and only that;
+ * a /31 or a /32 has none */
+static int
+test_bcast(void)
+{
+	uint8_t a24[4] = { 192, 0, 2, 1 }, m24[4] = { 255, 255, 255, 0 };
+	uint8_t a16[4] = { 172, 16, 0, 1 }, m16[4] = { 255, 255, 0, 0 };
+	uint8_t a31[4] = { 10, 0, 0, 0 }, m31[4] = { 255, 255, 255, 254 };
+	uint8_t a32[4] = { 10, 1, 0, 5 }, m32[4] = { 255, 255, 255, 255 };
+	uint8_t b24[4] = { 192, 0, 2, 255 }, b16[4] = { 172, 16, 255, 255 };
+	uint8_t n24[4] = { 192, 0, 2, 0 }, h24[4] = { 192, 0, 2, 254 };
+	uint8_t l16[4] = { 172, 16, 0, 255 }, b31[4] = { 10, 0, 0, 1 };
+
+	capture_reset_subnets();
+	capture_add_subnet("eth0", AF_INET, a24, m24);
+	capture_add_subnet("eth0", AF_INET, a16, m16);
+	capture_add_subnet("eth0", AF_INET, a31, m31);
+	capture_add_subnet("eth0", AF_INET, a32, m32);
+
+	ASSERT(capture_is_bcast("eth0", b24) == 1,
+	       "192.0.2.255 should be the broadcast address of the /24");
+	ASSERT(capture_is_bcast("eth0", b16) == 1,
+	       "172.16.255.255 should be the broadcast address of the /16");
+	ASSERT(capture_is_bcast("eth0", n24) == 0,
+	       "the network address is not a broadcast address");
+	ASSERT(capture_is_bcast("eth0", h24) == 0,
+	       "192.0.2.254 is not a broadcast address");
+	ASSERT(capture_is_bcast("eth0", l16) == 0,
+	       "172.16.0.255 is not a broadcast address of the /16");
+	ASSERT(capture_is_bcast("eth0", b31) == 0,
+	       "a /31 has no broadcast address");
+	ASSERT(capture_is_bcast("eth0", a32) == 0,
+	       "a /32 has no broadcast address");
+	ASSERT(capture_is_bcast("eth1", b24) == 0,
+	       "a subnet of eth0 says nothing about eth1");
+
+	capture_reset_subnets();
+	printf("  bcast: ok\n");
+	return 0;
+}
+
 #if defined(__linux__)
 
 #define VLAN_TMP "tmp/test_vlan_parents.tmp"
@@ -536,6 +577,7 @@ main(void)
 	rc |= test_learned_subnet();
 	rc |= test_host_mask();
 	rc |= test_prefix_configured();
+	rc |= test_bcast();
 
 #if defined(__linux__)
 	rc |= test_vlan_parents_basic();

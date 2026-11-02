@@ -58,6 +58,14 @@ capture_is_own_ip(int af, const uint8_t *ip)
 	return 0;
 }
 
+/* the broadcast address of the test subnet, 10.62.0.0/24 on test0 */
+int
+capture_is_bcast(const char *iface, const uint8_t *ip)
+{
+	return strcmp(iface, "test0") == 0 && ip[0] == 10 && ip[1] == 62 &&
+	    ip[2] == 0 && ip[3] == 255;
+}
+
 /* RA-capture stub: record the most recent learned prefix for assertions */
 int      ra_learned_calls;
 int      ra_withdraw_calls;
@@ -1800,6 +1808,33 @@ test_arp_special_targets(void)
 	}
 }
 
+/* hosts keep a fixed entry for the broadcast address of a subnet, which
+ * ARP never changes */
+static void
+test_arp_subnet_broadcast(void)
+{
+	uint8_t pkt[42], spa[4] = { 10, 62, 0, 255 };
+	uint8_t mac[6] = { 0x02, 0, 0, 0, 0, 0x62 };
+
+	for (int i = 0; i < 2; i++) {
+		memset(pkt, 0, sizeof(pkt));
+		memset(pkt, 0xff, 6);
+		memcpy(pkt + 6, mac, 6);
+		pkt[12] = 0x08; pkt[13] = 0x06;
+		pkt[15] = 0x01; pkt[16] = 0x08; pkt[18] = 6; pkt[19] = 4;
+		pkt[21] = 0x01;
+		memcpy(pkt + 22, mac, 6);
+		spa[3] = i == 0 ? 255 : 254;
+		memcpy(pkt + 28, spa, 4);
+		feed(pkt, sizeof(pkt));
+		if (db_known(AF_INET, spa, mac, "test0") != (i == 1)) {
+			fprintf(stderr, "FAIL: ARP from 10.62.0.%u %s\n", spa[3],
+			    i == 1 ? "was dropped" : "was processed");
+			exit(1);
+		}
+	}
+}
+
 /* ARP in an 802.1Q priority tag (VLAN ID 0) is processed, other VLAN
  * IDs are not */
 static void
@@ -1960,6 +1995,7 @@ main(void)
 	test_arp_opcode();
 	test_arp_special_senders();
 	test_arp_special_targets();
+	test_arp_subnet_broadcast();
 	test_vlan0_priority_tag();
 	test_stacked_priority_tags();
 	test_truncated();

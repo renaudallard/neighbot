@@ -53,6 +53,13 @@ capture_is_own_ip(int af, const uint8_t *ip)
 }
 
 int
+capture_is_bcast(const char *iface, const uint8_t *ip)
+{
+	(void)iface; (void)ip;
+	return 0;
+}
+
+int
 capture_add_learned_subnet(const char *iface, int af,
     const uint8_t *addr, int prefix_len, uint32_t lifetime_sec)
 {

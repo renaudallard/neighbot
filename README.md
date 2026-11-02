@@ -152,7 +152,7 @@ neighbot [-B seconds] [-d] [-e days] [-f dbfile] [-i iface] [-m mailto] [-o ouif
 | `-o ouifile` | OUI vendor database file (default: `/var/neighbot/oui.txt`) |
 | `-p` | Disable active probing (passive only) |
 | `-q` | Quiet mode. No email notifications, events are still logged |
-| `-r` | Report mode. Print database summary to stdout (or email with `-m`, killing a `sendmail` still running after two minutes), then exit |
+| `-r` | Report mode. Print database summary to stdout (or email with `-m`; a `sendmail` still running after two minutes gets `SIGALRM`, which ends it unless it catches the signal, as Exim does), then exit |
 | `-s sendmail` | Path to sendmail-compatible MTA (default: `/usr/sbin/sendmail`) |
 | `-u user` | Drop privileges to this user after opening pcap handles (default: `nobody`) |
 | `-V` | Print the version number and exit |
@@ -479,9 +479,10 @@ Each notification is delivered by a short-lived child process (reverse DNS
 plus `sendmail`). To keep a flood of events (for example spoofed in-subnet
 ARP) from spawning children at packet rate, no more than 32 notification
 children run at once; further notifications are suppressed and logged until
-the backlog clears. A child, and the `sendmail` it runs, are killed after two
-minutes, so a stalled resolver or mailer cannot hold the slots for good, and
-a child stops on the signals that stop the daemon.
+the backlog clears. A child is killed after two minutes, so a stalled
+resolver or mailer cannot hold the slots for good, and so is the `sendmail`
+it runs, unless the mailer catches `SIGALRM` itself, as Exim does. A child
+also stops on the signals that stop the daemon.
 
 ## Testing
 

@@ -161,7 +161,9 @@ No packet capture, privilege drop, or daemon setup is performed.
 When combined with
 .Fl m ,
 the report is emailed via sendmail instead of printed, and a sendmail
-still running after two minutes is killed.
+still running after two minutes is sent
+.Dv SIGALRM ,
+which ends it unless it catches the signal, as Exim does.
 When combined with
 .Fl q ,
 the report is always printed to stdout.
@@ -499,11 +501,13 @@ To keep a flood of events, such as spoofed in-subnet ARP, from
 spawning children at packet rate, no more than 32 notification
 children run at once; further notifications are suppressed and
 logged until the backlog clears.
-A child, and the
+A child is killed after two minutes, so a stalled resolver or mailer
+cannot hold the slots for good, and so is the
 .Xr sendmail 8
-it runs, are killed after two minutes, so a stalled resolver or
-mailer cannot hold the slots for good, and a child stops on the
-signals that stop the daemon.
+it runs, unless the mailer catches
+.Dv SIGALRM
+itself, as Exim does.
+A child also stops on the signals that stop the daemon.
 .Sh EXIT STATUS
 .Nm
 exits 0 on clean shutdown or after printing a report.

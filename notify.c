@@ -235,7 +235,8 @@ notify_report_open(const char *subject)
 		close_inherited_fds();
 
 		/* fork() drops a pending alarm but exec keeps one: end a
-		 * sendmail that stalls, in report mode too */
+		 * sendmail that stalls, in report mode too, unless it
+		 * catches SIGALRM itself */
 		alarm(NOTIFY_TIMEOUT);
 		execl(cfg.sendmail, "sendmail", "-t", (char *)NULL);
 		_exit(127);

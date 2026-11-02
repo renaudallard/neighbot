@@ -57,8 +57,9 @@ Then generate some traffic (`arping`, `ping`) and watch the log output.
 ## Build
 
 Requires a C compiler, make and libpcap. `make install` also downloads the
-OUI database with `curl` unless `oui.txt` is already present in the source
-tree, so it needs network access the first time.
+OUI database unless `oui.txt` is already present in the source tree, so it
+needs network access the first time. It uses `curl` where installed, else
+`fetch` on FreeBSD or `ftp` on OpenBSD and NetBSD, from the base system.
 
 | OS | Install libpcap |
 |----|-----------------|

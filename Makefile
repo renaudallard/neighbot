@@ -50,8 +50,17 @@ oui.txt:
 
 # Download to a temporary file and only replace oui.txt with a non-empty
 # result, so a failed download never leaves an empty or partial file.
+# Use curl where installed, else the fetch(1) of FreeBSD or the ftp(1)
+# of OpenBSD and NetBSD, which all fail on an HTTP error.
+_OUIURL = https://standards-oui.ieee.org/oui/oui.txt
 oui-update:
-	curl -fsSL -o oui.txt.raw https://standards-oui.ieee.org/oui/oui.txt
+	if command -v curl >/dev/null 2>&1; then \
+		curl -fsSL -o oui.txt.raw $(_OUIURL); \
+	elif command -v fetch >/dev/null 2>&1; then \
+		fetch -q -o oui.txt.raw $(_OUIURL); \
+	else \
+		ftp -o oui.txt.raw $(_OUIURL); \
+	fi
 	awk '/\(hex\)/ { gsub(/-/, ":", $$1); v=""; \
 	for (i=3; i<=NF; i++) v = v (i>3?" ":"") $$i; \
 	print tolower($$1) " " v }' oui.txt.raw > oui.txt.tmp

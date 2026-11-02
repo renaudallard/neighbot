@@ -387,6 +387,12 @@ directory:
 0 3 * * * nobody cd /var/neighbot && curl -fsSL -o oui.raw https://standards-oui.ieee.org/oui/oui.txt && awk '/\(hex\)/ { gsub(/-/,":",$1); v=""; for(i=3;i<=NF;i++) v=v(i>3?" ":"")$i; print tolower($1)" "v }' oui.raw > oui.new && test -s oui.new && mv oui.new oui.txt; rm -f oui.raw oui.new
 ```
 
+On Alpine, whose busybox `crond` reads no `/etc/crontab`, add the line
+without the user field to the crontab of `nobody` instead, with
+`crontab -u nobody -e`. Where `curl` is not installed, replace
+`curl -fsSL -o` with `wget -q -O` on Alpine, `fetch -q -o` on FreeBSD or
+`ftp -o` on OpenBSD and NetBSD.
+
 neighbot will pick up the new data on its next restart.
 
 ## Database Format

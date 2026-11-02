@@ -36,10 +36,14 @@
 #include <time.h>
 
 #if defined(__linux__)
+#include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <linux/ethtool.h>
 #include <linux/if_packet.h>
+#include <linux/sockios.h>
 #include <net/if.h>
 #include <stdio.h>
+#include <unistd.h>
 #elif defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__NetBSD__)
 #include <net/if_dl.h>
 #include <sys/ioctl.h>
@@ -848,6 +852,46 @@ sysfs_net_has(const char *name, const char *attr)
 	snprintf(path, sizeof(path), "/sys/class/net/%s/%s", name, attr);
 	return stat(path, &st) == 0;
 }
+
+/*
+ * Whether name is a macvlan, macvtap or ipvlan device whose lower device
+ * is known, written into lower. macvtap uses the macvlan driver.
+ */
+static int
+macvlan_lower(const char *name, char lower[IF_NAMESIZE])
+{
+	struct ethtool_drvinfo info;
+	struct ifreq ifr;
+	char path[128];
+	FILE *f;
+	int s, idx, found = 0;
+
+	s = socket(AF_INET, SOCK_DGRAM, 0);
+	if (s < 0)
+		return 0;
+	memset(&ifr, 0, sizeof(ifr));
+	memset(&info, 0, sizeof(info));
+	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", name);
+	info.cmd = ETHTOOL_GDRVINFO;
+	ifr.ifr_data = (void *)&info;
+	if (ioctl(s, SIOCETHTOOL, &ifr) == 0 &&
+	    (strncmp(info.driver, "macvlan", sizeof(info.driver)) == 0 ||
+	    strncmp(info.driver, "ipvlan", sizeof(info.driver)) == 0))
+		found = 1;
+	close(s);
+	if (!found)
+		return 0;
+
+	/* iflink is the interface index of the lower device */
+	snprintf(path, sizeof(path), "/sys/class/net/%s/iflink", name);
+	f = fopen(path, "r");
+	if (f == NULL)
+		return 0;
+	found = fscanf(f, "%d", &idx) == 1 && idx > 0 &&
+	    if_indextoname((unsigned)idx, lower) != NULL;
+	fclose(f);
+	return found;
+}
 #endif
 
 int
@@ -905,6 +949,21 @@ capture_open_all(struct iface *ifaces, int max)
 			log_msg("skipping %s (bridge port or bond slave)",
 			    dev->name);
 			continue;
+		}
+
+		/* Skip macvlan, macvtap and ipvlan devices for the same
+		 * reason: their lower device carries the frames they send and
+		 * receive. Keep one whose lower device is a VLAN trunk skipped
+		 * above, as it is then the only view of untagged traffic. */
+		{
+			char lower[IF_NAMESIZE];
+
+			if (!cfg.iface && macvlan_lower(dev->name, lower) &&
+			    !is_vlan_parent(lower, vlan_parents, nparents)) {
+				log_msg("skipping %s (macvlan or ipvlan on %s)",
+				    dev->name, lower);
+				continue;
+			}
 		}
 #endif
 

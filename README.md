@@ -531,59 +531,54 @@ Crashes and slow inputs are written to the current directory.
    ignoring the capture sources it also lists that are not network
    interfaces (D-Bus, Bluetooth, USB, netfilter), which are never opened,
    skipping VLAN trunk parents that have subinterfaces and no address
-   besides link-local ones, and on Linux
-   bridge ports and bonding slaves (seen through the bridge or bond device,
-   a bridge being captured in promiscuous mode to see unicast between its
-   ports) and macvlan and macvtap devices (seen through their lower
-   device, unless it is a skipped trunk or in another network namespace,
-   as for a container); ipvlan devices are kept, as unicast between two
-   of them never reaches their lower device. On OpenBSD, carp(4)
-   interfaces are skipped too (seen through their parent, unless it is a
-   skipped trunk)
+   besides link-local ones, and on Linux bridge ports and bonding slaves
+   (seen through the bridge or bond device, a bridge being captured in
+   promiscuous mode to see unicast between its ports) and macvlan and
+   macvtap devices (seen through their lower device, unless it is a skipped
+   trunk or in another network namespace, as for a container); ipvlan
+   devices are kept, as unicast between two of them never reaches their
+   lower device. On OpenBSD, carp(4) interfaces are skipped too (seen
+   through their parent, unless it is a skipped trunk)
 2. Opens one pcap handle per interface with a BPF filter matching ARP, ND
    messages (ICMPv6 types 133 to 137), and IPv6 packets that start with a
    hop-by-hop, routing or destination options header, which the parser
-   walks, however many there are, so that ND hidden behind them (an
-   RA-Guard evasion) is seen, or that are the first fragment of a packet,
-   reported when they carry ND; the same is matched inside 802.1Q or 802.1ad
-   priority tags (VLAN ID 0), however many are stacked, which hosts treat
-   as untagged. Frames are captured whole up to 9216 bytes, or to the MTU
-   the interface has at startup when larger, as a bridge or a VLAN
-   interface also receives frames as large as a port or parent with a
-   larger MTU takes; an ND message cut short is ignored,
-   as it cannot be checked, but one followed by an Ethernet trailer that
-   was cut is read, and so is ARP
+   walks, however many there are, so that ND hidden behind them (an RA-Guard
+   evasion) is seen, or that are the first fragment of a packet, reported
+   when they carry ND; the same is matched inside 802.1Q or 802.1ad priority
+   tags (VLAN ID 0), however many are stacked, which hosts treat as
+   untagged. Frames are captured whole up to 9216 bytes, or to the MTU the
+   interface has at startup when larger, as a bridge or a VLAN interface
+   also receives frames as large as a port or parent with a larger MTU
+   takes; an ND message cut short is ignored, as it cannot be checked, but
+   one followed by an Ethernet trailer that was cut is read, and so is ARP
 3. Main loop: `poll()` on all handles (1s timeout)
-4. **ARP**: extracts sender IP + MAC from ARP messages (skips probes,
-   and multicast and broadcast senders, the broadcast address of a subnet
-   of the interface included, which hosts never learn; 240/4 senders are
-   kept, as hosts use them, and so is ARP for any target and of any
-   opcode, as the BSDs and macOS update the sender's entry from all of
-   them);
-   any hardware type with 6-byte addresses is accepted, as FreeBSD and
-   NetBSD honour more than Ethernet, and so is the protocol type of IP
-   trailers (0x1000), which NetBSD takes as IPv4
+4. **ARP**: extracts sender IP + MAC from ARP messages (skips probes, and
+   multicast and broadcast senders, the broadcast address of a subnet of the
+   interface included, which hosts never learn; 240/4 senders are kept, as
+   hosts use them, and so is ARP for any target and of any opcode, as the
+   BSDs and macOS update the sender's entry from all of them); any hardware
+   type with 6-byte addresses is accepted, as FreeBSD and NetBSD honour more
+   than Ethernet, and so is the protocol type of IP trailers (0x1000), which
+   NetBSD takes as IPv4
 5. **NDP**: parses Neighbor Advertisements (type 136) and Solicitations
    (type 135) for link-layer address options (skips DAD; a message without
    one only refreshes the entry already recorded with its Ethernet source,
-   as hosts learn no address from it); Router
-   Advertisements (type 134) feed on-link prefixes to the bogon filter, and
-   their source address and Source Link-Layer Address are recorded like a
-   neighbor's, as are those of Router Solicitations (type 133), so a forged
-   advertisement taking over the router's address is reported; the target
-   and Target Link-Layer Address of a Redirect (type 137), which hosts
-   store in their neighbor cache, are recorded like an advertisement's.
-   Only the IPv6 payload is parsed: bytes after it are ignored, as hosts do,
-   and so are messages with a code other than 0, a bad checksum or
-   malformed options (one of length 0, or a link-layer address that is not
-   6 bytes), advertisements to a multicast address with the Solicited
-   flag, solicitations for a multicast, `::` or `::1` target, and packets
-   hosts drop before ND sees them (another IP
+   as hosts learn no address from it); Router Advertisements (type 134) feed
+   on-link prefixes to the bogon filter, and their source address and Source
+   Link-Layer Address are recorded like a neighbor's, as are those of Router
+   Solicitations (type 133), so a forged advertisement taking over the
+   router's address is reported; the target and Target Link-Layer Address of
+   a Redirect (type 137), which hosts store in their neighbor cache, are
+   recorded like an advertisement's. Only the IPv6 payload is parsed: bytes
+   after it are ignored, as hosts do, and so are messages with a code other
+   than 0, a bad checksum or malformed options (one of length 0, or a
+   link-layer address that is not 6 bytes), advertisements to a multicast
+   address with the Solicited flag, solicitations for a multicast, `::` or
+   `::1` target, and packets hosts drop before ND sees them (another IP
    version, a loopback or multicast source, a destination of `::` or of
-   multicast scope 0) or for their extension headers (a
-   hop-by-hop header after the first, an option that asks for the packet
-   to be discarded or runs past a destination options header, a Router
-   Alert of the wrong
+   multicast scope 0) or for their extension headers (a hop-by-hop header
+   after the first, an option that asks for the packet to be discarded or
+   runs past a destination options header, a Router Alert of the wrong
    length, a routing header with segments left); stricter checks of one
    kernel only, such as the padding and option count limits of Linux, are
    not made, as other hosts take those packets

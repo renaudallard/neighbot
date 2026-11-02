@@ -458,7 +458,9 @@ When combined with
 .Fl m ,
 the pledge is
 .Cm stdio proc exec
-to allow sendmail execution.
+to allow sendmail execution, unless
+.Fl q
+is given too, which prints the report instead.
 .Pp
 Each notification is delivered by a short-lived child process that
 performs a reverse DNS lookup and execs

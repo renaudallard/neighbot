@@ -1338,6 +1338,89 @@ test_nd_ip6_header(void)
 	}
 }
 
+/* hosts drop an ND message behind a hop-by-hop header that is not the
+ * first, an option they must discard or one breaking the padding, count
+ * or Router Alert rules, or a routing header with segments left or not
+ * in a unicast frame and packet; they process the rest */
+static void
+test_ext_header_rules(void)
+{
+	static const struct {
+		const char *name;
+		int         mcast, bcast, n, want;
+		struct {
+			uint8_t type, len, data[22];
+		} h[2];
+	} cases[] = {
+		{ "hbh first", 0, 0, 1, 1, { { 0, 6, { 1, 4 } } } },
+		{ "hbh second", 0, 0, 2, 0,
+		    { { 60, 6, { 1, 4 } }, { 0, 6, { 1, 4 } } } },
+		{ "hbh twice", 0, 0, 2, 0,
+		    { { 0, 6, { 1, 4 } }, { 0, 6, { 1, 4 } } } },
+		{ "skip option", 0, 0, 1, 1, { { 60, 6, { 0x0f, 4 } } } },
+		{ "discard option", 0, 0, 1, 0, { { 60, 6, { 0x4f, 4 } } } },
+		{ "icmp option", 0, 0, 1, 0, { { 60, 6, { 0x8f, 4 } } } },
+		{ "icmp option to multicast", 1, 0, 1, 0,
+		    { { 60, 6, { 0xcf, 4 } } } },
+		{ "14 bytes of PadN", 0, 0, 1, 0, { { 60, 14, { 1, 12 } } } },
+		{ "PadN not zero", 0, 0, 1, 0, { { 60, 6, { 1, 4, 0, 0, 0, 1 } } } },
+		{ "9 options", 0, 0, 1, 0, { { 60, 22, { 0x0f, 0, 0x0f, 0,
+		    0x0f, 0, 0x0f, 0, 0x0f, 0, 0x0f, 0, 0x0f, 0, 0x0f, 0,
+		    0x0f, 0, 1, 2 } } } },
+		{ "router alert of 4", 0, 0, 1, 0, { { 0, 6, { 5, 4 } } } },
+		{ "router alert of 2", 0, 0, 1, 1,
+		    { { 0, 6, { 5, 2, 0, 0, 1, 0 } } } },
+		{ "routing, none left", 0, 0, 1, 1, { { 43, 6, { 0, 0 } } } },
+		{ "routing, one left", 0, 0, 1, 0, { { 43, 6, { 0, 1 } } } },
+		{ "routing to multicast", 1, 0, 1, 0, { { 43, 6, { 0, 0 } } } },
+		{ "routing in broadcast", 0, 1, 1, 0, { { 43, 6, { 0, 0 } } } },
+		{ "segment routing", 0, 0, 1, 1, { { 43, 6, { 4, 0 } } } },
+	};
+	static uint8_t pkt[200];
+	uint8_t tgt[16];
+	uint8_t mac[6] = { 0x02, 0, 0, 0, 0, 0x54 };
+
+	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		size_t o = 54;
+
+		inet_pton(AF_INET6, "2001:db8:9::5400", tgt);
+		tgt[15] = (uint8_t)i;
+		memset(pkt, 0, sizeof(pkt));
+		if (cases[i].bcast)
+			memset(pkt, 0xff, 6);
+		else
+			pkt[0] = 0x02;
+		if (cases[i].mcast) {
+			pkt[0] = 0x33; pkt[1] = 0x33; pkt[5] = 0x01;
+		}
+		memcpy(pkt + 6, mac, 6);
+		pkt[12] = 0x86; pkt[13] = 0xdd;
+		pkt[14] = 0x60; pkt[20] = cases[i].h[0].type; pkt[21] = 255;
+		inet_pton(AF_INET6, "2001:db8:9::99", pkt + 22);
+		inet_pton(AF_INET6, cases[i].mcast ? "ff02::1" : "2001:db8:9::1",
+		    pkt + 38);
+		for (int j = 0; j < cases[i].n; j++) {
+			pkt[o] = j + 1 < cases[i].n ? cases[i].h[j + 1].type : 58;
+			pkt[o + 1] = (uint8_t)((2 + cases[i].h[j].len) / 8 - 1);
+			memcpy(pkt + o + 2, cases[i].h[j].data, cases[i].h[j].len);
+			o += 2 + cases[i].h[j].len;
+		}
+		pkt[o] = 136; pkt[o + 4] = 0x20;
+		memcpy(pkt + o + 8, tgt, 16);
+		pkt[o + 24] = 2; pkt[o + 25] = 1;
+		memcpy(pkt + o + 26, mac, 6);
+		o += 32;
+		pkt[18] = (uint8_t)((o - 54) >> 8);
+		pkt[19] = (uint8_t)(o - 54);
+		feed(pkt, o);
+		if (db_known(AF_INET6, tgt, mac, "test0") != cases[i].want) {
+			fprintf(stderr, "FAIL: NA behind %s %s\n", cases[i].name,
+			    cases[i].want ? "was dropped" : "was processed");
+			exit(1);
+		}
+	}
+}
+
 /* hosts drop an NA with the Solicited flag sent to a multicast address,
  * but take one sent to a unicast address */
 static void
@@ -1829,6 +1912,7 @@ main(void)
 	test_nd_payload_length();
 	test_nd_code_and_checksum();
 	test_nd_ip6_header();
+	test_ext_header_rules();
 	test_na_solicited_multicast();
 	test_ns_special_target();
 	test_na_unspecified_source();

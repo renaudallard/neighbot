@@ -705,9 +705,60 @@ next:
 	}
 }
 
+/*
+ * Check the options of the hop-by-hop or destination options header at
+ * off, hlen bytes long, as Linux does: padding of 7 bytes at most, made
+ * of zeros, at most 8 other options, a Router Alert of 2 bytes, and no
+ * unknown option whose type says to discard the packet. Returns 0 when
+ * hosts drop it. Checks that depend on the kernel version or settings
+ * (IOAM, CALIPSO) are left out: a host that takes the packet must not
+ * be missed.
+ */
+static int
+ip6_opts_ok(const u_char *pkt, size_t off, size_t hlen, int hopopts)
+{
+	size_t i = off + 2, end = off + hlen, olen;
+	int padlen = 0, count = 0;
+
+	while (i < end) {
+		if (pkt[i] == IP6OPT_PAD1) {
+			if (++padlen > 7)
+				return 0;
+			i++;
+			continue;
+		}
+		if (end - i < 2)
+			return 0;
+		olen = (size_t)pkt[i + 1] + 2;
+		if (olen > end - i)
+			return 0;
+		if (pkt[i] == IP6OPT_PADN) {
+			padlen += (int)olen;
+			if (padlen > 7)
+				return 0;
+			for (size_t j = 2; j < olen; j++)
+				if (pkt[i + j] != 0)
+					return 0;
+		} else {
+			if (++count > 8)
+				return 0;
+			if (hopopts && pkt[i] == IP6OPT_ROUTER_ALERT &&
+			    olen != 4)
+				return 0;
+			/* the two high bits of the type: 00 skips an
+			 * unknown option, the others drop the packet */
+			if ((pkt[i] >> 6) != 0)
+				return 0;
+			padlen = 0;
+		}
+		i += olen;
+	}
+	return 1;
+}
+
 static void
 parse_ndp(const u_char *pkt, size_t len, const char *iface,
-          const uint8_t *eth_src)
+          const struct ether_header *eh)
 {
 	struct ip6_hdr ip6;
 	const uint8_t *icmp, *src, *dst;
@@ -759,10 +810,30 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 	icmp_off = sizeof(struct ip6_hdr);
 	while (nxt == IPPROTO_HOPOPTS || nxt == IPPROTO_ROUTING ||
 	    nxt == IPPROTO_DSTOPTS) {
+		size_t hlen;
+
 		if (len < icmp_off + 2)
 			return;
+		hlen = ((size_t)pkt[icmp_off + 1] + 1) * 8;
+		if (len < icmp_off + hlen)
+			return;
+		/* Hosts drop the packet when a hop-by-hop header is not
+		 * the first, or its options or those of a destination
+		 * header fail ip6_opts_ok(). A routing header must have no
+		 * segments left and come in a unicast frame and packet;
+		 * its type is not checked, as a host may have segment
+		 * routing enabled. */
+		if (nxt == IPPROTO_ROUTING) {
+			if (pkt[icmp_off + 3] != 0 || dst[0] == 0xff ||
+			    (eh->ether_dhost[0] & 0x01))
+				return;
+		} else if ((nxt == IPPROTO_HOPOPTS &&
+		    icmp_off != sizeof(struct ip6_hdr)) ||
+		    !ip6_opts_ok(pkt, icmp_off, hlen,
+		    nxt == IPPROTO_HOPOPTS))
+			return;
 		nxt = pkt[icmp_off];
-		icmp_off += ((size_t)pkt[icmp_off + 1] + 1) * 8;
+		icmp_off += hlen;
 	}
 	if (nxt != IPPROTO_ICMPV6)
 		return;
@@ -874,7 +945,7 @@ parse_ndp(const u_char *pkt, size_t len, const char *iface,
 	if (!mac) {
 		if (type == ND_REDIRECT)
 			return;
-		mac = eth_src;
+		mac = eh->ether_shost;
 	}
 
 	/* skip multicast IPs (ff00::/8) */
@@ -950,5 +1021,5 @@ parse_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt)
 	if (etype == ETHERTYPE_ARP)
 		parse_arp(pkt + off, len - off, iface);
 	else if (etype == ETHERTYPE_IPV6 && hdr->caplen >= hdr->len)
-		parse_ndp(pkt + off, len - off, iface, eh->ether_shost);
+		parse_ndp(pkt + off, len - off, iface, eh);
 }

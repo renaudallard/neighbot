@@ -259,13 +259,15 @@ handle_event(int event, int af, const uint8_t *ip, const uint8_t *mac,
 				    others[i].ip))
 					continue;
 				/* on a temporary address rotation the older
-				 * temporaries in this /64 on this link are
-				 * expected to fall silent: probing them would
-				 * only report each one as moved. The stale
-				 * non-EUI-64 sweep reaps them instead. */
+				 * temporaries on this link, in this /64 or in
+				 * another one such as a ULA prefix next to a
+				 * global one, expire on their own: probing
+				 * one would only report it as moved. The
+				 * stale non-EUI-64 sweep reaps them instead,
+				 * and a non-EUI-64 address that is not
+				 * temporary would only answer. */
 				if (temp_rotate && others[i].af == AF_INET6 &&
 				    strcmp(others[i].iface, iface) == 0 &&
-				    memcmp(others[i].ip, ip, 8) == 0 &&
 				    !is_eui64(others[i].ip, mac))
 					continue;
 				probe_schedule(others[i].af, others[i].ip,

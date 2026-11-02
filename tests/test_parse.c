@@ -854,6 +854,18 @@ test_temp_rotation_probes(void)
 		    probe_schedule_calls);
 		exit(1);
 	}
+
+	/* a temporary in a ULA prefix next to the global one is not
+	 * probed either: once expired it would be reported as moved */
+	feed_na(mac, "fd00:5::bbbb:1");
+	probe_schedule_calls = 0;
+	feed_na(mac, "2001:db8:5::aaaa:3");      /* rotation */
+	if (probe_schedule_calls != 1) {
+		fprintf(stderr, "FAIL: temp rotation scheduled %d probes, "
+		    "want 1 (not the ULA temporary)\n",
+		    probe_schedule_calls);
+		exit(1);
+	}
 	cfg.probe = saved_probe;
 }
 

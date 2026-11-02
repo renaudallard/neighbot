@@ -119,7 +119,9 @@ purely passive.
 .Pp
 When an IPv6 temporary address (RFC 4941) rotates, the new address
 is not reported as a new station; older temporary addresses are not
-probed, and are reaped later by the stale non-EUI-64 sweep (see
+probed, nor are the device's other non-EUI-64 addresses on that
+interface, such as temporaries in a ULA prefix next to the global one,
+and they are reaped later by the stale non-EUI-64 sweep (see
 .Sx OBSOLETE ADDRESS CLEANUP ) .
 This also covers link-local address rotation on devices with
 randomized MACs, although link-local entries are only removed by

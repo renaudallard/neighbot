@@ -213,8 +213,10 @@ interface and suppresses
 the "new station" email. Older temporary addresses are not dropped at that
 point, since a spoofed address from the owner's MAC could otherwise clear
 the way for another MAC to take one over unreported. They are not probed
-either, since they are expected to fall silent, and are reaped by the stale
-non-EUI-64 sweep below. This also covers link-local address rotation
+either, nor are the device's other non-EUI-64 addresses on that interface,
+such as temporaries in a ULA prefix next to the global one, since they
+expire on their own, and they are reaped by the stale non-EUI-64 sweep
+below. This also covers link-local address rotation
 (common on devices with randomized MACs), although link-local entries are
 only removed by `-e` idle expiration. At most 256 addresses per MAC
 are tracked; a flood of addresses under one MAC beyond that is ignored

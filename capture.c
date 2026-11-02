@@ -872,7 +872,7 @@ capture_open_all(struct iface *ifaces, int max)
 	for (dev = alldevs; dev && count < max; dev = dev->next) {
 		pcap_t *p;
 		struct bpf_program bpf;
-		int dlt;
+		int dlt, promisc;
 
 		/* skip loopback */
 		if (dev->flags & PCAP_IF_LOOPBACK)
@@ -919,20 +919,25 @@ capture_open_all(struct iface *ifaces, int max)
 			continue;
 		}
 
-		pcap_set_snaplen(p, SNAP_LEN);
 #if defined(__linux__)
 		/* a bridge device only receives the unicast frames meant for
 		 * the host; in promiscuous mode it also gets those forwarded
 		 * between its ports, such as a spoofed ARP reply to one host */
-		pcap_set_promisc(p, sysfs_net_has(dev->name, "bridge"));
+		promisc = sysfs_net_has(dev->name, "bridge");
 #else
-		pcap_set_promisc(p, 0);
+		promisc = 0;
 #endif
-		pcap_set_timeout(p, POLL_TIMEOUT_MS);
-
 		/* immediate mode: deliver packets to poll() without
 		 * waiting for BPF buffer timeout (needed on BSDs) */
-		pcap_set_immediate_mode(p, 1);
+		if (pcap_set_snaplen(p, SNAP_LEN) != 0 ||
+		    pcap_set_promisc(p, promisc) != 0 ||
+		    pcap_set_timeout(p, POLL_TIMEOUT_MS) != 0 ||
+		    pcap_set_immediate_mode(p, 1) != 0) {
+			log_err("pcap_set(%s): cannot set capture options",
+			    dev->name);
+			pcap_close(p);
+			continue;
+		}
 
 		if (pcap_activate(p) < 0) {
 			log_err("pcap_activate(%s): %s", dev->name,

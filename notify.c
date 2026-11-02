@@ -76,7 +76,7 @@ close_inherited_fds(void)
 
 /*
  * Number of notification children currently running. Each notify_*
- * call forks one child that does reverse DNS and execs sendmail. A
+ * call forks one child that does reverse DNS and runs sendmail. A
  * flood of events (e.g. spoofed in-subnet ARP) could otherwise spawn
  * children at packet rate, so refuse to fork past NOTIFY_MAX_INFLIGHT.
  */

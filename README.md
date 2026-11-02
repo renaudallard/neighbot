@@ -532,7 +532,9 @@ Crashes and slow inputs are written to the current directory.
    walks, however many there are, so that ND hidden behind them (an
    RA-Guard evasion) is seen; the same is matched inside 802.1Q or 802.1ad
    priority tags (VLAN ID 0), however many are stacked, which hosts treat
-   as untagged
+   as untagged. Frames are captured whole up to the MTU the interface has
+   at startup, jumbo frames included; an ND message in a frame cut short
+   is ignored, as it cannot be checked, but ARP is still read from it
 3. Main loop: `poll()` on all handles (1s timeout)
 4. **ARP**: extracts sender IP + MAC from requests/replies (skips probes,
    and other opcodes, which hosts ignore);

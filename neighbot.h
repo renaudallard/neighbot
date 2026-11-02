@@ -46,7 +46,8 @@
 #define HT_BUCKETS      1024
 #define MAX_ENTRIES      100000
 #define MAX_IFACES       64
-#define SNAP_LEN         9216               /* whole jumbo frames fit */
+#define SNAP_HDR         32                 /* Ethernet header and tags */
+#define SNAP_LEN         (65535 + SNAP_HDR) /* frames of the largest MTU */
 #define POLL_TIMEOUT_MS  1000
 #define MAX_SUBNETS      256
 #define MAX_LEARNED_SUBNETS 64

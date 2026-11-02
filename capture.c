@@ -927,6 +927,31 @@ macvlan_lower(const char *name, char lower[IF_NAMESIZE])
 }
 #endif
 
+/*
+ * The snap length for name: room for its MTU, the Ethernet header and
+ * VLAN tags, as hosts take ARP and ND from any frame their interface
+ * receives. No more: the capture ring of Linux keeps a slot of that size
+ * for every frame, so a larger one holds fewer frames.
+ */
+static int
+snap_len(const char *name)
+{
+	struct ifreq ifr;
+	int s, mtu = 0;
+
+	s = socket(AF_INET, SOCK_DGRAM, 0);
+	if (s >= 0) {
+		memset(&ifr, 0, sizeof(ifr));
+		snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", name);
+		if (ioctl(s, SIOCGIFMTU, &ifr) == 0)
+			mtu = ifr.ifr_mtu;
+		close(s);
+	}
+	if (mtu <= 0 || mtu > SNAP_LEN - SNAP_HDR)
+		return SNAP_LEN;
+	return mtu + SNAP_HDR;
+}
+
 int
 capture_open_all(struct iface *ifaces, int max)
 {
@@ -1031,7 +1056,7 @@ capture_open_all(struct iface *ifaces, int max)
 #endif
 		/* immediate mode: deliver packets to poll() without
 		 * waiting for BPF buffer timeout (needed on BSDs) */
-		if (pcap_set_snaplen(p, SNAP_LEN) != 0 ||
+		if (pcap_set_snaplen(p, snap_len(dev->name)) != 0 ||
 		    pcap_set_promisc(p, promisc) != 0 ||
 		    pcap_set_timeout(p, POLL_TIMEOUT_MS) != 0 ||
 		    pcap_set_immediate_mode(p, 1) != 0) {

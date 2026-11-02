@@ -875,21 +875,17 @@ parse_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt)
 {
 	const char *iface = (const char *)user;
 	const struct ether_header *eh;
-	_Alignas(8) u_char frame[SNAP_LEN];
+	static _Alignas(8) u_char frame[SNAP_LEN];
 	uint16_t etype;
 	size_t len = hdr->caplen, off;
 
-	if (len < sizeof(struct ether_header))
-		return;
-	/* a frame cut short by the snap length could hide the NDP option
-	 * carrying the real link-layer address, and the Ethernet source
-	 * would be recorded instead; skip it */
-	if (hdr->caplen < hdr->len || len > sizeof(frame))
+	if (len < sizeof(struct ether_header) || len > sizeof(frame))
 		return;
 
-	/* Parse a private copy. On Linux the capture buffer is a ring
-	 * shared with the kernel, and a forked notification child would
-	 * otherwise read addresses from a slot the kernel has reused. */
+	/* Parse a private copy, static as a whole frame is too large for
+	 * the stack. On Linux the capture buffer is a ring shared with the
+	 * kernel, and a forked notification child would otherwise read
+	 * addresses from a slot the kernel has reused. */
 	memcpy(frame, pkt, len);
 	pkt = frame;
 
@@ -909,8 +905,12 @@ parse_packet(u_char *user, const struct pcap_pkthdr *hdr, const u_char *pkt)
 		off += 4;
 	}
 
+	/* An ND message cut short by the snap length cannot be checked: its
+	 * checksum covers all of it, and the part cut off may hold the
+	 * option with the real link-layer address. An ARP message is whole
+	 * at the start of the frame, whatever follows it. */
 	if (etype == ETHERTYPE_ARP)
 		parse_arp(pkt + off, len - off, iface);
-	else if (etype == ETHERTYPE_IPV6)
+	else if (etype == ETHERTYPE_IPV6 && hdr->caplen >= hdr->len)
 		parse_ndp(pkt + off, len - off, iface, eh->ether_shost);
 }

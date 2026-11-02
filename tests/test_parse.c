@@ -163,7 +163,7 @@ feed_raw(const char *iface, const uint8_t *pkt, size_t len)
 static void
 feed_on(const char *iface, const uint8_t *pkt, size_t len)
 {
-	uint8_t buf[SNAP_LEN];
+	static uint8_t buf[SNAP_LEN];
 
 	if (len > sizeof(buf)) {
 		feed_raw(iface, pkt, len);
@@ -179,6 +179,8 @@ feed(const uint8_t *pkt, size_t len)
 {
 	feed_on("test0", pkt, len);
 }
+
+static void build_na(uint8_t *, const uint8_t *, const uint8_t *);
 
 /* valid ARP request: 192.168.1.100 -> 192.168.1.1 */
 static void
@@ -902,13 +904,15 @@ test_known_not_bogon(void)
 	cfg.quiet = saved_quiet;
 }
 
-/* a frame cut by the snap length (caplen < len) is ignored, since an
- * option past the cut may carry the real link-layer address */
+/* A frame cut short by the snap length: ARP is whole at its start and is
+ * processed, but ND is not, as the cut may have taken the option with
+ * the real link-layer address and its checksum cannot be checked */
 static void
 test_snap_truncated(void)
 {
 	struct pcap_pkthdr hdr;
-	uint8_t pkt[42];
+	uint8_t pkt[86], tgt[16];
+	uint8_t mac[6] = { 0x02, 0, 0, 0, 0, 0x31 };
 	int saved_quiet = cfg.quiet;
 	int before;
 
@@ -922,15 +926,52 @@ test_snap_truncated(void)
 	pkt[28] = 10; pkt[29] = 31; pkt[30] = 0; pkt[31] = 1;
 
 	memset(&hdr, 0, sizeof(hdr));
-	hdr.caplen = sizeof(pkt);
-	hdr.len = sizeof(pkt) + 100;
+	hdr.caplen = 42;
+	hdr.len = 42 + 9000;
 	before = notify_new_calls;
 	parse_packet((u_char *)"test0", &hdr, pkt);
-	if (notify_new_calls != before) {
-		fprintf(stderr, "FAIL: truncated frame was processed\n");
+	if (notify_new_calls != before + 1) {
+		fprintf(stderr, "FAIL: truncated ARP frame was dropped\n");
+		exit(1);
+	}
+
+	inet_pton(AF_INET6, "2001:db8:9::31", tgt);
+	build_na(pkt, tgt, mac);
+	nd_fix_cksum(pkt, sizeof(pkt));
+	hdr.caplen = sizeof(pkt);
+	hdr.len = sizeof(pkt) + 100;
+	parse_packet((u_char *)"test0", &hdr, pkt);
+	if (db_known(AF_INET6, tgt, mac, "test0")) {
+		fprintf(stderr, "FAIL: truncated NA was processed\n");
 		exit(1);
 	}
 	cfg.quiet = saved_quiet;
+}
+
+/* hosts take ND from any frame their link carries, so an NA in a frame
+ * over 9216 bytes, padded with unknown options, must be parsed whole */
+static void
+test_jumbo_frame(void)
+{
+	static uint8_t pkt[86 + 5 * 2040];
+	uint8_t tgt[16];
+	uint8_t mac[6] = { 0x02, 0, 0, 0, 0, 0x50 };
+	size_t plen = sizeof(pkt) - 54;
+
+	inet_pton(AF_INET6, "2001:db8:9::50", tgt);
+	build_na(pkt, tgt, mac);
+	for (int i = 0; i < 5; i++) {
+		pkt[86 + i * 2040] = 250;        /* unassigned type */
+		pkt[87 + i * 2040] = 255;        /* 2040 bytes */
+	}
+	pkt[18] = (uint8_t)(plen >> 8);
+	pkt[19] = (uint8_t)plen;
+	feed(pkt, sizeof(pkt));
+	if (!db_known(AF_INET6, tgt, mac, "test0")) {
+		fprintf(stderr, "FAIL: NA in a %zu-byte frame was dropped\n",
+		    sizeof(pkt));
+		exit(1);
+	}
 }
 
 /* ARP with hardware type 6 (IEEE 802) is processed like Ethernet */
@@ -1610,6 +1651,7 @@ main(void)
 	test_temp_rotation_probes();
 	test_known_not_bogon();
 	test_snap_truncated();
+	test_jumbo_frame();
 	test_arp_hwtype6();
 	test_broadcast_mac_claim();
 	test_ra_rs_lladdr();

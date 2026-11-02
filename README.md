@@ -523,7 +523,8 @@ Crashes and slow inputs are written to the current directory.
    bridge ports and bonding slaves (seen through the bridge or bond device,
    a bridge being captured in promiscuous mode to see unicast between its
    ports) and macvlan, macvtap and ipvlan devices (seen through their lower
-   device, unless it is a skipped trunk)
+   device, unless it is a skipped trunk or in another network namespace,
+   as for a container)
 2. Opens one pcap handle per interface with a BPF filter matching ARP, ND
    messages (ICMPv6 types 133 to 137), and IPv6 packets that start with a
    hop-by-hop, routing or destination options header, which the parser

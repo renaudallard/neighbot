@@ -890,7 +890,7 @@ macvlan_lower(const char *name, char lower[IF_NAMESIZE])
 {
 	struct ethtool_drvinfo info;
 	struct ifreq ifr;
-	char path[128];
+	char path[128], attr[IF_NAMESIZE + 6];
 	FILE *f;
 	int s, idx, found = 0;
 
@@ -910,7 +910,10 @@ macvlan_lower(const char *name, char lower[IF_NAMESIZE])
 	if (!found)
 		return 0;
 
-	/* iflink is the interface index of the lower device */
+	/* iflink is the interface index of the lower device, but in the
+	 * network namespace of that device: in a container it can name
+	 * another interface, or this one. The kernel only links the lower
+	 * device in sysfs when both share a namespace, so require it. */
 	snprintf(path, sizeof(path), "/sys/class/net/%s/iflink", name);
 	f = fopen(path, "r");
 	if (f == NULL)
@@ -918,7 +921,10 @@ macvlan_lower(const char *name, char lower[IF_NAMESIZE])
 	found = fscanf(f, "%d", &idx) == 1 && idx > 0 &&
 	    if_indextoname((unsigned)idx, lower) != NULL;
 	fclose(f);
-	return found;
+	if (!found)
+		return 0;
+	snprintf(attr, sizeof(attr), "lower_%s", lower);
+	return sysfs_net_has(name, attr);
 }
 #endif
 

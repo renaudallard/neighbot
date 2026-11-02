@@ -83,7 +83,8 @@ captured in promiscuous mode so that unicast frames forwarded between
 its ports, such as a spoofed ARP reply to one host, are seen too.
 Macvlan, macvtap and ipvlan devices are skipped too, since their
 frames are seen on their lower device, unless that device is a trunk
-skipped as above.
+skipped as above or is in another network namespace, as for a
+container.
 Use
 .Fl i
 to explicitly monitor a trunk interface, bridge port, bond slave or

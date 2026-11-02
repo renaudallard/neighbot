@@ -373,6 +373,34 @@ test_host_mask(void)
 	return 0;
 }
 
+/* an RA prefix holding one of the host's addresses is configured, even
+ * when that address is a /128 lease and no subnet contains the prefix */
+static int
+test_prefix_configured(void)
+{
+	uint8_t lease[16] = { 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0,
+	                      0, 0, 0, 0, 0, 0, 0x12, 0x34 };
+	uint8_t pfx[16] = { 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0,
+	                    0, 0, 0, 0, 0, 0, 0, 0 };
+	uint8_t other[16] = { 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0x01,
+	                      0, 0, 0, 0, 0, 0, 0, 0 };
+
+	capture_reset_subnets();
+	capture_reset_own_ips();
+	capture_add_own_ip("eth0", AF_INET6, lease);
+
+	ASSERT(capture_prefix_configured("eth0", AF_INET6, pfx, 64) == 1,
+	       "prefix holding the lease should count as configured");
+	ASSERT(capture_prefix_configured("eth0", AF_INET6, other, 64) == 0,
+	       "another prefix should not count as configured");
+	ASSERT(capture_prefix_configured("eth1", AF_INET6, pfx, 64) == 0,
+	       "the lease of eth0 should not count on eth1");
+
+	capture_reset_own_ips();
+	printf("  prefix_configured: ok\n");
+	return 0;
+}
+
 #if defined(__linux__)
 
 #define VLAN_TMP "tmp/test_vlan_parents.tmp"
@@ -485,6 +513,7 @@ main(void)
 	rc |= test_is_local_any();
 	rc |= test_learned_subnet();
 	rc |= test_host_mask();
+	rc |= test_prefix_configured();
 
 #if defined(__linux__)
 	rc |= test_vlan_parents_basic();

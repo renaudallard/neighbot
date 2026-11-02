@@ -223,8 +223,8 @@ interface.
 The prefix is added to the per-interface list of known subnets so
 that addresses within it are no longer reported as bogons.
 An email is sent when a prefix is learned on an interface, unless it
-lies inside a subnet configured on that interface (it is then only
-logged); refreshes of a live prefix are silent, but a prefix that expired, was withdrawn
+lies inside a subnet configured on that interface or holds one of its
+addresses, such as a /128 DHCPv6 lease (it is then only logged); refreshes of a live prefix are silent, but a prefix that expired, was withdrawn
 or was evicted from the table is reported again when re-announced.
 Prefixes expire after the RA valid-lifetime (capped at 7 days), and a
 prefix re-advertised with the L flag and a zero valid-lifetime is

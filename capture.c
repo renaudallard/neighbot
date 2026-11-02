@@ -588,12 +588,23 @@ is_local(const char *iface, int af, const uint8_t *ip)
 	return !has_subnet;
 }
 
-/* Whether prefix/prefix_len lies inside a subnet configured on iface. */
+/* Whether prefix/prefix_len lies inside a subnet configured on iface, or
+ * holds one of the addresses of iface, as with a /128 DHCPv6 lease. */
 int
 capture_prefix_configured(const char *iface, int af, const uint8_t *prefix,
                           int prefix_len)
 {
 	int alen = ip_len(af);
+	uint8_t mask[16];
+
+	prefix_to_mask(af, prefix_len, mask);
+	for (int i = 0; i < own_ip_count; i++) {
+		struct local_ip *l = &own_ips[i];
+
+		if (l->af == af && strcmp(l->iface, iface) == 0 &&
+		    net_match(af, l->ip, prefix, mask))
+			return 1;
+	}
 
 	for (int i = 0; i < subnet_count; i++) {
 		struct subnet *s = &subnets[i];

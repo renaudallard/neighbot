@@ -62,10 +62,10 @@ This is independent of probe-driven cleanup, which always removes
 entries whose IP no longer responds at the recorded MAC.
 With fewer than 180
 .Ar days ,
-no
-.Em reappeared
-event can occur: a station back after a long silence has lost its
-entry already and is reported as a new station.
+a station back after a long silence has lost its entry already and is
+reported as a new station, unless it is back before the first check,
+normally an hour after the start, when it can still be reported as
+.Em reappeared .
 .It Fl f Ar dbfile
 Path to the database file.
 If the file exists but cannot be read in full,

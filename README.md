@@ -145,7 +145,7 @@ neighbot [-B seconds] [-d] [-e days] [-f dbfile] [-i iface] [-m mailto] [-o ouif
 |------|-------------|
 | `-B seconds` | Bogon and fragment log and notification cooldown in seconds (default: 1800). Set to 0 to disable the per-address cooldown (a global flood cap still applies) |
 | `-d` | Daemonize (log to syslog instead of stderr; errors before detaching are printed on stderr too) |
-| `-e days` | Drop entries unseen for more than `days` days (checked hourly). 0 disables (default); the 7-day stale non-EUI-64 IPv6 sweep runs regardless. Below 180, a station back after a long silence is reported as new, as its entry is gone before it could reappear |
+| `-e days` | Drop entries unseen for more than `days` days (checked hourly). 0 disables (default); the 7-day stale non-EUI-64 IPv6 sweep runs regardless. Below 180, a station back after a long silence is reported as new, as its entry is gone already, unless it is back before the first check, normally an hour after the start |
 | `-f dbfile` | Database file (default: `/var/neighbot/neighbot.csv`) |
 | `-i iface` | Monitor only this interface (default: all Ethernet interfaces) |
 | `-m mailto` | Email recipient (default: `root`) |

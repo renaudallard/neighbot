@@ -183,6 +183,43 @@ test_c1_and_utf8(void)
 	unlink(TEST_TMP);
 }
 
+/* sequences RFC 3629 forbids are replaced: an overlong form of a C1
+ * control, a UTF-16 surrogate, a code point past U+10FFFF and an
+ * overlong 4-byte form; valid 3- and 4-byte characters are kept */
+static void
+test_invalid_utf8(void)
+{
+	static const struct {
+		const char *in, *out;
+	} c[] = {
+		{ "A\340\202\233B", "A???B" },          /* overlong U+009B */
+		{ "A\355\240\200B", "A???B" },          /* surrogate U+D800 */
+		{ "A\364\220\200\200B", "A????B" },     /* U+110000 */
+		{ "A\360\200\200\200B", "A????B" },     /* overlong U+0000 */
+		{ "A\342\202\254B", "A\342\202\254B" }, /* U+20AC */
+		{ "A\360\237\230\200B", "A\360\237\230\200B" }, /* U+1F600 */
+	};
+	char buf[64];
+
+	for (size_t i = 0; i < sizeof(c) / sizeof(c[0]); i++) {
+		uint8_t mac[6] = { 0xaa, 0xbb, (uint8_t)(0x10 + i), 0, 0, 0 };
+		const char *v;
+
+		snprintf(buf, sizeof(buf), "aa:bb:%02x %s\n",
+		    (unsigned)(0x10 + i), c[i].in);
+		write_file(TEST_TMP, buf);
+		oui_load(TEST_TMP);
+		v = oui_lookup(mac);
+		if (!v || strcmp(v, c[i].out) != 0) {
+			fprintf(stderr, "test_invalid_utf8: case %zu: got "
+			    "'%s'\n", i, v ? v : "(null)");
+			exit(1);
+		}
+		oui_free();
+	}
+	unlink(TEST_TMP);
+}
+
 /* the IEEE file has CRLF line endings; the CR is not part of the name */
 static void
 test_crlf(void)
@@ -228,6 +265,7 @@ main(void)
 	test_control_bytes();
 	test_crlf();
 	test_c1_and_utf8();
+	test_invalid_utf8();
 	test_nonexistent();
 
 	printf("test_ouiload: all tests passed\n");

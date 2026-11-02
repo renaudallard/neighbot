@@ -92,6 +92,14 @@ sanitize_vendor(char *s)
 				break;
 			}
 		}
+		/* RFC 3629 also excludes overlong forms, which could spell a
+		 * control character, UTF-16 surrogates and code points past
+		 * U+10FFFF: the second byte has a narrower range for these */
+		if (n > 0 && ((p[0] == 0xe0 && p[1] < 0xa0) ||
+		    (p[0] == 0xed && p[1] > 0x9f) ||
+		    (p[0] == 0xf0 && p[1] < 0x90) ||
+		    (p[0] == 0xf4 && p[1] > 0x8f)))
+			n = 0;
 		/* C1 controls are U+0080-U+009F, encoded c2 80 - c2 9f */
 		if (n == 0 || (p[0] == 0xc2 && p[1] < 0xa0)) {
 			*p++ = '?';

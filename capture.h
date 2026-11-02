@@ -61,11 +61,12 @@ void capture_reset_own_ips(void);
  * Advertisement. Returns 1 if newly added (evicting the entry closest
  * to expiry when the table is full), 0 if refreshed, 2 if a
  * zero-lifetime advertisement withdrew a matching prefix, and -1 on an
- * invalid prefix length or nothing to withdraw.
+ * invalid prefix length or nothing to withdraw. With keep_longer, a
+ * refresh never shortens the lifetime a live entry has.
  */
 int  capture_add_learned_subnet(const char *iface, int af,
                                 const uint8_t *addr, int prefix_len,
-                                uint32_t lifetime_sec);
+                                uint32_t lifetime_sec, int keep_longer);
 void capture_reset_learned_subnets(void);
 
 #if defined(__linux__)

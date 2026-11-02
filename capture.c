@@ -148,7 +148,7 @@ net_match(int af, const uint8_t *ip, const uint8_t *addr,
 int
 capture_add_learned_subnet(const char *iface, int af,
                            const uint8_t *addr, int prefix_len,
-                           uint32_t lifetime_sec)
+                           uint32_t lifetime_sec, int keep_longer)
 {
 	int alen = ip_len(af);
 	uint8_t mask[16];
@@ -199,7 +199,8 @@ capture_add_learned_subnet(const char *iface, int af,
 		    memcmp(s->mask, mask, alen) == 0) {
 			int lapsed = (s->expires <= now);
 
-			s->expires = exp;
+			if (lapsed || !keep_longer || exp > s->expires)
+				s->expires = exp;
 			return lapsed ? 1 : 0;
 		}
 	}

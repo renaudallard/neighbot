@@ -256,9 +256,9 @@ test_learned_subnet(void)
 	    "safe default before any learn");
 
 	/* first add returns 1 (new), refresh returns 0 */
-	r = capture_add_learned_subnet("eth0", AF_INET6, pfx, 64, 3600);
+	r = capture_add_learned_subnet("eth0", AF_INET6, pfx, 64, 3600, 0);
 	ASSERT(r == 1, "first add should return 1");
-	r = capture_add_learned_subnet("eth0", AF_INET6, pfx, 64, 3600);
+	r = capture_add_learned_subnet("eth0", AF_INET6, pfx, 64, 3600, 0);
 	ASSERT(r == 0, "refresh should return 0");
 
 	/* learned prefix: in-prefix is local, out-of-prefix is bogon */
@@ -274,16 +274,25 @@ test_learned_subnet(void)
 	    "eth1 has no subnets, safe default");
 
 	/* zero lifetime withdraws a matching learned prefix */
-	r = capture_add_learned_subnet("eth0", AF_INET6, pfx, 64, 0);
+	r = capture_add_learned_subnet("eth0", AF_INET6, pfx, 64, 0, 0);
 	ASSERT(r == 2, "zero lifetime should withdraw a learned prefix");
 	ASSERT(capture_is_local("eth0", AF_INET6, ip_out) == 1,
 	    "after withdrawal, no subnets, safe default is local");
 	/* withdrawing an unknown prefix has nothing to do */
-	r = capture_add_learned_subnet("eth0", AF_INET6, pfx, 64, 0);
+	r = capture_add_learned_subnet("eth0", AF_INET6, pfx, 64, 0, 0);
 	ASSERT(r == -1, "withdrawing an unknown prefix should return -1");
 
+	/* with keep_longer, a short refresh leaves a live prefix as it was */
+	r = capture_add_learned_subnet("eth0", AF_INET6, pfx, 64, 3600, 0);
+	ASSERT(r == 1, "re-learning a withdrawn prefix should return 1");
+	r = capture_add_learned_subnet("eth0", AF_INET6, pfx, 64, 1, 1);
+	ASSERT(r == 0, "short refresh should return 0");
+	sleep(2);
+	ASSERT(capture_is_local("eth0", AF_INET6, ip_out) == 0,
+	    "a short refresh with keep_longer cut the prefix short");
+
 	/* prefix_len > 128 is rejected before the lifetime check */
-	r = capture_add_learned_subnet("eth0", AF_INET6, pfx, 200, 60);
+	r = capture_add_learned_subnet("eth0", AF_INET6, pfx, 200, 60, 0);
 	ASSERT(r == -1, "prefix_len > 128 should be rejected");
 
 	capture_reset_learned_subnets();

@@ -647,8 +647,9 @@ parse_ra(const uint8_t *icmp, size_t icmp_len, const char *iface,
 			 * option when its preferred lifetime exceeds the
 			 * valid one (RFC 4862 5.5.3), but FreeBSD 14 still
 			 * makes the prefix on-link from it, or withdraws it.
-			 * Learn from it, but ignore it as a withdrawal: the
-			 * other hosts keep using the prefix on-link. */
+			 * Learn from it, but never let it withdraw a prefix
+			 * or cut its lifetime short: the other hosts keep
+			 * using the prefix on-link. */
 			if (preferred > valid && valid == 0)
 				goto next;
 			if (prefix_len == 0 || prefix_len > 128)
@@ -684,7 +685,8 @@ parse_ra(const uint8_t *icmp, size_t icmp_len, const char *iface,
 				goto next;
 
 			int added = capture_add_learned_subnet(iface,
-			    AF_INET6, prefix, prefix_len, valid);
+			    AF_INET6, prefix, prefix_len, valid,
+			    preferred > valid);
 
 			if (added == 1) {
 				char pfxstr[INET6_ADDRSTRLEN];

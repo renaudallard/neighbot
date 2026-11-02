@@ -288,8 +288,9 @@ after the RA valid-lifetime (capped at 7 days), and a prefix re-advertised
 with the L flag and a zero valid-lifetime is withdrawn immediately. Prefix
 options without the L flag are ignored, withdrawals included, as RFC 4861
 requires. A prefix option whose preferred lifetime exceeds the valid one
-is learned, as FreeBSD 14 makes the prefix on-link from it, but not taken
-as a withdrawal, as Linux, macOS and newer FreeBSD ignore it (RFC 4862).
+is learned, as FreeBSD 14 makes the prefix on-link from it, but it never
+withdraws the prefix or shortens its lifetime, as Linux, macOS and newer
+FreeBSD ignore it (RFC 4862).
 
 Incoming Router Advertisements are validated per RFC 4861: only RAs with
 an IPv6 hop limit of 255 and a link-local source address are accepted, so

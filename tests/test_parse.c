@@ -74,10 +74,12 @@ int      ra_learned_af;
 uint8_t  ra_learned_addr[16];
 int      ra_learned_prefix_len;
 uint32_t ra_learned_lifetime;
+int      ra_learned_keep_longer;
 
 int
 capture_add_learned_subnet(const char *iface, int af,
-    const uint8_t *addr, int prefix_len, uint32_t lifetime_sec)
+    const uint8_t *addr, int prefix_len, uint32_t lifetime_sec,
+    int keep_longer)
 {
 	/* mimic the real function: a zero lifetime is a withdrawal,
 	 * which never learns a prefix (here it finds nothing to drop) */
@@ -91,6 +93,7 @@ capture_add_learned_subnet(const char *iface, int af,
 	memcpy(ra_learned_addr, addr, 16);
 	ra_learned_prefix_len = prefix_len;
 	ra_learned_lifetime = lifetime_sec;
+	ra_learned_keep_longer = keep_longer;
 	return 1;
 }
 
@@ -467,7 +470,7 @@ test_ndp_ra(void)
 	}
 	if (ra_learned_af != AF_INET6 ||
 	    ra_learned_prefix_len != 64 ||
-	    ra_learned_lifetime != 3600 ||
+	    ra_learned_lifetime != 3600 || ra_learned_keep_longer != 0 ||
 	    ra_learned_addr[0] != 0x20 || ra_learned_addr[3] != 0xb8 ||
 	    strcmp(ra_learned_iface, "test0") != 0) {
 		fprintf(stderr, "FAIL: RA learned subnet fields mismatch\n");
@@ -546,7 +549,7 @@ test_ndp_ra_zero_lifetime(void)
 
 /* a prefix option whose preferred lifetime exceeds its valid one makes
  * the prefix on-link on FreeBSD 14, so it is learned, but as Linux and
- * macOS ignore it, it withdraws nothing */
+ * macOS ignore it, it never withdraws a prefix or shortens one */
 static void
 test_ndp_ra_bad_lifetimes(void)
 {
@@ -570,6 +573,11 @@ test_ndp_ra_bad_lifetimes(void)
 	if (ra_learned_calls != before + 1) {
 		fprintf(stderr, "FAIL: prefix option with a preferred lifetime "
 		    "above the valid one was not learned\n");
+		exit(1);
+	}
+	if (ra_learned_keep_longer != 1) {
+		fprintf(stderr, "FAIL: prefix option with a preferred lifetime "
+		    "above the valid one may shorten a prefix\n");
 		exit(1);
 	}
 

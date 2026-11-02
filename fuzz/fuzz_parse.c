@@ -61,9 +61,11 @@ capture_is_bcast(const char *iface, const uint8_t *ip)
 
 int
 capture_add_learned_subnet(const char *iface, int af,
-    const uint8_t *addr, int prefix_len, uint32_t lifetime_sec)
+    const uint8_t *addr, int prefix_len, uint32_t lifetime_sec,
+    int keep_longer)
 {
 	(void)iface; (void)af; (void)addr; (void)prefix_len; (void)lifetime_sec;
+	(void)keep_longer;
 	return 0;
 }
 

@@ -419,13 +419,14 @@ db_load(const char *path)
  * the wall clock as it reads now. It keeps its stamp, unless the clock
  * has been set back since, as after a start with the clock ahead: the
  * monotonic clock places it then. That clock alone would not do, as on
- * Linux it stops while the host is suspended. A stamp_mono of 0 marks a
- * time read from the file, which is kept as it is.
+ * Linux it stops while the host is suspended. The two clocks tick whole
+ * seconds at different moments, so a second less is taken as no step. A
+ * stamp_mono of 0 marks a time read from the file, which is kept as it is.
  */
 static time_t
 placed(time_t stamp, time_t stamp_mono, time_t now, time_t mono)
 {
-	if (stamp_mono != 0 && now - (mono - stamp_mono) < stamp)
+	if (stamp_mono != 0 && now - (mono - stamp_mono) < stamp - 1)
 		return now - (mono - stamp_mono);
 	return stamp;
 }

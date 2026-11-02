@@ -86,10 +86,15 @@ seen on their lower device, unless that device is a trunk skipped as
 above or is in another network namespace, as for a container.
 Ipvlan devices are monitored, as unicast frames between two of them
 never reach their lower device.
+On
+.Ox ,
+.Xr carp 4
+interfaces are skipped as well, since their frames are seen on their
+parent, unless it is a trunk skipped as above.
 Use
 .Fl i
-to explicitly monitor a trunk interface, bridge port, bond slave or
-macvlan device.
+to explicitly monitor a trunk interface, bridge port, bond slave,
+macvlan device or carp interface.
 Interfaces whose name contains a comma or a non-printable character
 are never monitored, since the name is stored unquoted in the CSV
 database.
@@ -453,6 +458,7 @@ mailed.
 .Sh SEE ALSO
 .Xr pledge 2 ,
 .Xr unveil 2 ,
+.Xr carp 4 ,
 .Xr arpwatch 8 ,
 .Xr tcpdump 8
 .Sh AUTHORS

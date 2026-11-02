@@ -39,7 +39,7 @@ Linux, FreeBSD, OpenBSD, and NetBSD.
 | **Active probing** | ARP requests / NDP solicitations to detect moved vs. multi-homed hosts |
 | **OUI database** | Optional hardware vendor identification from MAC prefix |
 | **Storage** | Plain CSV with atomic saves (temp file + rename) |
-| **VLAN trunks** | Auto-detects VLAN subinterfaces and skips trunk parents that have no address besides link-local ones; on Linux also skips bridge ports, bond slaves and macvlan or macvtap devices |
+| **VLAN trunks** | Auto-detects VLAN subinterfaces and skips trunk parents that have no address besides link-local ones; on Linux also skips bridge ports, bond slaves and macvlan or macvtap devices, and on OpenBSD carp interfaces |
 | **Sandboxing** | `pledge(2)` + `unveil(2)` on OpenBSD, privilege drop everywhere |
 | **Portability** | Linux (glibc, musl), FreeBSD, OpenBSD, NetBSD |
 
@@ -526,7 +526,9 @@ Crashes and slow inputs are written to the current directory.
    ports) and macvlan and macvtap devices (seen through their lower
    device, unless it is a skipped trunk or in another network namespace,
    as for a container); ipvlan devices are kept, as unicast between two
-   of them never reaches their lower device
+   of them never reaches their lower device. On OpenBSD, carp(4)
+   interfaces are skipped too (seen through their parent, unless it is a
+   skipped trunk)
 2. Opens one pcap handle per interface with a BPF filter matching ARP, ND
    messages (ICMPv6 types 133 to 137), and IPv6 packets that start with a
    hop-by-hop, routing or destination options header, which the parser

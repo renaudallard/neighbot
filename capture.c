@@ -49,7 +49,9 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <unistd.h>
-#if defined(__FreeBSD__)
+#if defined(__OpenBSD__)
+#include <netinet/ip_carp.h>
+#elif defined(__FreeBSD__)
 #include <net/if_vlan_var.h>
 #elif defined(__NetBSD__)
 #include <net/if_ether.h>	/* ETHER_ADDR_LEN, used by if_vlanvar.h */
@@ -927,6 +929,34 @@ macvlan_lower(const char *name, char lower[IF_NAMESIZE])
 }
 #endif
 
+#if defined(__OpenBSD__)
+/*
+ * Whether name is a carp(4) interface, writing its parent into carpdev.
+ * carp hands every multicast and broadcast frame of the parent to each
+ * of its interfaces, whose capture sees it a second time.
+ */
+static int
+carp_parent(const char *name, char carpdev[IFNAMSIZ])
+{
+	struct carpreq carpr;
+	struct ifreq ifr;
+	int s, found;
+
+	s = socket(AF_INET, SOCK_DGRAM, 0);
+	if (s < 0)
+		return 0;
+	memset(&ifr, 0, sizeof(ifr));
+	memset(&carpr, 0, sizeof(carpr));
+	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", name);
+	ifr.ifr_data = (caddr_t)&carpr;
+	found = ioctl(s, SIOCGVH, &ifr) == 0 && carpr.carpr_carpdev[0] != '\0';
+	close(s);
+	if (found)
+		strlcpy(carpdev, carpr.carpr_carpdev, IFNAMSIZ);
+	return found;
+}
+#endif
+
 /*
  * The snap length for name: room for its MTU, the Ethernet header and
  * VLAN tags, as hosts take ARP and ND from any frame their interface
@@ -1022,6 +1052,21 @@ capture_open_all(struct iface *ifaces, int max)
 			    !is_vlan_parent(lower, vlan_parents, nparents)) {
 				log_msg("skipping %s (macvlan on %s)",
 				    dev->name, lower);
+				continue;
+			}
+		}
+#elif defined(__OpenBSD__)
+		/* When monitoring all interfaces, skip carp interfaces: their
+		 * parent, which is monitored, carries all their frames, and
+		 * capturing on both would report stations twice. Keep one
+		 * whose parent is a VLAN trunk skipped above. */
+		{
+			char carpdev[IFNAMSIZ];
+
+			if (!cfg.iface && carp_parent(dev->name, carpdev) &&
+			    !is_vlan_parent(carpdev, vlan_parents, nparents)) {
+				log_msg("skipping %s (carp on %s)", dev->name,
+				    carpdev);
 				continue;
 			}
 		}

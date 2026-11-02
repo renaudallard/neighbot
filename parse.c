@@ -721,13 +721,15 @@ next:
 
 /*
  * Check the options of the hop-by-hop or destination options header at
- * off, hlen bytes long. Every host drops the packet on an option running
- * past the header, a Router Alert that is not 2 bytes long, or an
- * unknown option whose type says to discard the packet (RFC 8200 4.2):
- * returns 0 then. The stricter padding and option count checks of Linux
- * are left out, as the BSDs and macOS take such packets, and so are the
- * checks that depend on how a kernel is built or set up (IOAM, CALIPSO):
- * a host that takes the packet must not be missed.
+ * off, hlen bytes long. Every host drops the packet on a Router Alert
+ * that is not 2 bytes long, or an unknown option whose type says to
+ * discard the packet (RFC 8200 4.2): returns 0 then. An option running
+ * past the header drops it too, except in a hop-by-hop header, which
+ * the BSDs and macOS just end there. The stricter padding and option
+ * count checks of Linux are left out, as the BSDs and macOS take such
+ * packets, and so are the checks that depend on how a kernel is built
+ * or set up (IOAM, CALIPSO): a host that takes the packet must not be
+ * missed.
  */
 static int
 ip6_opts_ok(const u_char *pkt, size_t off, size_t hlen, int hopopts)
@@ -742,14 +744,14 @@ ip6_opts_ok(const u_char *pkt, size_t off, size_t hlen, int hopopts)
 		if (end - i < 2)
 			return 0;
 		olen = (size_t)pkt[i + 1] + 2;
-		if (olen > end - i)
-			return 0;
 		if (hopopts && pkt[i] == IP6OPT_ROUTER_ALERT && olen != 4)
 			return 0;
 		/* the two high bits of the type: 00 skips an unknown
 		 * option, the others drop the packet */
 		if (pkt[i] != IP6OPT_PADN && (pkt[i] >> 6) != 0)
 			return 0;
+		if (olen > end - i)
+			return hopopts && pkt[i] != IP6OPT_ROUTER_ALERT;
 		i += olen;
 	}
 	return 1;

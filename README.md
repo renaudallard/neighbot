@@ -573,8 +573,9 @@ Crashes and slow inputs are written to the current directory.
    hosts drop before ND sees them (another IP
    version, a loopback or multicast source, a destination of `::` or of
    multicast scope 0) or for their extension headers (a
-   hop-by-hop header after the first, an option that runs past its header
-   or asks for the packet to be discarded, a Router Alert of the wrong
+   hop-by-hop header after the first, an option that asks for the packet
+   to be discarded or runs past a destination options header, a Router
+   Alert of the wrong
    length, a routing header with segments left); stricter checks of one
    kernel only, such as the padding and option count limits of Linux, are
    not made, as other hosts take those packets

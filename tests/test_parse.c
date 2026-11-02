@@ -1404,7 +1404,8 @@ test_nd_ip6_header(void)
  * the first, an option it must discard, a Router Alert of the wrong
  * length or a routing header with segments left; the BSDs and macOS
  * take the padding, option count and routing cases that only Linux
- * drops, so those are processed */
+ * drops, and a hop-by-hop option running past its header, so those
+ * are processed */
 static void
 test_ext_header_rules(void)
 {
@@ -1438,6 +1439,11 @@ test_ext_header_rules(void)
 		{ "routing to multicast", 1, 0, 1, 1, { { 43, 6, { 0, 0 } } } },
 		{ "routing in broadcast", 0, 1, 1, 1, { { 43, 6, { 0, 0 } } } },
 		{ "option past its header", 0, 0, 1, 0, { { 60, 6, { 0x0f, 5 } } } },
+		{ "hbh PadN past its header", 0, 0, 1, 1, { { 0, 6, { 1, 10 } } } },
+		{ "hbh option past its header", 0, 0, 1, 1,
+		    { { 0, 6, { 0x0f, 10 } } } },
+		{ "hbh router alert cut short", 0, 0, 1, 0,
+		    { { 0, 6, { 1, 2, 0, 0, 5, 2 } } } },
 		{ "segment routing", 0, 0, 1, 1, { { 43, 6, { 4, 0 } } } },
 	};
 	static uint8_t pkt[200];

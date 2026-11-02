@@ -509,12 +509,10 @@ parse_arp(const u_char *pkt, size_t len, const char *iface)
 
 	arp = (const struct arp_pkt *)pkt;
 
-	/* validate: Ethernet + IPv4, correct lengths. Hardware type 6
-	 * (IEEE 802) is accepted too: Linux, FreeBSD and NetBSD update
-	 * their caches from it on Ethernet, so it can poison them */
-	if (ntohs(arp->htype) != ARPHRD_ETHER &&
-	    ntohs(arp->htype) != ARPHRD_IEEE802)
-		return;
+	/* IPv4 ARP with 6-byte hardware addresses, of any hardware type:
+	 * besides Ethernet, Linux and FreeBSD take IEEE 802 (6), FreeBSD
+	 * FireWire (24) and NetBSD every type but FireWire, so ARP of any
+	 * type with addresses that size can poison some host */
 	if (ntohs(arp->ptype) != ETHERTYPE_IP)
 		return;
 	if (arp->hlen != 6 || arp->plen != 4)

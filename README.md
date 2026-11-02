@@ -545,7 +545,8 @@ Crashes and slow inputs are written to the current directory.
    kept, as hosts use them, and so is ARP for any target and of any
    opcode, as the BSDs and macOS update the sender's entry from all of
    them);
-   hardware type 6 (IEEE 802) is accepted like Ethernet, as hosts honour it
+   any hardware type with 6-byte addresses is accepted, as FreeBSD and
+   NetBSD honour more than Ethernet
 5. **NDP**: parses Neighbor Advertisements (type 136) and Solicitations
    (type 135) for link-layer address options (skips DAD; a message without
    one only refreshes the entry already recorded with its Ethernet source,

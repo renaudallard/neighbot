@@ -1013,31 +1013,35 @@ test_jumbo_frame(void)
 	}
 }
 
-/* ARP with hardware type 6 (IEEE 802) is processed like Ethernet */
+/* ARP of any hardware type with 6-byte addresses is processed, as
+ * FreeBSD and NetBSD take more types than Ethernet */
 static void
-test_arp_hwtype6(void)
+test_arp_hwtype(void)
 {
+	static const uint16_t types[] = { 0, 6, 24, 32, 0xffff };
 	uint8_t pkt[42];
-	int saved_quiet = cfg.quiet;
-	int before;
+	uint8_t mac[6] = { 0x02, 0, 0, 0, 0, 0x32 };
+	uint8_t spa[4] = { 10, 32, 0, 1 };
 
-	cfg.quiet = 0;
-	memset(pkt, 0, sizeof(pkt));
-	memset(pkt, 0xff, 6);
-	pkt[6] = pkt[22] = 0x02; pkt[11] = pkt[27] = 0x32;
-	pkt[12] = 0x08; pkt[13] = 0x06;
-	pkt[15] = 0x06;                          /* hardware type 6 */
-	pkt[16] = 0x08; pkt[18] = 6; pkt[19] = 4;
-	pkt[21] = 0x02;
-	pkt[28] = 10; pkt[29] = 32; pkt[30] = 0; pkt[31] = 1;
-
-	before = notify_new_calls;
-	feed(pkt, sizeof(pkt));
-	if (notify_new_calls != before + 1) {
-		fprintf(stderr, "FAIL: ARP hardware type 6 was ignored\n");
-		exit(1);
+	for (size_t i = 0; i < sizeof(types) / sizeof(types[0]); i++) {
+		memset(pkt, 0, sizeof(pkt));
+		memset(pkt, 0xff, 6);
+		memcpy(pkt + 6, mac, 6);
+		pkt[12] = 0x08; pkt[13] = 0x06;
+		pkt[14] = (uint8_t)(types[i] >> 8);
+		pkt[15] = (uint8_t)types[i];
+		pkt[16] = 0x08; pkt[18] = 6; pkt[19] = 4;
+		pkt[21] = 0x02;
+		memcpy(pkt + 22, mac, 6);
+		spa[3] = (uint8_t)(1 + i);
+		memcpy(pkt + 28, spa, 4);
+		feed(pkt, sizeof(pkt));
+		if (!db_known(AF_INET, spa, mac, "test0")) {
+			fprintf(stderr, "FAIL: ARP hardware type %u was "
+			    "ignored\n", types[i]);
+			exit(1);
+		}
 	}
-	cfg.quiet = saved_quiet;
 }
 
 /* a known IP claimed by the broadcast MAC is reported as changed */
@@ -2039,7 +2043,7 @@ main(void)
 	test_known_not_bogon();
 	test_snap_truncated();
 	test_jumbo_frame();
-	test_arp_hwtype6();
+	test_arp_hwtype();
 	test_broadcast_mac_claim();
 	test_ra_rs_lladdr();
 	test_na_ext_header();

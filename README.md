@@ -484,11 +484,11 @@ plus `sendmail`). To keep a flood of events (for example spoofed in-subnet
 ARP) from spawning children at packet rate, no more than 32 notification
 children run at once: a notification due while 32 are running is dropped,
 though its event is still logged, and neighbot logs when it starts dropping
-them and again once fewer than 16 remain. A child is killed after two
-minutes, so a stalled resolver or mailer cannot hold the slots for good,
-and so is the `sendmail` it runs, unless the mailer catches `SIGALRM`
-itself, as Exim does. A child also stops on the signals that stop the
-daemon.
+them and again once fewer than 16 remain; an address conflict storm is only
+declared once its alert goes out. A child is killed after two minutes, so
+a stalled resolver or mailer cannot hold the slots for good, and so is the
+`sendmail` it runs, unless the mailer catches `SIGALRM` itself, as Exim
+does. A child also stops on the signals that stop the daemon.
 
 ## Testing
 

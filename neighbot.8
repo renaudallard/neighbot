@@ -508,6 +508,7 @@ children run at once: a notification due while 32 are running is
 dropped, though its event is still logged, and
 .Nm
 logs when it starts dropping them and again once fewer than 16 remain.
+An address conflict storm is only declared once its alert goes out.
 A child is killed after two minutes, so a stalled resolver or mailer
 cannot hold the slots for good, and so is the
 .Xr sendmail 8

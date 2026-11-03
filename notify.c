@@ -92,6 +92,10 @@ notify_fork(void)
 {
 	pid_t pid;
 
+	/* a child that ended since the main loop last reaped still holds
+	 * its slot: reap before refusing */
+	if (notify_inflight >= NOTIFY_MAX_INFLIGHT)
+		notify_reap_children();
 	if (notify_inflight >= NOTIFY_MAX_INFLIGHT) {
 		if (!notify_suppressed) {
 			notify_suppressed = 1;
@@ -147,9 +151,10 @@ notify_reap_children(void)
 			}
 		}
 	}
-	/* clear suppression only well below the cap (hysteresis) so the
-	 * suppress/resume log does not flap while a flood holds the
-	 * in-flight count near the cap */
+	/* clear suppression only well below the cap (hysteresis), so the
+	 * suppress/resume pair is not logged at every event while the count
+	 * stays at the cap; children that end quickly in a flood still give
+	 * one pair each time the count drains */
 	if (notify_inflight < NOTIFY_MAX_INFLIGHT / 2 && notify_suppressed) {
 		notify_suppressed = 0;
 		log_msg("notify: resuming notifications");

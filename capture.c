@@ -1336,11 +1336,31 @@ capture_open_all(struct iface *ifaces, int max)
 			log_err("fcntl(FD_CLOEXEC, %s): %s", dev->name,
 			        strerror(errno));
 
+		/* The interface the capture is bound to, which the recheck
+		 * then compares the name with. On Linux it is read from the
+		 * socket, as a name looked up now could lead to another
+		 * interface, one that took it since pcap_activate(). The
+		 * BSDs give no index for a BPF descriptor: there the name is
+		 * looked up once the capture is bound. */
+#if defined(__linux__)
+		struct sockaddr_ll sll;
+		socklen_t slen = sizeof(sll);
+
+		if (getsockname(fd, (struct sockaddr *)&sll, &slen) < 0 ||
+		    sll.sll_ifindex <= 0) {
+			log_err("%s: capture not bound to an interface",
+			    dev->name);
+			pcap_close(p);
+			continue;
+		}
+		unsigned index = (unsigned)sll.sll_ifindex;
+#else
+		unsigned index = if_nametoindex(dev->name);
+#endif
+
 		snprintf(ifaces[count].name, sizeof(ifaces[count].name),
 		         "%s", dev->name);
-		/* the interface pcap_activate() bound to, should the name
-		 * have moved to another one since the check above */
-		ifaces[count].index = if_nametoindex(dev->name);
+		ifaces[count].index = index;
 		ifaces[count].handle = p;
 		ifaces[count].fd = fd;
 		memset(ifaces[count].local_mac, 0,

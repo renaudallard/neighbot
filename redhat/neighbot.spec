@@ -1,5 +1,5 @@
 Name: neighbot
-Version: 0.5.17
+Version: 0.5.18
 Release: 1%{?dist}
 Summary: Network neighbor monitoring daemon
 
@@ -72,6 +72,21 @@ if [ -x /usr/bin/systemctl ]; then
 fi
 
 %changelog
+* Tue Nov 03 2026 Renaud Allard <renaud@allard.it> 0.5.18-1
+- Process every frame that some common host acts on and drop only what
+  all of them drop: any number of extension and fragment headers,
+  stacked priority tags, Redirects, NAs from :: and more ARP forms
+- Report a spoof of a recorded address as a change, also during a
+  flood of foreign addresses and before the router advertises again
+- Report fragmented Neighbor Discovery, which OpenBSD and NetBSD act on
+- Keep the main loop going under a flood on Linux, and drop an
+  interface that is removed or renamed
+- Keep last_seen and first_seen right across wall clock steps
+- Reset the inherited signal state and count only notification
+  children against the cap
+- Never open libpcap's D-Bus device as root, install the OUI file
+  without following links, and ship /var/neighbot 0750 in packages
+
 * Sat Oct 10 2026 Renaud Allard <renaud@allard.it> 0.5.17-1
 - Fix the build on FreeBSD and NetBSD
 - Keep monitoring across link down/up and re-read interface addresses

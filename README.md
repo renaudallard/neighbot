@@ -493,9 +493,9 @@ daemon.
 ## Testing
 
 Standalone test harnesses exercise the parser, database loader, database
-expiration, OUI loader, probe packet builders, subnet matching, and
-notification formatting with known inputs. They link without sanitizers so
-they can run under valgrind.
+expiration, OUI loader, probe packet builders, subnet matching, notification
+formatting and the count of notification children with known inputs. They
+link without sanitizers so they can run under valgrind.
 
 ```sh
 make test                              # build all test binaries
@@ -505,7 +505,7 @@ tests/test_dbexpire                    # run database expiration tests
 tests/test_ouiload                     # run OUI loader tests
 tests/test_probe                       # run probe builder and state machine tests
 tests/test_capture                     # run capture_is_local subnet tests
-tests/test_notify                      # run format_delta and format_timestamp tests
+tests/test_notify                      # run notification formatting and child count tests
 make test-clean                        # remove test binaries
 ```
 

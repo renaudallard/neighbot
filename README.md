@@ -480,11 +480,13 @@ All pcap/BPF handles are opened before pledge, so no `bpf` promise is needed.
 Each notification is delivered by a short-lived child process (reverse DNS
 plus `sendmail`). To keep a flood of events (for example spoofed in-subnet
 ARP) from spawning children at packet rate, no more than 32 notification
-children run at once; further notifications are suppressed and logged until
-the backlog clears. A child is killed after two minutes, so a stalled
-resolver or mailer cannot hold the slots for good, and so is the `sendmail`
-it runs, unless the mailer catches `SIGALRM` itself, as Exim does. A child
-also stops on the signals that stop the daemon.
+children run at once: a notification due while 32 are running is dropped,
+though its event is still logged, and neighbot logs when it starts dropping
+them and again once fewer than 16 remain. A child is killed after two
+minutes, so a stalled resolver or mailer cannot hold the slots for good,
+and so is the `sendmail` it runs, unless the mailer catches `SIGALRM`
+itself, as Exim does. A child also stops on the signals that stop the
+daemon.
 
 ## Testing
 

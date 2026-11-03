@@ -60,10 +60,12 @@ Then generate some traffic (`arping`, `ping`) and watch the log output.
 
 ## Build
 
-Requires a C compiler, make and libpcap. `make install` also downloads the
-OUI database unless `oui.txt` is already present in the source tree, so it
-needs network access the first time. It uses `curl` where installed, else
-`fetch` on FreeBSD or `ftp` on OpenBSD and NetBSD, from the base system.
+Requires a C compiler, make and libpcap, 1.10 or later on Linux: an older
+libpcap reports an interface taken down as an error, and neighbot then
+stops monitoring it. `make install` also downloads the OUI database unless
+`oui.txt` is already present in the source tree, so it needs network
+access the first time. It uses `curl` where installed, else `fetch` on
+FreeBSD or `ftp` on OpenBSD and NetBSD, from the base system.
 
 The usual `CPPFLAGS`, `CFLAGS` and `LDFLAGS` are honoured.
 `-D_FORTIFY_SOURCE=2` is added unless they already set a fortify level,

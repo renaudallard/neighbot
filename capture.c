@@ -1177,7 +1177,9 @@ capture_open_all(struct iface *ifaces, int max)
 		 * and opening the D-Bus one connects to the system bus as
 		 * root, a connection libdbus keeps open after pcap_close()
 		 * and the privilege drop. */
-		if (if_nametoindex(dev->name) == 0)
+		unsigned index = if_nametoindex(dev->name);
+
+		if (index == 0)
 			continue;
 
 		/* skip VLAN trunk parents when monitoring all interfaces */
@@ -1327,6 +1329,7 @@ capture_open_all(struct iface *ifaces, int max)
 
 		snprintf(ifaces[count].name, sizeof(ifaces[count].name),
 		         "%s", dev->name);
+		ifaces[count].index = index;
 		ifaces[count].handle = p;
 		ifaces[count].fd = fd;
 		memset(ifaces[count].local_mac, 0,

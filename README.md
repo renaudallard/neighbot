@@ -310,16 +310,14 @@ short prefix.
 ## Service Setup
 
 Capture handles cannot be reopened after dropping privileges, so an
-interface that disappears (a USB adapter unplugged, an interface deleted,
-or one renamed on Linux) is no longer monitored; FreeBSD keeps capturing a
-renamed interface, still logged under its old name. When monitoring all
-interfaces, the others keep being watched, so interfaces of VMs and
-containers coming and going do not disturb the daemon; a re-created
-interface is picked up at the next restart. neighbot exits with status 1
-when the interface given with `-i`, or the last monitored one, disappears.
-The systemd unit then restarts it (giving up after 10 failures within 10
-minutes, so a permanent error does not loop forever); under OpenBSD rc.d,
-restart it with `rcctl`.
+interface that disappears (a USB adapter unplugged, an interface deleted
+or renamed) is no longer monitored. When monitoring all interfaces, the
+others keep being watched, so interfaces of VMs and containers coming and
+going do not disturb the daemon; a re-created interface is picked up at
+the next restart. neighbot exits with status 1 when the interface given
+with `-i`, or the last monitored one, disappears. The systemd unit then
+restarts it (giving up after 10 failures within 10 minutes, so a permanent
+error does not loop forever); under OpenBSD rc.d, restart it with `rcctl`.
 
 <details>
 <summary><b>Linux (systemd)</b></summary>

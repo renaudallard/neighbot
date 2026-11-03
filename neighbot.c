@@ -26,6 +26,7 @@
 
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <net/if.h>
 #if defined(__NetBSD__)
 #include <sys/ioctl.h>
 #include <net/bpf.h>
@@ -141,21 +142,30 @@ sanitise_stdfd(void)
 }
 
 /*
- * Whether the interface behind a capture descriptor has gone away while
- * reading it reports nothing: NetBSD's BPF then returns no error and
- * never POLLHUP, but BIOCGDLT fails once the interface is detached.
+ * Whether a monitored interface has gone away although reading it reports
+ * nothing. Its name no longer leads to its index once it is deleted or
+ * renamed: Linux, when it is renamed while up, and FreeBSD keep capturing
+ * it, but neighbot finds its addresses by name, so it would go on without
+ * them. NetBSD's BPF also returns no error and never POLLHUP once the
+ * interface is detached, but BIOCGDLT then fails.
  */
 static int
-bpf_detached(int fd)
+iface_gone(const struct iface *ifp)
 {
+	unsigned index;
 #if defined(__NetBSD__)
 	u_int dlt;
 
-	return ioctl(fd, BIOCGDLT, &dlt) < 0 && errno == EINVAL;
-#else
-	(void)fd;
-	return 0;
+	if (ioctl(ifp->fd, BIOCGDLT, &dlt) < 0 && errno == EINVAL)
+		return 1;
 #endif
+	/* a lookup that fails for another reason, as with no descriptor
+	 * left for its socket, says nothing about the interface */
+	errno = 0;
+	index = if_nametoindex(ifp->name);
+	if (index == 0)
+		return errno == ENXIO || errno == ENODEV;
+	return index != ifp->index;
 }
 
 /*
@@ -515,7 +525,7 @@ main(int argc, char *argv[])
 				log_err("pcap_dispatch(%s): %s", ifaces[i].name,
 				    pcap_geterr(ifaces[i].handle));
 			} else if (!(rev & POLLHUP) &&
-			    !(recheck && bpf_detached(pfds[i].fd)))
+			    !(recheck && iface_gone(&ifaces[i])))
 				continue;
 
 			log_err("interface %s is gone", ifaces[i].name);

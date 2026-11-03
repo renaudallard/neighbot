@@ -143,8 +143,12 @@ reset_signals(void)
 	sigprocmask(SIG_BLOCK, NULL, &set);
 	if (sigaction(SIGALRM, NULL, &osa) == 0 &&
 	    (osa.sa_handler == SIG_IGN || sigismember(&set, SIGALRM))) {
-		signal(SIGALRM, SIG_IGN);
+		/* cancel it before ignoring the signal, which drops one
+		 * already pending: Linux keeps a blocked signal pending
+		 * even when ignored, so one that fired in between would
+		 * survive */
 		alarm(0);
+		signal(SIGALRM, SIG_IGN);
 	}
 	signal(SIGALRM, SIG_DFL);
 	signal(SIGCHLD, SIG_DFL);

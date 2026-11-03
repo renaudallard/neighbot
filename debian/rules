@@ -12,7 +12,12 @@ override_dh_auto_install:
 	$(MAKE) install PREFIX=/usr DESTDIR=$(CURDIR)/debian/neighbot
 	sed 's|/usr/local/sbin|/usr/sbin|' neighbot.service \
 		> debian/neighbot.service
-	install -d -m 755 $(CURDIR)/debian/neighbot/var/neighbot
+
+# dh_fixperms opens every directory to 0755; keep the database directory
+# 0750, as make install and the daemon make it
+override_dh_fixperms:
+	dh_fixperms
+	chmod 0750 debian/neighbot/var/neighbot
 
 override_dh_auto_test:
 

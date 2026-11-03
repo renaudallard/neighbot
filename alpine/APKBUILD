@@ -26,5 +26,4 @@ check() {
 
 package() {
 	make install PREFIX=/usr DESTDIR="$pkgdir"
-	install -d -m 755 "$pkgdir"/var/neighbot
 }

@@ -48,6 +48,20 @@
 #include "parse.h"
 #include "probe.h"
 
+/*
+ * Frames read from a handle at each turn of the main loop. In immediate
+ * mode libpcap on Linux reads its ring until it is empty, so under a
+ * flood one call would never return and nothing else would run: reaping
+ * the notification children, stopping, saving, or reading the other
+ * interfaces. On the BSDs a call returns after one buffer, and a smaller
+ * count would leave frames in it until the next wakeup.
+ */
+#if defined(__linux__)
+#define DISPATCH_MAX 256
+#else
+#define DISPATCH_MAX (-1)
+#endif
+
 struct config cfg = {
 	.daemonize = 0,
 	.quiet     = 0,
@@ -473,8 +487,9 @@ main(int argc, char *argv[])
 			if (!(rev & (POLLIN | POLLHUP | POLLERR)) && !recheck)
 				continue;
 
-			if (pcap_dispatch(ifaces[i].handle, -1, parse_packet,
-			    (u_char *)ifaces[i].name) == PCAP_ERROR) {
+			if (pcap_dispatch(ifaces[i].handle, DISPATCH_MAX,
+			    parse_packet, (u_char *)ifaces[i].name) ==
+			    PCAP_ERROR) {
 				log_err("pcap_dispatch(%s): %s", ifaces[i].name,
 				    pcap_geterr(ifaces[i].handle));
 			} else if (!(rev & POLLHUP))

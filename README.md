@@ -565,7 +565,9 @@ Crashes and slow inputs are written to the current directory.
    also receives frames as large as a port or parent with a larger MTU
    takes; an ND message cut short is ignored, as it cannot be checked, but
    one followed by an Ethernet trailer that was cut is read, and so is ARP
-3. Main loop: `poll()` on all handles (1s timeout)
+3. Main loop: `poll()` on all handles (1s timeout); on Linux at most 256
+   frames of a handle are read per turn, so a flood on one interface does
+   not hold up the others, a stop request or the notification children
 4. **ARP**: extracts sender IP + MAC from ARP messages (skips probes, and
    multicast and broadcast senders, the broadcast address of a subnet of the
    interface included, which hosts never learn; 240/4 senders are kept, as

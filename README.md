@@ -182,7 +182,7 @@ sudo neighbot -r -m admin@example.com
 |-------|-------------|-------|
 | **new** | Previously unknown IP address seen for the first time | yes (suppressed for IPv6 temporary address rotations) |
 | **changed** | IP seen with a different MAC than previously recorded | yes |
-| **flip-flop** | IP alternates between two known MACs (VRRP/HSRP, dual-homing, or spoofing). Storm detection suppresses rapid repeats, also when three or more MACs take turns (seen as changed events), separately on each interface | yes |
+| **flip-flop** | IP alternates between two known MACs (VRRP/HSRP, dual-homing, or spoofing). Storm detection suppresses rapid repeats, in the log too, also when three or more MACs take turns (seen as changed events), separately on each interface | yes |
 | **reappeared** | Known MAC/IP pair seen again after 180 days or more of silence; for a station already seen since the start, silence is timed on the monotonic clock, so a wall-clock step does not cause it | yes |
 | **bogon** | IP outside every local subnet of the monitored interfaces (possible spoofing); an IP foreign to the receiving interface but local to another monitored one is ignored, unless it is recorded on the receiving one (see below). On Linux, an IP the host reaches without a gateway through the interface, as with an on-link route holding no address of the host, is local too (at most 64 route lookups a second; past that, as in a flood of foreign addresses, an IP counts as foreign). An IP already recorded on the interface is never a bogon there, even once it has left every subnet: another MAC claiming it is reported as changed, so neither a restart nor such a flood can hide a spoof. An interface with no subnet of an address family reports no bogons for it; a /32 or /128 address, such as a DHCPv6 lease, does not count as a subnet. Subnets are re-read every minute, on `SIGHUP`, and before reporting a bogon (at most once a second) | yes |
 | **fragmented** | The first fragment of an IPv6 packet carries an ND message, or headers going on into the next fragment that may hide one. RFC 6980 forbids fragmented ND, and Linux, FreeBSD and macOS drop it, but OpenBSD and NetBSD reassemble it and act on it (possible spoofing). Never stored; rate-limited like bogons, per address the message would record: the target of an NA or Redirect when the fragment holds it, the source otherwise | yes |
@@ -483,10 +483,11 @@ ARP) from spawning children at packet rate, no more than 32 notification
 children run at once: a notification due while 32 are running is dropped,
 though its event is still logged, and neighbot logs when it starts dropping
 them and again once fewer than 16 remain; an address conflict storm is only
-declared once its alert goes out. A child is killed after two minutes, so
-a stalled resolver or mailer cannot hold the slots for good, and so is the
-`sendmail` it runs, unless the mailer catches `SIGALRM` itself, as Exim
-does. A child also stops on the signals that stop the daemon.
+declared once its alert goes out, or at once with `-q`. A child is killed
+after two minutes, so a stalled resolver or mailer cannot hold the slots
+for good, and so is the `sendmail` it runs, unless the mailer catches
+`SIGALRM` itself, as Exim does. A child also stops on the signals that
+stop the daemon.
 
 ## Testing
 

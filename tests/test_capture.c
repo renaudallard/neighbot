@@ -291,6 +291,18 @@ test_learned_subnet(void)
 	ASSERT(capture_is_local("eth0", AF_INET6, ip_out) == 0,
 	    "a short refresh with keep_longer cut the prefix short");
 
+	/* the prefixes learned on an interface that is gone are forgotten,
+	 * and those of the others are kept */
+	r = capture_add_learned_subnet("eth9", AF_INET6, ip_out, 64, 3600, 0);
+	ASSERT(r == 1, "learning a prefix on eth9 should return 1");
+	ASSERT(capture_is_local_any(AF_INET6, ip_out) == 1,
+	    "a prefix learned on eth9 should be local to a monitored one");
+	capture_forget_learned("eth9");
+	ASSERT(capture_is_local_any(AF_INET6, ip_out) == 0,
+	    "the prefix of a forgotten interface is still local");
+	ASSERT(capture_is_local_any(AF_INET6, ip_in) == 1,
+	    "forgetting eth9 dropped the prefix of eth0");
+
 	/* prefix_len > 128 is rejected before the lifetime check */
 	r = capture_add_learned_subnet("eth0", AF_INET6, pfx, 200, 60, 0);
 	ASSERT(r == -1, "prefix_len > 128 should be rejected");

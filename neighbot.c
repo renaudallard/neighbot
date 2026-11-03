@@ -26,6 +26,10 @@
 
 #include <sys/stat.h>
 #include <sys/wait.h>
+#if defined(__NetBSD__)
+#include <sys/ioctl.h>
+#include <net/bpf.h>
+#endif
 
 #include <errno.h>
 #include <fcntl.h>
@@ -134,6 +138,24 @@ sanitise_stdfd(void)
 			close(n);
 		}
 	}
+}
+
+/*
+ * Whether the interface behind a capture descriptor has gone away while
+ * reading it reports nothing: NetBSD's BPF then returns no error and
+ * never POLLHUP, but BIOCGDLT fails once the interface is detached.
+ */
+static int
+bpf_detached(int fd)
+{
+#if defined(__NetBSD__)
+	u_int dlt;
+
+	return ioctl(fd, BIOCGDLT, &dlt) < 0 && errno == EINVAL;
+#else
+	(void)fd;
+	return 0;
+#endif
 }
 
 /*
@@ -492,7 +514,8 @@ main(int argc, char *argv[])
 			    PCAP_ERROR) {
 				log_err("pcap_dispatch(%s): %s", ifaces[i].name,
 				    pcap_geterr(ifaces[i].handle));
-			} else if (!(rev & POLLHUP))
+			} else if (!(rev & POLLHUP) &&
+			    !(recheck && bpf_detached(pfds[i].fd)))
 				continue;
 
 			log_err("interface %s is gone", ifaces[i].name);

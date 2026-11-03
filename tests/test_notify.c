@@ -94,9 +94,6 @@ test_child_count(void)
 	int p[2], started = 0, i;
 	pid_t other;
 
-	/* as reset_signals() does for the daemon: an ignored SIGCHLD
-	 * would have the children reaped before notify_reap_children() */
-	signal(SIGCHLD, SIG_DFL);
 	/* children inherit unwritten output, which valgrind flushes when
 	 * each one exits */
 	fflush(stdout);
@@ -140,6 +137,42 @@ test_child_count(void)
 	return 0;
 }
 
+/* A child that has ended but is not reaped yet frees its slot when a
+ * notification is due at the cap: it is reaped first. */
+static int
+test_reap_at_cap(void)
+{
+	siginfo_t si;
+	int i, r;
+
+	fflush(stdout);
+	for (i = 0; i < NOTIFY_MAX_INFLIGHT; i++) {
+		r = notify_fork();
+		if (r == 0)
+			_exit(0);
+		ASSERT(r == 1, "children up to the cap");
+	}
+	/* let them all end, without reaping them */
+	for (i = 0; i < NOTIFY_MAX_INFLIGHT; i++) {
+		memset(&si, 0, sizeof(si));
+		while (waitid(P_PID, (id_t)notify_pids[i], &si,
+		    WEXITED | WNOWAIT) < 0 && errno == EINTR)
+			;
+	}
+	r = notify_fork();
+	if (r == 0)
+		_exit(0);
+	ASSERT(r == 1, "a notification was refused with no child running");
+	for (i = 0; i < 500 && notify_inflight > 0; i++) {
+		notify_reap_children();
+		pause_10ms();
+	}
+	ASSERT(notify_inflight == 0, "notification children not counted down");
+
+	printf("  reap at the cap: ok\n");
+	return 0;
+}
+
 int
 main(void)
 {
@@ -150,7 +183,11 @@ main(void)
 	printf("test_notify:\n");
 	rc |= test_format_delta();
 	rc |= test_format_timestamp();
+	/* as reset_signals() does for the daemon: an ignored SIGCHLD
+	 * would have the children reaped before notify_reap_children() */
+	signal(SIGCHLD, SIG_DFL);
 	rc |= test_child_count();
+	rc |= test_reap_at_cap();
 
 	if (rc == 0)
 		printf("test_notify: all tests passed\n");

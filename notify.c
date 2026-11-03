@@ -79,7 +79,9 @@ close_inherited_fds(void)
  * call forks one child that does reverse DNS and runs sendmail. A
  * flood of events (e.g. spoofed in-subnet ARP) could otherwise spawn
  * children at packet rate, so refuse to fork past NOTIFY_MAX_INFLIGHT.
+ * Their pids are kept, so that only they are counted when reaped.
  */
+static pid_t notify_pids[NOTIFY_MAX_INFLIGHT];	/* 0 for a free slot */
 static int notify_inflight;
 static int notify_suppressed;
 
@@ -105,6 +107,13 @@ notify_fork(void)
 		return -1;
 	}
 	if (pid > 0) {
+		/* below the cap, so a slot is free */
+		for (int i = 0; i < NOTIFY_MAX_INFLIGHT; i++) {
+			if (notify_pids[i] == 0) {
+				notify_pids[i] = pid;
+				break;
+			}
+		}
 		notify_inflight++;
 		return 1;
 	}
@@ -120,13 +129,23 @@ notify_fork(void)
 	return 0;
 }
 
-/* Reap finished notification children (called from the main loop). */
+/* Reap finished notification children (called from the main loop). Any
+ * child is reaped, as neighbot may be PID 1 of a namespace, where orphans
+ * such as a mailer's delivery process are handed to it, but only the
+ * notification children are counted. */
 void
 notify_reap_children(void)
 {
-	while (waitpid(-1, NULL, WNOHANG) > 0) {
-		if (notify_inflight > 0)
-			notify_inflight--;
+	pid_t pid;
+
+	while ((pid = waitpid(-1, NULL, WNOHANG)) > 0) {
+		for (int i = 0; i < NOTIFY_MAX_INFLIGHT; i++) {
+			if (notify_pids[i] == pid) {
+				notify_pids[i] = 0;
+				notify_inflight--;
+				break;
+			}
+		}
 	}
 	/* clear suppression only well below the cap (hysteresis) so the
 	 * suppress/resume log does not flap while a flood holds the

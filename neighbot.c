@@ -534,6 +534,12 @@ main(int argc, char *argv[])
 			ifaces[i].fd = -1;
 			pfds[i].fd = -1;
 			active--;
+			/* its addresses are no longer those of a monitored
+			 * interface, nor those of another that takes its name:
+			 * forget its learned prefixes, and re-read the others */
+			capture_forget_learned(ifaces[i].name);
+			ifaces[i].name[0] = '\0';
+			refresh_addrs = 1;
 		}
 
 		/* A handle cannot be reopened after the privilege drop. When

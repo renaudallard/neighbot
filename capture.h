@@ -68,6 +68,7 @@ void capture_reset_own_ips(void);
 int  capture_add_learned_subnet(const char *iface, int af,
                                 const uint8_t *addr, int prefix_len,
                                 uint32_t lifetime_sec, int keep_longer);
+void capture_forget_learned(const char *iface);
 void capture_reset_learned_subnets(void);
 
 #if defined(__linux__)

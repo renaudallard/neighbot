@@ -242,6 +242,17 @@ fill:
 	return 1;
 }
 
+/* Forget the prefixes learned on iface, no longer monitored, so that
+ * they do not count as local to a monitored interface any more. */
+void
+capture_forget_learned(const char *iface)
+{
+	for (int i = 0; i < learned_count; i++) {
+		if (strcmp(learned[i].iface, iface) == 0)
+			learned[i].expires = 0;
+	}
+}
+
 void
 capture_reset_learned_subnets(void)
 {

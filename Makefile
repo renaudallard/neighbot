@@ -151,8 +151,9 @@ tests/test_probe: tests/test_probe.c probe.c log.c db.c oui.c
 tests/test_capture: tests/test_capture.c capture.c log.c
 	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(_FORTIFY) $(CPPFLAGS) $(CFLAGS) -o $@ tests/test_capture.c capture.c log.c $(LDFLAGS) $(_LIBS)
 
+# test_notify.c includes notify.c, to see its static count of children
 tests/test_notify: tests/test_notify.c notify.c db.c oui.c log.c
-	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(_FORTIFY) $(CPPFLAGS) $(CFLAGS) -o $@ tests/test_notify.c notify.c db.c oui.c log.c $(LDFLAGS) $(_LIBS)
+	$(CC) $(_STD) $(_GNU_SOURCE) $(_ALIAS) $(_FORTIFY) $(CPPFLAGS) $(CFLAGS) -o $@ tests/test_notify.c db.c oui.c log.c $(LDFLAGS) $(_LIBS)
 
 test-clean:
 	rm -f tests/test_parse tests/test_dbload tests/test_dbexpire tests/test_ouiload tests/test_probe tests/test_capture tests/test_notify

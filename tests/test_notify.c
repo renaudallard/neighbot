@@ -1,8 +1,12 @@
 /*
- * Test harness for format_delta() and format_timestamp().
+ * Test harness for format_delta(), format_timestamp() and the count of
+ * notification children. notify.c is included to see that count.
  * Designed to run under valgrind for leak checking.
  */
 
+#include <sys/types.h>
+
+#include <errno.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -10,9 +14,9 @@
 #include <string.h>
 #include <signal.h>
 #include <time.h>
+#include <unistd.h>
 
-#include "../neighbot.h"
-#include "../notify.h"
+#include "../notify.c"
 
 /* globals required by the linker */
 struct config          cfg;
@@ -71,6 +75,65 @@ test_format_timestamp(void)
 	return 0;
 }
 
+static void
+pause_10ms(void)
+{
+	struct timespec ts = { 0, 10 * 1000 * 1000 };
+
+	nanosleep(&ts, NULL);
+}
+
+/*
+ * Only notification children are counted against the cap: reaping
+ * another child, as one a launcher left or an orphan handed to neighbot
+ * as PID 1 of a namespace, frees no slot.
+ */
+static int
+test_child_count(void)
+{
+	int p[2], started = 0, i;
+	pid_t other;
+
+	ASSERT(pipe(p) == 0, "pipe");
+	for (i = 0; i < NOTIFY_MAX_INFLIGHT; i++) {
+		int r = notify_fork();
+
+		if (r == 0) {
+			char c;
+
+			close(p[1]);
+			if (read(p[0], &c, 1) < 0)
+				_exit(1);
+			_exit(0);
+		}
+		started += r == 1;
+	}
+	ASSERT(started == NOTIFY_MAX_INFLIGHT, "children up to the cap");
+
+	other = fork();
+	if (other == 0)
+		_exit(0);
+	ASSERT(other > 0, "fork");
+	for (i = 0; i < 500 && kill(other, 0) == 0; i++) {
+		notify_reap_children();
+		pause_10ms();
+	}
+	ASSERT(kill(other, 0) < 0 && errno == ESRCH, "other child not reaped");
+	ASSERT(notify_inflight == NOTIFY_MAX_INFLIGHT,
+	    "another child freed a notification slot");
+
+	close(p[0]);
+	close(p[1]);
+	for (i = 0; i < 500 && notify_inflight > 0; i++) {
+		notify_reap_children();
+		pause_10ms();
+	}
+	ASSERT(notify_inflight == 0, "notification children not counted down");
+
+	printf("  child count: ok\n");
+	return 0;
+}
+
 int
 main(void)
 {
@@ -81,6 +144,7 @@ main(void)
 	printf("test_notify:\n");
 	rc |= test_format_delta();
 	rc |= test_format_timestamp();
+	rc |= test_child_count();
 
 	if (rc == 0)
 		printf("test_notify: all tests passed\n");

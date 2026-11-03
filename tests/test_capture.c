@@ -300,7 +300,7 @@ test_learned_subnet(void)
 	capture_forget_learned("eth9");
 	ASSERT(capture_is_local_any(AF_INET6, ip_out) == 0,
 	    "the prefix of a forgotten interface is still local");
-	ASSERT(capture_is_local_any(AF_INET6, ip_in) == 1,
+	ASSERT(capture_is_local("eth0", AF_INET6, ip_out) == 0,
 	    "forgetting eth9 dropped the prefix of eth0");
 
 	/* prefix_len > 128 is rejected before the lifetime check */

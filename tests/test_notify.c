@@ -94,6 +94,9 @@ test_child_count(void)
 	int p[2], started = 0, i;
 	pid_t other;
 
+	/* as reset_signals() does for the daemon: an ignored SIGCHLD
+	 * would have the children reaped before notify_reap_children() */
+	signal(SIGCHLD, SIG_DFL);
 	/* children inherit unwritten output, which valgrind flushes when
 	 * each one exits */
 	fflush(stdout);

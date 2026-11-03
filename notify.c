@@ -90,6 +90,7 @@ static int notify_suppressed;
 static int
 notify_fork(void)
 {
+	sigset_t stop, mask;
 	pid_t pid;
 
 	/* a child that ended since the main loop last reaped still holds
@@ -105,9 +106,17 @@ notify_fork(void)
 		return -1;
 	}
 
+	/* Hold the signals that stop the daemon across fork(): until the
+	 * child gives them their default action, one would only run the
+	 * daemon's handler in it, and the child would go on and mail. */
+	sigemptyset(&stop);
+	sigaddset(&stop, SIGTERM);
+	sigaddset(&stop, SIGINT);
+	sigprocmask(SIG_BLOCK, &stop, &mask);
 	pid = fork();
 	if (pid < 0) {
 		log_err("notify: fork: %s", strerror(errno));
+		sigprocmask(SIG_SETMASK, &mask, NULL);
 		return -1;
 	}
 	if (pid > 0) {
@@ -119,16 +128,19 @@ notify_fork(void)
 			}
 		}
 		notify_inflight++;
+		sigprocmask(SIG_SETMASK, &mask, NULL);
 		return 1;
 	}
 
 	/* The child takes the default action on the signals that stop the
-	 * daemon, so that stopping the service ends it too, but keeps its
-	 * handlers for SIGHUP and SIGUSR1, which a reload with pkill also
-	 * sends it, rather than lose its mail. It gives up on a stalled
-	 * resolver or mailer instead of holding its slot for good. */
+	 * daemon, so that stopping the service ends it too, even when the
+	 * request came while they were held, but keeps its handlers for
+	 * SIGHUP and SIGUSR1, which a reload with pkill also sends it,
+	 * rather than lose its mail. It gives up on a stalled resolver or
+	 * mailer instead of holding its slot for good. */
 	signal(SIGTERM, SIG_DFL);
 	signal(SIGINT, SIG_DFL);
+	sigprocmask(SIG_SETMASK, &mask, NULL);
 	alarm(NOTIFY_TIMEOUT);
 	return 0;
 }

@@ -502,31 +502,38 @@ main(int argc, char *argv[])
 			break;
 		}
 
-		/* Also call pcap_dispatch() once a second on every handle,
-		 * and check that its interface is still there. On Linux a
-		 * link going down is reported once as POLLERR (ENETDOWN) and
-		 * the socket works again when the link comes back, so a
-		 * removal later raises no further event; a rename raises none
-		 * at all, nor does a removal on NetBSD (see iface_gone()). */
+		/* A handle is only read when poll() reports it: with
+		 * zero-copy BPF on FreeBSD, libpcap spins reading one with
+		 * nothing to read. Once a second, also check that each
+		 * interface is still there. On Linux a link going down is
+		 * reported once as POLLERR (ENETDOWN) and the socket works
+		 * again when the link comes back, so a removal later raises no
+		 * further event; a rename raises none at all, nor does a
+		 * removal on NetBSD (see iface_gone()). */
 		time_t tick = time(NULL);
 		int recheck = (tick != last_tick);
 
 		last_tick = tick;
 		for (int i = 0; i < nifaces; i++) {
 			short rev = pfds[i].revents;
+			int gone = 0;
 
 			if (pfds[i].fd < 0)
 				continue;
-			if (!(rev & (POLLIN | POLLHUP | POLLERR)) && !recheck)
-				continue;
-
-			if (pcap_dispatch(ifaces[i].handle, DISPATCH_MAX,
-			    parse_packet, (u_char *)ifaces[i].name) ==
-			    PCAP_ERROR) {
-				log_err("pcap_dispatch(%s): %s", ifaces[i].name,
-				    pcap_geterr(ifaces[i].handle));
-			} else if (!(rev & POLLHUP) &&
-			    !(recheck && iface_gone(&ifaces[i])))
+			if (rev & (POLLIN | POLLHUP | POLLERR)) {
+				if (pcap_dispatch(ifaces[i].handle,
+				    DISPATCH_MAX, parse_packet,
+				    (u_char *)ifaces[i].name) == PCAP_ERROR) {
+					log_err("pcap_dispatch(%s): %s",
+					    ifaces[i].name,
+					    pcap_geterr(ifaces[i].handle));
+					gone = 1;
+				} else if (rev & POLLHUP)
+					gone = 1;
+			}
+			if (!gone && recheck)
+				gone = iface_gone(&ifaces[i]);
+			if (!gone)
 				continue;
 
 			log_err("interface %s is gone", ifaces[i].name);

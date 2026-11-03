@@ -32,7 +32,7 @@
 
 struct iface {
 	char        name[32];
-	unsigned    index;	/* if_nametoindex() when opened */
+	unsigned    index;	/* the interface the capture is bound to */
 	pcap_t     *handle;
 	int         fd;
 	uint8_t     local_mac[6];

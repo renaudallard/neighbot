@@ -531,8 +531,9 @@ when privileges cannot be dropped or
 .Xr pledge 2
 fails, when no monitored interface is left (the one given with
 .Fl i ,
-or the last one, has gone away; a supervisor can then restart it and
-pick the interface up again if it comes back),
+or the last one, has gone away, as when it is deleted or renamed; a
+supervisor can then restart it and pick the interface up again if it
+comes back),
 when waiting for packets fails, or when a report cannot be written or
 mailed.
 .Sh SEE ALSO

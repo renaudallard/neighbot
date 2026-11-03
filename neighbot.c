@@ -502,11 +502,12 @@ main(int argc, char *argv[])
 			break;
 		}
 
-		/* Also call pcap_dispatch() once a second on every handle.
-		 * On Linux a link going down is reported once as POLLERR
-		 * (ENETDOWN) and the socket works again when the link comes
-		 * back, so only libpcap can tell whether the interface was
-		 * later removed, and that raises no further event. */
+		/* Also call pcap_dispatch() once a second on every handle,
+		 * and check that its interface is still there. On Linux a
+		 * link going down is reported once as POLLERR (ENETDOWN) and
+		 * the socket works again when the link comes back, so a
+		 * removal later raises no further event; a rename raises none
+		 * at all, nor does a removal on NetBSD (see iface_gone()). */
 		time_t tick = time(NULL);
 		int recheck = (tick != last_tick);
 

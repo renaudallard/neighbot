@@ -94,6 +94,9 @@ test_child_count(void)
 	int p[2], started = 0, i;
 	pid_t other;
 
+	/* children inherit unwritten output, which valgrind flushes when
+	 * each one exits */
+	fflush(stdout);
 	ASSERT(pipe(p) == 0, "pipe");
 	for (i = 0; i < NOTIFY_MAX_INFLIGHT; i++) {
 		int r = notify_fork();

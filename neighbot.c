@@ -602,10 +602,11 @@ check_signals:
 			/* Debounce db_save so an on-link flip-flop or
 			 * new-address flood cannot force a full fsync'd
 			 * rewrite every loop iteration; bursts coalesce into
-			 * one save per interval. A clean shutdown still saves
-			 * unconditionally below. The now < last_save guard
-			 * keeps a backward clock step from starving the save. */
-			if (save && (now < last_save ||
+			 * one save per interval. A clean shutdown saves
+			 * unconditionally below, so a save is left to it once
+			 * quit is set. The now < last_save guard keeps a
+			 * backward clock step from starving the save. */
+			if (save && !quit && (now < last_save ||
 			    now - last_save >= SAVE_MIN_INTERVAL)) {
 				save = 0;
 				db_save(cfg.dbfile);

@@ -160,8 +160,8 @@ storm_check(int af, const uint8_t *ip, const uint8_t *mac,
 				char ipstr[INET6_ADDRSTRLEN];
 
 				inet_ntop(af, ip, ipstr, sizeof(ipstr));
-				log_msg("address conflict storm for %s "
-				    "appears resolved", ipstr);
+				log_msg("address conflict storm for %s on %s "
+				    "appears resolved", ipstr, s->iface);
 				memset(s, 0, sizeof(*s));
 				empty = found;
 				found = -1;

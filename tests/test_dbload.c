@@ -674,6 +674,55 @@ test_clock_back(void)
 	unlink(TEST_TMP);
 }
 
+/* A station first seen with the clock an hour ahead and seen again once
+ * it is set right keeps that last sighting when the host then suspends:
+ * the monotonic clock stops during a suspend on Linux, so the first
+ * sighting is placed late, and last_seen must not follow it. To the
+ * placement a suspend looks like the wall clock stepping forward. */
+static void
+test_clock_suspend(void)
+{
+	uint8_t ip[4] = { 10, 0, 0, 9 };
+	uint8_t mac[6] = { 0xde, 0xad, 0xbe, 0xef, 0x00, 0x09 };
+	uint8_t old[6];
+	char first[32], last[32], lo[32], hi[32];
+	time_t t, ols;
+	struct tm tm;
+
+	db_init();
+	clock_step = 3600;
+	if (db_update(AF_INET, ip, mac, "eth1", old, &ols) != EVENT_NEW) {
+		fprintf(stderr, "FAIL: station not new\n");
+		exit(1);
+	}
+	clock_step = 0;
+	t = time(NULL) - 1;
+	localtime_r(&t, &tm);
+	strftime(lo, sizeof(lo), "%Y-%m-%dT%H:%M:%S", &tm);
+	if (db_update(AF_INET, ip, mac, "eth1", old, &ols) != 0) {
+		fprintf(stderr, "FAIL: wrong event with the clock set right\n");
+		exit(1);
+	}
+	t = time(NULL) + 1;
+	localtime_r(&t, &tm);
+	strftime(hi, sizeof(hi), "%Y-%m-%dT%H:%M:%S", &tm);
+	clock_step = 1800;
+	db_save(TEST_TMP);
+	clock_step = 0;
+	saved_field(TEST_TMP, "10.0.0.9", 3, first, sizeof(first));
+	saved_field(TEST_TMP, "10.0.0.9", 4, last, sizeof(last));
+	if (strcmp(last, lo) < 0 || strcmp(last, hi) > 0 ||
+	    strcmp(first, last) > 0) {
+		fprintf(stderr, "FAIL: after a suspend, a station first seen "
+		    "with the clock ahead was saved as first seen %s, last seen "
+		    "%s, not last seen between %s and %s\n", first, last, lo,
+		    hi);
+		exit(1);
+	}
+	db_free();
+	unlink(TEST_TMP);
+}
+
 /* A row whose first_seen is later than its last_seen, as 0.5.17 wrote
  * after the clock was set back, is read as first seen at its last
  * sighting, and a later sighting does not move that. */
@@ -850,6 +899,7 @@ main(void)
 	test_clock_behind();
 	test_clock_ahead();
 	test_clock_back();
+	test_clock_suspend();
 	test_first_after_last();
 	test_nonexistent();
 	test_oversized_line();
